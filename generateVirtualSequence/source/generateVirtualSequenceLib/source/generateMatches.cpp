@@ -37,7 +37,7 @@ void reOrderSortMatches(std::vector<cv::DMatch> &matches,
                         std::vector<cv::KeyPoint> &kp2NoError,
                         std::vector<bool> &inliers,
                         std::vector<cv::Mat> &homos,
-                        std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp,
+                        std::vector<std::pair<std::pair<size_t,cv::KeyPoint>, std::pair<size_t,cv::KeyPoint>>> &srcImgIdxAndKp,
                         std::vector<int> &corrType,
                         std::vector<cv::Mat> &homosCam1);
 bool getNrEntriesYAML(const std::string &filename, const string &buzzword, int &nrEntries);
@@ -298,6 +298,12 @@ bool genMatchSequ::generateMatches(){
 
         //Calculate the norm of the translation vector of the actual stereo configuration
         actNormT = norm(actT);
+
+        //Update linear correspondence index
+        updateLinearIdx();
+
+        //Get most used images of actual frame
+        getMostUsedImgs();
 
         //Generate matching keypoints and descriptors and store them (in addition to other information) to disk
         if(!generateCorrespondingFeatures()){
@@ -1143,7 +1149,7 @@ bool genMatchSequ::getFeatures() {
         if (nrImgs <= maxImgLoad) {
             imgs.reserve(nrImgs);
         }
-        for (size_t i = 0; i < nrImgs; ++i) {
+        for (size_t i = 0; i < imageList.size(); ++i) {
             //Load image
             Mat img;
             if (nrImgs <= maxImgLoad) {
@@ -1203,6 +1209,10 @@ bool genMatchSequ::getFeatures() {
         nrGrossTNFullSequWarped += gross_part;
         nrTPFullSequWarped += tp_part;
         nrCorrsExtractWarped = kpCnt;
+    }else{
+        if (nrImgs <= maxImgLoad) {
+            imgs.reserve(nrImgs);
+        }
     }
 
     //Calculate statistics for bad descriptor distances
@@ -1226,15 +1236,20 @@ bool genMatchSequ::getFeatures() {
         descriptors1_tmp.copyTo(descriptors1);
     }
 
+    //Generate index for correspondences
+    buildCorrsIdx();
+
+    kpCnt = corrToIdxMap.size();
+
     //Init index to keypoints, descriptors and featureImgIdx with optionally containing duplicates
     bool repStereo = !(nearZero(parsMtch.repeatPatternPortStereo.first) && nearZero(parsMtch.repeatPatternPortStereo.second));
     bool repFrame = !(nearZero(parsMtch.repeatPatternPortFToF.first) && nearZero(parsMtch.repeatPatternPortFToF.second));
     if(!repFrame && !repStereo) {
-        featureIdxRepPatt = vector<size_t>(featureImgIdx.size());
+        featureIdxRepPatt = vector<size_t>(kpCnt);
         std::iota(featureIdxRepPatt.begin(), featureIdxRepPatt.end(), 0);
     }else{
         size_t kpCnt2 = 0, sum_idxs = 0;
-        vector<size_t> kpPtr(featureImgIdx.size());
+        vector<size_t> kpPtr(kpCnt);
         std::iota(kpPtr.begin(), kpPtr.end(), 0);
         double repPortF = 0;
         if(repFrame){
@@ -1463,38 +1478,25 @@ bool genMatchSequ::getFeatures() {
         nrFramesGenMatches = totalNrFrames;
     }
 
-    //Get most used keypoint images per frame to avoid holding all images in memory in the case a huge amount of images is used
-    //Thus, only the maxImgLoad images from which the most keypoints for a single frame are used are loaded into memory
-    if(nrImgs > maxImgLoad){
-        size_t featureIdx = 0;
+    //Prepare map of most used images ( calculation is performed in getMostUsedImgs() )
+    imgFrameIdxMap.resize(nrFramesGenMatches);
+    if(nrImgs > maxImgLoad) {
         loadImgsEveryFrame = true;
-        imgFrameIdxMap.resize(nrFramesGenMatches);
-        for(size_t i = 0; i < nrFramesGenMatches; ++i){
-            vector<pair<size_t,size_t>> imgUsageFrequ;
-            map<size_t,size_t> imgIdx;
-            imgUsageFrequ.emplace_back(make_pair(featureImgIdx[featureIdxRepPatt[featureIdx]], 1));
-            imgIdx[featureImgIdx[featureIdxRepPatt[featureIdx]]] = 0;
-            featureIdx++;
-            size_t idx = 1;
-            for (size_t j = 1; j < nrCorrs[i]; ++j) {
-                if(imgIdx.find(featureImgIdx[featureIdxRepPatt[featureIdx]]) != imgIdx.end()){
-                    imgUsageFrequ[imgIdx[featureImgIdx[featureIdxRepPatt[featureIdx]]]].second++;
-                }else{
-                    imgUsageFrequ.emplace_back(make_pair(featureImgIdx[featureIdxRepPatt[featureIdx]], 1));
-                    imgIdx[featureImgIdx[featureIdxRepPatt[featureIdx]]] = idx;
-                    idx++;
-                }
-                featureIdx++;
-            }
-            //Sort based on frequency of usage
-            sort(imgUsageFrequ.begin(),
-                    imgUsageFrequ.end(),
-                    [](pair<size_t,size_t> &first, pair<size_t,size_t> &second){return first.second > second.second;});
-            for(size_t j = 0; j < min(maxImgLoad, imgUsageFrequ.size()); ++j){
-                imgFrameIdxMap[i].first[imgUsageFrequ[j].first] = j;
-                imgFrameIdxMap[i].second.push_back(imgUsageFrequ[j].first);
+    }else{
+        loadImgsEveryFrame = false;
+        for (size_t i = 0; i < imageList.size(); ++i) {
+            imgFrameIdxMap[0].first[i] = i;
+            imgFrameIdxMap[0].second.push_back(i);
+        }
+        if (gtmdata.isValid()) {
+            size_t i = imgFrameIdxMap[0].second.size();
+            for (auto &idn: gtmdata.uniqueImgIDTo1ImgName) {
+                imgFrameIdxMap[0].first[idn.first] = i++;
+                imgFrameIdxMap[0].second.push_back(idn.first);
+                imgs.emplace_back(cv::imread(*idn.second, IMREAD_GRAYSCALE));
             }
         }
+        imgFrameIdxMap.insert(imgFrameIdxMap.end(), nrFramesGenMatches - 1, imgFrameIdxMap[0]);
     }
 
     return true;
@@ -1513,6 +1515,9 @@ void genMatchSequ::buildCorrsIdx(){
     if(nrTNwarpSingle > 0){
         corrTypeIdx.insert(corrTypeIdx.end(), nrTNwarpSingle, 2);
     }
+    for (size_t j = 0; j < imageList.size(); ++j) {
+        uniqueImgIDToName.emplace(j, &imageList[j]);
+    }
     size_t min_idx = 0;
     if(gtmdata.isValid()){
         //Generate IDs for images
@@ -1520,16 +1525,30 @@ void genMatchSequ::buildCorrsIdx(){
         size_t idx = min_idx;
         gtmdata.imgIDToImgNamesAll.clear();
         gtmdata.gtmIdxToImgID.clear();
+        gtmdata.ImgNamesToImgID.clear();
         for(size_t i = 0; i < gtmdata.imgNamesAll.size(); ++i){
             gtmdata.imgIDToImgNamesAll.emplace(idx, make_pair(i, false));
+            if(gtmdata.ImgNamesToImgID.find(gtmdata.imgNamesAll[i].first) == gtmdata.ImgNamesToImgID.end()){
+                gtmdata.ImgNamesToImgID.emplace(gtmdata.imgNamesAll[i].first, std::vector<size_t>(1, idx));
+                gtmdata.uniqueImgIDTo1ImgName.emplace(idx, &(gtmdata.imgNamesAll[i].first));
+            }else{
+                gtmdata.ImgNamesToImgID.at(gtmdata.imgNamesAll[i].first).push_back(idx);
+            }
             gtmdata.gtmIdxToImgID.emplace(make_pair(i, false), idx++);
             gtmdata.imgIDToImgNamesAll.emplace(idx, make_pair(i, true));
+            if(gtmdata.ImgNamesToImgID.find(gtmdata.imgNamesAll[i].second) == gtmdata.ImgNamesToImgID.end()){
+                gtmdata.ImgNamesToImgID.emplace(gtmdata.imgNamesAll[i].second, std::vector<size_t>(1, idx));
+                gtmdata.uniqueImgIDTo1ImgName.emplace(idx, &(gtmdata.imgNamesAll[i].second));
+            }else{
+                gtmdata.ImgNamesToImgID.at(gtmdata.imgNamesAll[i].second).push_back(idx);
+            }
             gtmdata.gtmIdxToImgID.emplace(make_pair(i, true), idx++);
         }
         corrTypeIdx.insert(corrTypeIdx.end(), gtmdata.useNrTP, 3);
         if(nrGrossTNFullSequGTM > 0){
             corrTypeIdx.insert(corrTypeIdx.end(), nrGrossTNFullSequGTM, 4);
         }
+        uniqueImgIDToName.insert(gtmdata.uniqueImgIDTo1ImgName.begin(), gtmdata.uniqueImgIDTo1ImgName.end());
     }
     vector<std::size_t> idx;
     shuffleVector(idx, corrTypeIdx.size());
@@ -1613,7 +1632,9 @@ void genMatchSequ::buildCorrsIdx(){
                                                                  idx_gtm_TP,
                                                                  id_run,
                                                                  gtmdata.getImgIDbyGTMIdx(gtm_idx1, false),
-                                                                 gtmdata.getImgIDbyGTMIdx(gtm_idx1, true)));
+                                                                 gtmdata.getImgIDbyGTMIdx(gtm_idx1, true),
+                                                                 gtmdata.ImgNamesToImgID.at(gtmdata.imgNamesAll[gtm_idx1].first)[0],
+                                                                 gtmdata.ImgNamesToImgID.at(gtmdata.imgNamesAll[gtm_idx1].second)[0]));
                     idx_gtm_TP++;
                     tntpindexer.addTPID(id_run);
                     type_cache.pop_back();
@@ -1635,7 +1656,9 @@ void genMatchSequ::buildCorrsIdx(){
                                                                  idx_gtm_TN,
                                                                  id_run,
                                                                  gtmdata.getImgIDbyGTMIdx(gtm_idx1, false),
-                                                                 gtmdata.getImgIDbyGTMIdx(gtm_idx1, true)));
+                                                                 gtmdata.getImgIDbyGTMIdx(gtm_idx1, true),
+                                                                 gtmdata.ImgNamesToImgID.at(gtmdata.imgNamesAll[gtm_idx1].first)[0],
+                                                                 gtmdata.ImgNamesToImgID.at(gtmdata.imgNamesAll[gtm_idx1].second)[0]));
                     idx_gtm_TN++;
                     tntpindexer.addTNID(id_run);
                     type_cache.pop_back();
@@ -1651,6 +1674,69 @@ void genMatchSequ::buildCorrsIdx(){
     }
 }
 
+void genMatchSequ::getMostUsedImgs(){
+    //Get most used keypoint images per frame to avoid holding all images in memory in the case a huge amount of images is used
+    //Thus, only the maxImgLoad images from which the most keypoints for a single frame are used are loaded into memory
+    if(loadImgsEveryFrame){
+        size_t featureIdx = featureIdxBegin;
+        vector<pair<size_t,size_t>> imgUsageFrequ;
+        map<size_t,size_t> imgIdx;
+        size_t corr_id = tntpindexer.getCorrID(featureIdxRepPatt[featureIdx]);
+        KeypointIndexer *kpinfo = &corrToIdxMap.at(corr_id);
+        size_t uimgID = kpinfo->getUniqueImgID1();
+        imgUsageFrequ.emplace_back(make_pair(uimgID, 1));
+        imgIdx[uimgID] = 0;
+        size_t idx = 1;
+        if(kpinfo->isUniqueImgID2Valid()){
+            uimgID = kpinfo->getUniqueImgID2();
+            imgUsageFrequ.emplace_back(make_pair(uimgID, 1));
+            imgIdx[uimgID] = 1;
+            idx++;
+        }
+        featureIdx++;
+        for (size_t j = 1; j < nrCorrs[actFrameCnt]; ++j) {
+            corr_id = tntpindexer.getCorrID(featureIdxRepPatt[featureIdx]);
+            kpinfo = &corrToIdxMap.at(corr_id);
+            uimgID = kpinfo->getUniqueImgID1();
+            if(imgIdx.find(uimgID) != imgIdx.end()){
+                imgUsageFrequ[imgIdx[uimgID]].second++;
+            }else{
+                imgUsageFrequ.emplace_back(make_pair(uimgID, 1));
+                imgIdx[uimgID] = idx;
+                idx++;
+            }
+            if(kpinfo->isUniqueImgID2Valid()){
+                uimgID = kpinfo->getUniqueImgID2();
+                if(imgIdx.find(uimgID) != imgIdx.end()){
+                    imgUsageFrequ[imgIdx[uimgID]].second++;
+                }else{
+                    imgUsageFrequ.emplace_back(make_pair(uimgID, 1));
+                    imgIdx[uimgID] = idx;
+                    idx++;
+                }
+            }
+            featureIdx++;
+        }
+        //Sort based on frequency of usage
+        sort(imgUsageFrequ.begin(),
+             imgUsageFrequ.end(),
+             [](pair<size_t,size_t> &first, pair<size_t,size_t> &second){return first.second > second.second;});
+        for(size_t j = 0; j < min(maxImgLoad, imgUsageFrequ.size()); ++j){
+            imgFrameIdxMap[actFrameCnt].first[imgUsageFrequ[j].first] = j;
+            imgFrameIdxMap[actFrameCnt].second.push_back(imgUsageFrequ[j].first);
+        }
+    }
+}
+
+void genMatchSequ::updateLinearIdx(){
+    for (int i = 0; i < combNrCorrsTP; ++i) {
+        tntpindexer.getNextTPID();
+    }
+    for (int i = 0; i < combNrCorrsTN; ++i) {
+        tntpindexer.getNextTNID();
+    }
+}
+
 bool genMatchSequ::generateCorrespondingFeatures(){
 //    static size_t featureIdxBegin = 0;
     //Load images if not already done
@@ -1658,7 +1744,7 @@ bool genMatchSequ::generateCorrespondingFeatures(){
         imgs.clear();
         imgs.reserve(imgFrameIdxMap[actFrameCnt].second.size());
         for(auto& i : imgFrameIdxMap[actFrameCnt].second){
-            imgs.emplace_back(cv::imread(imageList[i], IMREAD_GRAYSCALE));
+            imgs.emplace_back(cv::imread(*uniqueImgIDToName.at(i), IMREAD_GRAYSCALE));
         }
     }
     size_t featureIdxBegin_tmp = featureIdxBegin;
@@ -1861,19 +1947,33 @@ bool genMatchSequ::writeMatchesToDisk(){
     }
     fs << "]";
 
-    fs.writeComment("Holds the keypoints from the images used to extract patches (image indices for keypoints "
-                        "are stored in srcImgPatchKpImgIdx)");
+    fs.writeComment("Holds the keypoints from the images used to extract patches for the first keypoint of a match "
+                        "(image indices for keypoints are stored in srcImgPatchKpImgIdx1)");
     vector<KeyPoint> origKps;
     origKps.reserve(srcImgPatchIdxAndKp.size());
     for (auto &i : srcImgPatchIdxAndKp){
-        origKps.push_back(i.second);
+        origKps.push_back(i.first.second);
     }
-    fs << "srcImgPatchKp" << origKps;
+    fs << "srcImgPatchKp1" << origKps;
     fs.writeComment("Holds the image indices of the images used to extract patches for every keypoint in "
-                        "srcImgPatchKp (same order)");
-    fs << "srcImgPatchKpImgIdx" << "[";
+                        "srcImgPatchKp1 (same order)");
+    fs << "srcImgPatchKpImgIdx1" << "[";
     for (auto &i : srcImgPatchIdxAndKp) {
-        fs << (int)i.first;
+        fs << (int)i.first.first;
+    }
+    fs << "]";
+    fs.writeComment("Holds the keypoints from the images used to extract patches for the second keypoint of a match. "
+                    "(image indices for keypoints are stored in srcImgPatchKpImgIdx2)");
+    size_t idx = 0;
+    for (auto &i : srcImgPatchIdxAndKp){
+        origKps[idx++] = i.second.second;
+    }
+    fs << "srcImgPatchKp2" << origKps;
+    fs.writeComment("Holds the image indices of the images used to extract patches for every keypoint in "
+                    "srcImgPatchKp2 (same order)");
+    fs << "srcImgPatchKpImgIdx2" << "[";
+    for (auto &i : srcImgPatchIdxAndKp) {
+        fs << (int)i.second.first;
     }
     fs << "]";
 
@@ -1900,7 +2000,7 @@ void reOrderSortMatches(std::vector<cv::DMatch> &matches,
                         std::vector<cv::KeyPoint> &kp2NoError,
                         std::vector<bool> &inliers,
                         std::vector<cv::Mat> &homos,
-                        std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp,
+                        std::vector<std::pair<std::pair<size_t,cv::KeyPoint>, std::pair<size_t,cv::KeyPoint>>> &srcImgIdxAndKp,
                         std::vector<int> &corrType,
                         std::vector<cv::Mat> &homosCam1){
     CV_Assert((descriptor1.rows == descriptor2.rows)
@@ -1976,12 +2076,15 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
                                                      cv::Mat &frameDescr2,
                                                      std::vector<cv::DMatch> &frameMatches,
                                                      std::vector<cv::Mat> &homo,
-                                                     std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp,
+                                                     std::vector<std::pair<std::pair<size_t,cv::KeyPoint>,
+                                                             std::pair<size_t,cv::KeyPoint>>> &srcImgIdxAndKp,
                                                      std::vector<cv::Mat> *homoCam1){
     //Generate feature for every TP or TN
 //    int show_cnt = 0;
 //    const int show_interval = 50;
     size_t featureIdx = featureIdxBegin_;
+    size_t initCorrID = tntpindexer.getCorrID(featureIdxRepPatt[featureIdx]);
+    KeypointIndexer &initkp = corrToIdxMap.at(initCorrID);
 
     //Calculate image intensity noise distribution for TNs
     double stdNoiseTN = getRandDoubleValRng(2.0, 10.0);
@@ -1989,9 +2092,9 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
     meanIntTNNoise *= pow(-1.0, (double)(rand2() % 2));
 
     //Check if we need to calculate a keypoint position in the warped patch
-    bool kpCalcNeeded = !nearZero((double)keypoints1[featureIdxRepPatt[featureIdx]].angle + 1.0)
-            || (keypoints1[featureIdxRepPatt[featureIdx]].octave != 0)
-            || (keypoints1[featureIdxRepPatt[featureIdx]].class_id != -1);
+    bool kpCalcNeeded = !nearZero((double)initkp.getKeypoint1().angle + 1.0)
+            || (initkp.getKeypoint1().octave != 0)
+            || (initkp.getKeypoint1().class_id != -1);
 
     //Maximum descriptor distance for TP
     double ThTp = badDescrTH.median + (badDescrTH.maxVal - badDescrTH.median) / 3.0;
@@ -2022,11 +2125,15 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
         patchInfos.featureIdx_tmp = featureIdx;
         patchInfos.i = i;
         //Check if the feature index is higher than the available nr of features
-        if (patchInfos.featureIdx_tmp >= featureImgIdx.size()){
+        if (patchInfos.featureIdx_tmp >= tntpindexer.size()){
             //Set the index to a random number in the allowed range
-            cerr << "Feature index out of range for a few correspondences. Using new random index which "
-                    "will point to an already used feature." << endl;
-            patchInfos.featureIdx_tmp = (size_t)rand2() % featureImgIdx.size();
+            cerr << "Feature index out of range for a few correspondences. Using new index which "
+                    "might point to an already used feature." << endl;
+            if(useTN) {
+                patchInfos.featureIdx_tmp = tntpindexer.getNextTNID();
+            }else{
+                patchInfos.featureIdx_tmp = tntpindexer.getNextTPID();
+            }
         }
         patchInfos.visualize = false;
         if((verbose & SHOW_PLANES_FOR_HOMOGRAPHY) && ((patchInfos.show_cnt % patchInfos.show_interval) == 0)){
@@ -2082,22 +2189,44 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
         }
 
         //Get image (check if already in memory)
-        Mat img;
+        Mat img1, img2;
+        size_t corr_id = tntpindexer.getCorrID(featureIdxRepPatt[patchInfos.featureIdx_tmp]);
+        KeypointIndexer &kpinfo = corrToIdxMap.at(corr_id);
+        size_t uimgID1 = kpinfo.getUniqueImgID1();
+        size_t uimgID2 = kpinfo.getUniqueImgID2();
         if(loadImgsEveryFrame){
-            if(imgFrameIdxMap[actFrameCnt].first.find(featureImgIdx[featureIdxRepPatt[patchInfos.featureIdx_tmp]]) != imgFrameIdxMap[actFrameCnt].first.end()){
-                img = imgs[imgFrameIdxMap[actFrameCnt].first[featureImgIdx[featureIdxRepPatt[patchInfos.featureIdx_tmp]]]];
+            if(imgFrameIdxMap[actFrameCnt].first.find(uimgID1) != imgFrameIdxMap[actFrameCnt].first.end()){
+                img1 = imgs[imgFrameIdxMap[actFrameCnt].first[uimgID1]];
+            }else{
+                img1 = cv::imread(*uniqueImgIDToName.at(uimgID1), IMREAD_GRAYSCALE);
             }
-            else{
-                img = cv::imread(imageList[featureImgIdx[featureIdxRepPatt[patchInfos.featureIdx_tmp]]], IMREAD_GRAYSCALE);
+            if(kpinfo.has2Imgs()){
+                if(imgFrameIdxMap[actFrameCnt].first.find(uimgID2) != imgFrameIdxMap[actFrameCnt].first.end()){
+                    img2 = imgs[imgFrameIdxMap[actFrameCnt].first[uimgID2]];
+                }else{
+                    img2 = cv::imread(*uniqueImgIDToName.at(uimgID2), IMREAD_GRAYSCALE);
+                }
+            }else{
+                img2 = img1;
             }
         } else{
-            img = imgs[featureImgIdx[featureIdxRepPatt[patchInfos.featureIdx_tmp]]];
+            img1 = imgs[imgFrameIdxMap[actFrameCnt].first[uimgID1]];
+            if(kpinfo.has2Imgs()){
+                img2 = imgs[imgFrameIdxMap[actFrameCnt].first[uimgID2]];
+            }else{
+                img2 = img1;
+            }
         }
 
         //Extract image patch
-        KeyPoint kp = keypoints1[featureIdxRepPatt[patchInfos.featureIdx_tmp]];
-        srcImgIdxAndKp.emplace_back(make_pair(featureImgIdx[featureIdxRepPatt[patchInfos.featureIdx_tmp]],
-                keypoints1[featureIdxRepPatt[patchInfos.featureIdx_tmp]]));
+        KeyPoint kp1 = kpinfo.getKeypoint1();
+        KeyPoint kp2;
+        if(kpinfo.has2Imgs()) {
+            kp2 = kpinfo.getKeypoint2();
+        }else{
+            kp2 = kp1;
+        }
+        srcImgIdxAndKp.emplace_back(make_pair(uimgID1, kp1), make_pair(uimgID2, kp2));
 
         cv::KeyPoint kp21;
         cv::Point2f kp2err1 = cv::Point2f(0, 0);
@@ -2106,55 +2235,85 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
         bool c1_distort = false;
         if(!isIdentityMat(H1_dist)){
             patchInfos.succ = succCam1;
-            descr11 = calculateDescriptorWarped(img, kp, H1_dist, *homoCam1, patchInfos, kp21, kp2err1, descrDist1, true);
+            patchInfos.takeImg2FallBack = false;
+            descr11 = calculateDescriptorWarped(img1, kp1, H1_dist, *homoCam1, patchInfos, kp21, kp2err1, descrDist1, true);
             H = H1_dist * H;
             c1_distort = true;
         }else if(!useTN && (homoCam1 != nullptr)){
             homoCam1->emplace_back(Mat::eye(3, 3, CV_64FC1));
         }
 
-        cv::KeyPoint kp2;
+        cv::KeyPoint kp3;
         cv::Point2f kp2err = cv::Point2f(0, 0);
         double descrDist;
         patchInfos.succ = succ;
-        cv::Mat descr21 = calculateDescriptorWarped(img, kp, H, homo, patchInfos, kp2, kp2err, descrDist, false, H1_dist, descr11);
+        patchInfos.takeImg2FallBack = kpinfo.has2Imgs();
+        cv::Mat descr21;
+        if(!c1_distort && kpinfo.has2Imgs()){
+            homo.emplace_back(Mat::eye(3, 3, CV_64FC1));
+            kp3 = kp2;
+            if(useTN || (nearZero(parsMtch.keypErrDistr.first) && nearZero(parsMtch.keypErrDistr.second))) {
+                descr21 = kpinfo.getDescriptor2();
+                descrDist = kpinfo.getDescriptorDist();
+            }else {
+                distortKeyPointPosition(kp3, cv::Rect(Point(0, 0), img2.size()), patchInfos.distr);
+                vector<KeyPoint> kpv_tmp(1, kp3);
+                if (matchinglib::getDescriptors(img2,
+                                                kpv_tmp,
+                                                parsMtch.descriptorType,
+                                                descr21,
+                                                parsMtch.keyPointType) != 0) {
+                    kp3 = kp2;
+                    descr21 = kpinfo.getDescriptor2();
+                }
+                descrDist = kpinfo.getDescriptorDist(descr21);
+                if (descrDist > ThTp) {
+                    kp3 = kp2;
+                    descr21 = kpinfo.getDescriptor2();
+                    descrDist = kpinfo.getDescriptorDist();
+                }
+            }
+        }else {
+            descr21 = calculateDescriptorWarped(img2, kp2, H, homo, patchInfos, kp3, kp2err,
+                                                descrDist, false, H1_dist, descr11);
+        }
 
         //Store the keypoints and descriptors
         if(useTN){
-            kp.pt.x = (float) combCorrsImg1TN.at<double>(0, i);
-            kp.pt.y = (float) combCorrsImg1TN.at<double>(1, i);
-            kp2.pt.x = (float) combCorrsImg2TN.at<double>(0, i);
-            kp2.pt.y = (float) combCorrsImg2TN.at<double>(1, i);
+            kp1.pt.x = (float) combCorrsImg1TN.at<double>(0, i);
+            kp1.pt.y = (float) combCorrsImg1TN.at<double>(1, i);
+            kp3.pt.x = (float) combCorrsImg2TN.at<double>(0, i);
+            kp3.pt.y = (float) combCorrsImg2TN.at<double>(1, i);
         }else {
             if(c1_distort){
-                kp = kp21;
+                kp1 = kp21;
             }
-            kp.pt.x = (float) combCorrsImg1TP.at<double>(0, i);
-            kp.pt.y = (float) combCorrsImg1TP.at<double>(1, i);
-            kp2.pt.x = (float) combCorrsImg2TP.at<double>(0, i) + kp2err.x;
-            kp2.pt.y = (float) combCorrsImg2TP.at<double>(1, i) + kp2err.y;
-            if(kp2.pt.x > ((float)imgSize.width - 1.f)){
-                kp2err.x -= kp2.pt.x - (float)imgSize.width - 1.f;
-                kp2.pt.x = (float)imgSize.width - 1.f;
-            }else if(kp2.pt.x < 0){
-                kp2err.x -= kp2.pt.x;
-                kp2.pt.x = 0;
+            kp1.pt.x = (float) combCorrsImg1TP.at<double>(0, i);
+            kp1.pt.y = (float) combCorrsImg1TP.at<double>(1, i);
+            kp3.pt.x = (float) combCorrsImg2TP.at<double>(0, i) + kp2err.x;
+            kp3.pt.y = (float) combCorrsImg2TP.at<double>(1, i) + kp2err.y;
+            if(kp3.pt.x > ((float)imgSize.width - 1.f)){
+                kp2err.x -= kp3.pt.x - (float)imgSize.width - 1.f;
+                kp3.pt.x = (float)imgSize.width - 1.f;
+            }else if(kp3.pt.x < 0){
+                kp2err.x -= kp3.pt.x;
+                kp3.pt.x = 0;
             }
-            if(kp2.pt.y > ((float)imgSize.height - 1.f)){
-                kp2err.y -= kp2.pt.y - (float)imgSize.height - 1.f;
-                kp2.pt.y = (float)imgSize.height - 1.f;
-            }else if(kp2.pt.y < 0){
-                kp2err.y -= kp2.pt.y;
-                kp2.pt.y = 0;
+            if(kp3.pt.y > ((float)imgSize.height - 1.f)){
+                kp2err.y -= kp3.pt.y - (float)imgSize.height - 1.f;
+                kp3.pt.y = (float)imgSize.height - 1.f;
+            }else if(kp3.pt.y < 0){
+                kp2err.y -= kp3.pt.y;
+                kp3.pt.y = 0;
             }
             kpErrors.push_back((double)sqrt(kp2err.x * kp2err.x + kp2err.y * kp2err.y));
         }
-        frameKPs1[i] = kp;
-        frameKPs2[i] = kp2;
+        frameKPs1[i] = kp1;
+        frameKPs2[i] = kp3;
         if(c1_distort){
             frameDescr1.push_back(descr11.clone());
         }else {
-            frameDescr1.push_back(descriptors1.row((int) featureIdxRepPatt[patchInfos.featureIdx_tmp]).clone());
+            frameDescr1.push_back(kpinfo.getDescriptor1().clone());
         }
         frameDescr2.push_back(descr21.clone());
         frameMatches.emplace_back(DMatch(i, i, (float)descrDist));
@@ -2629,17 +2788,24 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
             useFallBack = true;
         }else{
             //Check matchability
+            const size_t corrID = tntpindexer.getCorrID(featureIdxRepPatt[patchInfos.featureIdx_tmp]);
             if(!forCam1 && !descr_cam1.empty()){
                 Mat descr1 = descr_cam1.getMat();
                 if(!descr1.empty()){
                     descrDist = getDescriptorDistance(descr1, descr21);
-                }
-                else{
-                    descrDist = getDescriptorDistance(descriptors1.row((int)featureIdxRepPatt[patchInfos.featureIdx_tmp]), descr21);
+                }else{
+                    if(patchInfos.takeImg2FallBack){
+                        descrDist = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor2(), descr21);
+                    }else {
+                        descrDist = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor1(), descr21);
+                    }
                 }
             }else {
-                descrDist = getDescriptorDistance(descriptors1.row((int) featureIdxRepPatt[patchInfos.featureIdx_tmp]),
-                                                  descr21);
+                if(patchInfos.takeImg2FallBack){
+                    descrDist = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor2(), descr21);
+                }else {
+                    descrDist = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor1(), descr21);
+                }
             }
             if(patchInfos.useTN){
                 if (((combDistTNtoReal[patchInfos.i] >= 10.0) && (descrDist < patchInfos.ThTn)) || (descrDist < patchInfos.ThTnNear)) {
@@ -2817,7 +2983,12 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                         cerr << "Unable to calculate a matching descriptor! Using the original one - "
                                 "this will result in a descriptor distance of 0 for this particular correspondence!"
                              << endl;
-                        descr21 = descriptors1.row((int)featureIdxRepPatt[patchInfos.featureIdx_tmp]).clone();
+                        const size_t corrID = tntpindexer.getCorrID(featureIdxRepPatt[patchInfos.featureIdx_tmp]);
+                        if(patchInfos.takeImg2FallBack){
+                            descr21 = corrToIdxMap.at(corrID).getDescriptor2().clone();
+                        }else {
+                            descr21 = corrToIdxMap.at(corrID).getDescriptor1().clone();
+                        }
                         break;
                     }else{
                         noPosChange = true;
@@ -2842,17 +3013,25 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
             }
             if((err == 0) && !itFI){
                 //Check matchability
+                const size_t corrID = tntpindexer.getCorrID(featureIdxRepPatt[patchInfos.featureIdx_tmp]);
                 if(!forCam1 && !descr_cam1.empty()){
                     Mat descr1 = descr_cam1.getMat();
                     if(!descr1.empty()){
                         descrDist = getDescriptorDistance(descr1, descr21);
                     }
                     else{
-                        descrDist = getDescriptorDistance(descriptors1.row((int)featureIdxRepPatt[patchInfos.featureIdx_tmp]), descr21);
+                        if(patchInfos.takeImg2FallBack){
+                            descrDist = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor2(), descr21);
+                        }else {
+                            descrDist = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor1(), descr21);
+                        }
                     }
                 }else {
-                    descrDist = getDescriptorDistance(
-                            descriptors1.row((int) featureIdxRepPatt[patchInfos.featureIdx_tmp]), descr21);
+                    if(patchInfos.takeImg2FallBack){
+                        descrDist = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor2(), descr21);
+                    }else {
+                        descrDist = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor1(), descr21);
+                    }
                 }
             }
             itCnt++;
@@ -2894,8 +3073,15 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                                                     desrc_tmp,
                                                     parsMtch.keyPointType) == 0) {
                         if (!pkp21.empty()) {
-                            double descrDist_tmp = getDescriptorDistance(descriptors1.row((int)featureIdxRepPatt[patchInfos.featureIdx_tmp]),
-                                                                         desrc_tmp);
+                            const size_t corrID = tntpindexer.getCorrID(featureIdxRepPatt[patchInfos.featureIdx_tmp]);
+                            double descrDist_tmp;
+                            if(patchInfos.takeImg2FallBack){
+                                descrDist_tmp = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor2(),
+                                                                      desrc_tmp);
+                            }else {
+                                descrDist_tmp = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor1(),
+                                                                      desrc_tmp);
+                            }
                             if (!nearZero(descrDist_tmp)) {
                                 cerr << "SOMETHING WENT WRONG: THE USED IMAGE PATCH IS NOT THE SAME AS FOR "
                                         "CALCULATING THE INITIAL DESCRIPTOR!" << endl;
@@ -2926,8 +3112,12 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                     }
                 }
 #endif
-
-                descr21 = descriptors1.row((int)featureIdxRepPatt[patchInfos.featureIdx_tmp]).clone();
+                const size_t corrID = tntpindexer.getCorrID(featureIdxRepPatt[patchInfos.featureIdx_tmp]);
+                if(patchInfos.takeImg2FallBack){
+                    descr21 = corrToIdxMap.at(corrID).getDescriptor2().clone();
+                }else {
+                    descr21 = corrToIdxMap.at(corrID).getDescriptor1().clone();
+                }
                 kp2 = kp;
                 kp2err = Point2f(0, 0);
                 descrDist = 0;
@@ -3857,8 +4047,9 @@ bool genMatchSequ::writeKeyPointErrorAndSrcImgs(double &meanErr, double &sdErr){
     fs << "{" << "mean" << meanErr;
     fs << "SD" << sdErr << "}";
     fs.writeComment("Image names and folders to images used to generate features and extract patches");
+    vector<string> imageNames = getIDSortedImgNameList();
     fs << "imageList" << "[";
-    for (auto &i : imageList) {
+    for (auto &i : imageNames) {
         fs << i;
     }
     fs << "]";
@@ -3876,6 +4067,14 @@ bool genMatchSequ::writeKeyPointErrorAndSrcImgs(double &meanErr, double &sdErr){
     fs.release();
 
     return true;
+}
+
+std::vector<std::string> genMatchSequ::getIDSortedImgNameList(){
+    vector<std::string> imgNames;
+    for(auto &i: uniqueImgIDToName){
+        imgNames.push_back(*i.second);
+    }
+    return imgNames;
 }
 
 bool genMatchSequ::writeMatchingParameters(){

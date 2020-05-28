@@ -26,6 +26,7 @@
 #include "opencv2/features2d/features2d.hpp"
 #include <tuple>
 #include <map>
+#include <unordered_map>
 #include <utility>
 #include <random>
 #include <exception>
@@ -122,8 +123,10 @@ struct GTMdata{
     std::vector<std::pair<size_t, size_t>> matchesTNAllIdx;//Shuffled vector indices for matchesGTAll (computed later on)
     std::vector<std::pair<std::string, std::string>> imgNamesAll;//Image names including paths of first and second source images corresponding to indices of keypLAll, keypRAll, leftInlierAll, rightInlierAll, matchesGTAll
     std::vector<char> sourceGT;//Indicates from which dataset GTM were calculated (O ... Oxford, K ... KITTI, M ... MegaDepth)
-    std::map<size_t, std::pair<size_t, bool>> imgIDToImgNamesAll;//Unique image ID pointing to imgNamesAll entry (false = first pair entry, true = second pair entry)  (computed later on)
+    std::unordered_map<size_t, std::pair<size_t, bool>> imgIDToImgNamesAll;//Unique image ID pointing to imgNamesAll entry (false = first pair entry, true = second pair entry)  (computed later on)
     std::map<std::pair<size_t, bool>, size_t> gtmIdxToImgID;//imgNamesAll entry index (false = first pair entry, true = second pair entry) pointing to unique image ID (computed later on)
+    std::unordered_map<std::string, std::vector<size_t>> ImgNamesToImgID;//Holds unique image names and their IDs (computed later on)
+    std::map<size_t, std::string*> uniqueImgIDTo1ImgName;//Holds pointers to first vector entries of ImgNamesToImgID (unique image ID) and their IDs (computed later on)
 
     explicit GTMdata(){
         sum_TP = 0;
@@ -173,14 +176,14 @@ struct GTMdata{
     }
 
     size_t getNumberImgs() const{
-        return imgNamesAll.size() * 2;
+        return ImgNamesToImgID.size();
     }
 
     std::string getImgNameByID(const size_t &id){
         if(imgIDToImgNamesAll.empty()){
             throw std::out_of_range("No GTM image IDs available");
         }
-        std::map<size_t, std::pair<size_t, bool>>::const_iterator got = imgIDToImgNamesAll.find(id);
+        std::unordered_map<size_t, std::pair<size_t, bool>>::const_iterator got = imgIDToImgNamesAll.find(id);
         if(got == imgIDToImgNamesAll.end()){
             throw std::out_of_range("Specified GTM image ID " + std::to_string(id) + " not available");
         }
@@ -203,6 +206,8 @@ struct GTMdata{
         }
         return got->second;
     }
+
+
 };
 
 struct kittiFolders{

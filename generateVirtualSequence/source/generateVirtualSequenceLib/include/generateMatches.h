@@ -218,6 +218,7 @@ struct PatchCInfo{
     bool useTN;
     bool succ;
     int i;
+    bool takeImg2FallBack;
 
     PatchCInfo(const double &minDescrDistTP_,
                bool &useTN_,
@@ -241,7 +242,9 @@ struct PatchCInfo{
             ThTnNear(ThTnNear_),
             visualize(visualize_),
             useTN(useTN_),
-            succ(true){};
+            succ(true),
+            i(0),
+            takeImg2FallBack(false){};
 };
 
 //template <typename ImageID>
@@ -269,7 +272,9 @@ public:
             gtmIdx(std::numeric_limits<size_t>::max()),
             id(id_),
             imgId1(imgId_),
-            imgId2(std::numeric_limits<size_t>::max()){}
+            imgId2(imgId_),
+            uniqueImgId1(imgId_),
+            uniqueImgId2(imgId_){}
 
     //Constructor for warped gross TN (2 image patches for correspondences)
     KeypointIndexer(const std::string* idxImg1_,
@@ -298,7 +303,9 @@ public:
             gtmIdx(std::numeric_limits<size_t>::max()),
             id(id_),
             imgId1(imgId1_),
-            imgId2(imgId2_){}
+            imgId2(imgId2_),
+            uniqueImgId1(imgId1_),
+            uniqueImgId2(imgId2_){}
 
     //Constructor for GTM correspondences
     KeypointIndexer(const bool &isTN_,
@@ -314,7 +321,9 @@ public:
                     const size_t &gtmIdx_,
                     const size_t &id_,
                     const size_t &imgId1_,
-                    const size_t &imgId2_):
+                    const size_t &imgId2_,
+                    const size_t &uniqueImgId1_,
+                    const size_t &uniqueImgId2_):
             isGrossTN(false),
             isTN(isTN_),
             fromGTM(true),
@@ -330,7 +339,9 @@ public:
             gtmIdx(gtmIdx_),
             id(id_),
             imgId1(imgId1_),
-            imgId2(imgId2_){}
+            imgId2(imgId2_),
+            uniqueImgId1(uniqueImgId1_),
+            uniqueImgId2(uniqueImgId2_){}
 
     bool has2Imgs() const{ return idxImg2 != nullptr; }
 
@@ -345,6 +356,14 @@ public:
     size_t getImgID1() const{ return imgId1; }
 
     size_t getImgID2() const{ return imgId2; }
+
+    bool isImgID2Valid() const{ return imgId2 != imgId1; }
+
+    size_t getUniqueImgID1() const{ return uniqueImgId1; }
+
+    size_t getUniqueImgID2() const{ return uniqueImgId2; }
+
+    bool isUniqueImgID2Valid() const{ return uniqueImgId2 != std::numeric_limits<size_t>::max(); }
 
     cv::Mat getDescriptor1() const{ return descr1.row(descr1Row); }
 
@@ -367,7 +386,7 @@ public:
     double getDescriptorDist(cv::InputArray descr2_ = cv::noArray()) const{
         if(!fromGTM && !isGrossTN && descr2_.empty()){
             throw SequenceException("Cannot calculate descriptor distance. Provide a second descriptor.");
-        }else if(fromGTM){
+        }else if(fromGTM && descr2_.empty()){
             return static_cast<double>(match->distance);
         }
         cv::Mat sec_descr;
@@ -401,6 +420,8 @@ private:
     const size_t id;//Identifier of the correspondence
     const size_t imgId1;//Identifier of the underlying first image
     const size_t imgId2;//Identifier of the underlying second image
+    const size_t uniqueImgId1;//Unique image ID pointing to the same image name as imgId1 (for different imgId1 pointing to the same image, this ID stays the same)
+    const size_t uniqueImgId2;//Unique image ID pointing to the same image name as imgId2 (for different imgId2 pointing to the same image, this ID stays the same)
 };
 
 class TNTPindexer{
@@ -449,6 +470,8 @@ public:
     void addTPID(const size_t &id){ tp_ids.push_back(id); }
 
     void addTNID(const size_t &id){ tn_ids.push_back(id); }
+
+    size_t size(){ return tptn_ids.size(); }
 
 private:
     inline size_t rand2(){
@@ -519,6 +542,12 @@ private:
     size_t hashFromMtchPars();
     //Calculates the total number of correspondences (Tp+TN) within a whole scene
     void totalNrCorrs();
+    //Get images that are most often used within a single frame to calculate correspondences
+    void getMostUsedImgs();
+    //Returns an list of image names sorted by their global ID
+    std::vector<std::string> getIDSortedImgNameList();
+    //Update the linear index (tntpindexer) used by functions to calculate correspondences using the global correspondence index (corrToIdxMap)
+    void updateLinearIdx();
     //Loads images and extracts keypoints and descriptors from them to generate matches later on
     bool getFeatures();
     //Writes the parameters used to generate 3D scenes to disk
@@ -608,7 +637,8 @@ private:
                                            cv::Mat &frameDescr2,
                                            std::vector<cv::DMatch> &frameMatches,
                                            std::vector<cv::Mat> &homo,
-                                           std::vector<std::pair<size_t,cv::KeyPoint>> &srcImgIdxAndKp,
+                                           std::vector<std::pair<std::pair<size_t,cv::KeyPoint>,
+                                                   std::pair<size_t,cv::KeyPoint>>> &srcImgIdxAndKp,
                                            std::vector<cv::Mat> *homoCam1 = nullptr);
     //Calculate warped patches and corresponding descriptors
     cv::Mat calculateDescriptorWarped(const cv::Mat &img,
@@ -704,6 +734,7 @@ private:
     double actNormT = 0;//Norm of the actual translation vector between the stereo cameras
     std::vector<std::pair<std::map<size_t,size_t>,std::vector<size_t>>> imgFrameIdxMap;//If more than maxImgLoad images to generate features are used, every map contains to most maxImgLoad used images (key = img idx, value = position in the vector holding the images) for keypoints per frame. The vector inside the pair holds a consecutive order of image indices for loading the images
     bool loadImgsEveryFrame = false;//Indicates if there are more than maxImgLoad images in the folder and the images used to extract patches must be loaded for every frame
+    std::map<size_t, std::string*> uniqueImgIDToName;//Holds unique image IDs pointing to corresponding image names
     stats badDescrTH = {0,0,0,0,0};//Descriptor distance statistics for not matching descriptors. E.g. a descriptor distance larger the median could be considered as not matching descriptors
     std::vector<cv::KeyPoint> frameKeypoints1, frameKeypoints2;//Keypoints for the actual stereo frame (there is no 1:1 correspondence between these 2 as they are shuffled but the keypoint order of each of them is the same as in their corresponding descriptor Mat (rows))
     std::vector<cv::KeyPoint> frameKeypoints2NoErr;//Keypoints in the second stereo image without a positioning error (in general, keypoints in the first stereo image are without errors)
@@ -712,7 +743,7 @@ private:
     std::vector<bool> frameInliers;//Indicates if a feature (frameKeypoints1 and corresponding frameDescriptors1) is an inlier.
     std::vector<cv::Mat> frameHomographies;//Holds the homographies for all patches arround keypoints for warping the patch which is then used to calculate the matching descriptor. Homographies corresponding to the same static 3D point in different stereo frames are similar
     std::vector<cv::Mat> frameHomographiesCam1;//Holds homographies for all patches arround keypoints in the first camera (for tracked features) for warping the patch which is then used to calculate the matching descriptor. Homographies corresponding to the same static 3D point in different stereo frames are similar
-    std::vector<std::pair<size_t,cv::KeyPoint>> srcImgPatchIdxAndKp; //Holds the keypoint and image index of the image used to extract patches
+    std::vector<std::pair<std::pair<size_t,cv::KeyPoint>, std::pair<size_t,cv::KeyPoint>>> srcImgPatchIdxAndKp; //Holds the keypoints and image indices of the images used to extract patches
     std::vector<int> corrType;//Specifies the type of a correspondence (TN from static (=4) or TN from moving (=5) object, or TP from a new static (=0), a new moving (=1), an old static (=2), or an old moving (=3) object (old means,that the corresponding 3D point emerged before this stereo frame and also has one or more correspondences in a different stereo frame))
     std::vector<double> kpErrors;//Holds distances from the original to the distorted keypoint locations for every correspondence of the whole sequence
     //std::string matchParsFileName = "";//File name (including path) of the parameter file to create matches
