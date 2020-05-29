@@ -363,7 +363,7 @@ public:
 
     size_t getUniqueImgID2() const{ return uniqueImgId2; }
 
-    bool isUniqueImgID2Valid() const{ return uniqueImgId2 != std::numeric_limits<size_t>::max(); }
+    bool isUniqueImgID2Valid() const{ return uniqueImgId2 != uniqueImgId1; }
 
     cv::Mat getDescriptor1() const{ return descr1.row(descr1Row); }
 
@@ -426,52 +426,24 @@ private:
 
 class TNTPindexer{
 public:
-    explicit TNTPindexer(std::mt19937 *rand2_ = nullptr): tn_idx(0), tp_idx(0), rand2ptr(rand2_){
+    explicit TNTPindexer(std::mt19937 *rand2_ = nullptr): tn_idx(0), tp_idx(0), nrCorrs(0), rand2ptr(rand2_){
         if(rand2ptr == nullptr){
             long int seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
             *rand2ptr = std::mt19937(seed);
         }
     }
 
-    size_t getNextTPID(){
-        if(tp_ids.empty()){
-            throw SequenceException("No TP match IDs available");
-        }
-        size_t idx = tp_idx;
-        if(tp_idx >= tp_ids.size()){
-            idx = rand2() % tp_ids.size();
-        }
-        tptn_ids.emplace(tp_idx + tn_idx, &tp_ids[idx]);
-        tp_idx++;
-        return tp_ids[idx];
-    }
+    size_t getNextTPID(const size_t &tp_repPatt_idx, const size_t &min_frm_idx);
 
-    size_t getNextTNID(){
-        if(tn_ids.empty()){
-            throw SequenceException("No TN match IDs available");
-        }
-        size_t idx = tn_idx;
-        if(tn_idx >= tn_ids.size()){
-            idx = rand2() % tn_ids.size();
-        }
-        tptn_ids.emplace(tp_idx + tn_idx, &tn_ids[idx]);
-        tn_idx++;
-        return tn_ids[idx];
-    }
+    size_t getNextTNID(const size_t &tn_repPatt_idx, const size_t &min_frm_idx);
 
-    size_t getCorrID(const size_t &nr){
-        std::unordered_map<size_t, size_t*>::const_iterator got = tptn_ids.find(nr);
-        if(got == tptn_ids.end()){
-            throw SequenceException("Feature number out of range");
-        }
-        return *(got->second);
-    }
+    size_t getCorrID(const size_t &nr, const bool &isTN, const bool &tryBoth = false);
 
     void addTPID(const size_t &id){ tp_ids.push_back(id); }
 
     void addTNID(const size_t &id){ tn_ids.push_back(id); }
 
-    size_t size(){ return tptn_ids.size(); }
+    size_t size() const{ return nrCorrs; }
 
 private:
     inline size_t rand2(){
@@ -480,9 +452,12 @@ private:
 
     size_t tn_idx = 0;
     size_t tp_idx = 0;
+    size_t nrCorrs = 0;
     std::vector<size_t> tn_ids;
     std::vector<size_t> tp_ids;
     std::unordered_map<size_t, size_t*> tptn_ids;
+    std::map<size_t, std::pair<size_t, size_t>> tp_repPatt_idxs;//repeated pattern index, running TP index, minimum index of corresponding frame
+    std::map<size_t, std::pair<size_t, size_t>> tn_repPatt_idxs;//repeated pattern index, running TN index, minimum index of corresponding frame
     std::mt19937 *rand2ptr;
 };
 

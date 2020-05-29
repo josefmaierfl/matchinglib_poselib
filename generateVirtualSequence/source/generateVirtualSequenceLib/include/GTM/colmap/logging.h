@@ -68,19 +68,43 @@
 #define CHECK_OPTION_GE(val1, val2) CHECK_OPTION_OP(_GE, >=, val1, val2)
 #define CHECK_OPTION_GT(val1, val2) CHECK_OPTION_OP(_GT, >, val1, val2)
 
+#ifdef CHECK_GT
+#undef CHECK_GT
+#endif
 #define CHECK_GT(val1, val2) CHECK_OPTION_OP_RAISE(_GT, >, val1, val2)
+#ifdef CHECK_GE
+#undef CHECK_GE
+#endif
 #define CHECK_GE(val1, val2) CHECK_OPTION_OP_RAISE(_GE, >=, val1, val2)
+#ifdef CHECK_LE
+#undef CHECK_LE
+#endif
 #define CHECK_LE(val1, val2) CHECK_OPTION_OP_RAISE(_LE, <=, val1, val2)
+#ifdef CHECK_EQ
+#undef CHECK_EQ
+#endif
 #define CHECK_EQ(val1, val2) CHECK_OPTION_OP_RAISE(_EQ, ==, val1, val2)
+#ifdef CHECK_NE
+#undef CHECK_NE
+#endif
 #define CHECK_NE(val1, val2) CHECK_OPTION_OP_RAISE(_NE, !=, val1, val2)
+#ifdef CHECK_LT
+#undef CHECK_LT
+#endif
 #define CHECK_LT(val1, val2) CHECK_OPTION_OP_RAISE(_LT, <, val1, val2)
 //#define CHECK_NOTNULL(val1) CHECK_OPTION_OP_RAISE(_NE, !=, val1, nullptr)
 
 #define FATAL 1
+#ifdef CHECK
+#undef CHECK
+#endif
 #define CHECK(condition)                                                                                    \
     if (!__CheckOptionImpl(__FILE__, __LINE__, (condition), #condition)) {                                  \
         throw colmapException("Error during preparation of Colmap data. Check failed: " #condition " ");    \
     }
+#ifdef LOG
+#undef LOG
+#endif
 #define LOG(severity, message)                                              \
     if (severity == FATAL) {                                                \
         __CheckOptionImpl(__FILE__, __LINE__, false, message);              \

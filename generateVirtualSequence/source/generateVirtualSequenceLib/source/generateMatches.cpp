@@ -63,6 +63,167 @@ void getTranslationStats(const std::vector<cv::Mat> &ts,
 
 /* -------------------------- Functions -------------------------- */
 
+size_t TNTPindexer::getNextTPID(const size_t &tp_repPatt_idx, const size_t &min_frm_idx){
+    if(tp_ids.empty()){
+        throw SequenceException("No TP match IDs available");
+    }
+    if(tp_repPatt_idxs.find(tp_repPatt_idx) != tp_repPatt_idxs.end()){
+        nrCorrs++;
+        return tp_ids[tp_repPatt_idxs.at(tp_repPatt_idx).first];
+    }else if(tn_repPatt_idxs.find(tp_repPatt_idx) != tn_repPatt_idxs.end()){
+        if(!tp_repPatt_idxs.empty()) {
+            size_t min_idx = tn_repPatt_idxs.at(tp_repPatt_idx).second;
+            size_t min_idx2 = tp_repPatt_idxs.rbegin()->second.second;
+            bool isStereoRep = min_idx == min_frm_idx;
+            if (isStereoRep && (min_idx2 == min_frm_idx)) {
+                std::vector<size_t> stereo_idxs;
+                std::map<size_t, std::pair<size_t, size_t>>::reverse_iterator rit;
+                for (rit = tp_repPatt_idxs.rbegin(); rit != tp_repPatt_idxs.rend(); ++rit) {
+                    if (rit->second.second == min_frm_idx) {
+                        stereo_idxs.push_back(rit->first);
+                    } else {
+                        break;
+                    }
+                }
+                const size_t new_rep_idx = stereo_idxs[rand2() % stereo_idxs.size()];
+                const std::pair<size_t, size_t> tmp = tp_repPatt_idxs.at(new_rep_idx);
+                tp_repPatt_idxs.emplace(tp_repPatt_idx, tmp);
+                nrCorrs++;
+                return tp_ids[tmp.first];
+            } else if (!isStereoRep) {
+                std::vector<size_t> mono_idxs;
+                std::map<size_t, std::pair<size_t, size_t>>::reverse_iterator rit;
+                for (rit = tp_repPatt_idxs.rbegin(); rit != tp_repPatt_idxs.rend(); ++rit) {
+                    if (rit->second.second == min_idx) {
+                        mono_idxs.push_back(rit->first);
+                    } else if (rit->second.second < min_idx) {
+                        break;
+                    }
+                }
+                if (!mono_idxs.empty()) {
+                    const size_t new_rep_idx = mono_idxs[rand2() % mono_idxs.size()];
+                    const std::pair<size_t, size_t> tmp = tp_repPatt_idxs.at(new_rep_idx);
+                    tp_repPatt_idxs.emplace(tp_repPatt_idx, tmp);
+                    nrCorrs++;
+                    return tp_ids[tmp.first];
+                }
+            }
+        }
+    }
+    size_t idx = tp_idx;
+    size_t tp_repPatt_idx_ = tp_repPatt_idx;
+    if(tp_idx >= tp_ids.size()){
+        idx = rand2() % tp_ids.size();
+        tp_repPatt_idx_ = tp_repPatt_idxs.rbegin()->first + 1;
+    }else if(tp_repPatt_idx_ == numeric_limits<size_t>::max()){
+        tp_repPatt_idx_ = tp_repPatt_idxs.rbegin()->first + 1;
+    }
+    tptn_ids.emplace(tp_idx + tn_idx, &tp_ids[idx]);
+    tp_repPatt_idxs.emplace(tp_repPatt_idx_, std::make_pair(idx, min_frm_idx));
+    tp_idx++;
+    nrCorrs++;
+    return tp_ids[idx];
+}
+
+size_t TNTPindexer::getNextTNID(const size_t &tn_repPatt_idx, const size_t &min_frm_idx){
+    if(tn_ids.empty()){
+        throw SequenceException("No TN match IDs available");
+    }
+    if(tn_repPatt_idxs.find(tn_repPatt_idx) != tn_repPatt_idxs.end()){
+        nrCorrs++;
+        return tn_ids[tn_repPatt_idxs.at(tn_repPatt_idx).first];
+    }else if(tp_repPatt_idxs.find(tn_repPatt_idx) != tp_repPatt_idxs.end()){
+        if(!tn_repPatt_idxs.empty()) {
+            size_t min_idx = tp_repPatt_idxs.at(tn_repPatt_idx).second;
+            size_t min_idx2 = tn_repPatt_idxs.rbegin()->second.second;
+            bool isStereoRep = min_idx == min_frm_idx;
+            if (isStereoRep && (min_idx2 == min_frm_idx)) {
+                std::vector<size_t> stereo_idxs;
+                std::map<size_t, std::pair<size_t, size_t>>::reverse_iterator rit;
+                for (rit = tn_repPatt_idxs.rbegin(); rit != tn_repPatt_idxs.rend(); ++rit) {
+                    if (rit->second.second == min_frm_idx) {
+                        stereo_idxs.push_back(rit->first);
+                    } else {
+                        break;
+                    }
+                }
+                const size_t new_rep_idx = stereo_idxs[rand2() % stereo_idxs.size()];
+                const std::pair<size_t, size_t> tmp = tn_repPatt_idxs.at(new_rep_idx);
+                tn_repPatt_idxs.emplace(tn_repPatt_idx, tmp);
+                nrCorrs++;
+                return tn_ids[tmp.first];
+            } else if (!isStereoRep) {
+                std::vector<size_t> mono_idxs;
+                std::map<size_t, std::pair<size_t, size_t>>::reverse_iterator rit;
+                for (rit = tn_repPatt_idxs.rbegin(); rit != tn_repPatt_idxs.rend(); ++rit) {
+                    if (rit->second.second == min_idx) {
+                        mono_idxs.push_back(rit->first);
+                    } else if (rit->second.second < min_idx) {
+                        break;
+                    }
+                }
+                if (!mono_idxs.empty()) {
+                    const size_t new_rep_idx = mono_idxs[rand2() % mono_idxs.size()];
+                    const std::pair<size_t, size_t> tmp = tn_repPatt_idxs.at(new_rep_idx);
+                    tn_repPatt_idxs.emplace(tn_repPatt_idx, tmp);
+                    nrCorrs++;
+                    return tn_ids[tmp.first];
+                }
+            }
+        }
+    }
+    size_t idx = tn_idx;
+    size_t tn_repPatt_idx_ = tn_repPatt_idx;
+    if(tn_idx >= tn_ids.size()){
+        idx = rand2() % tn_ids.size();
+        tn_repPatt_idx_ = tn_repPatt_idxs.rbegin()->first + 1;
+    }else if(tn_repPatt_idx_ == numeric_limits<size_t>::max()){
+        tn_repPatt_idx_ = tn_repPatt_idxs.rbegin()->first + 1;
+    }
+    tptn_ids.emplace(tp_idx + tn_idx, &tn_ids[idx]);
+    tn_repPatt_idxs.emplace(tn_repPatt_idx_, std::make_pair(idx, min_frm_idx));
+    tn_idx++;
+    nrCorrs++;
+    return tn_ids[idx];
+}
+
+size_t TNTPindexer::getCorrID(const size_t &nr, const bool &isTN, const bool &tryBoth){
+    size_t idx;
+    std::map<size_t, std::pair<size_t, size_t>>::const_iterator gottntp;
+    if(isTN){
+        gottntp = tn_repPatt_idxs.find(nr);
+        if(gottntp == tn_repPatt_idxs.end()){
+            if(tryBoth){
+                gottntp = tp_repPatt_idxs.find(nr);
+                if(gottntp == tp_repPatt_idxs.end()){
+                    throw SequenceException("Feature number out of range");
+                }
+            }else {
+                throw SequenceException("Feature number out of range");
+            }
+        }
+        idx = gottntp->second.first;
+    }else{
+        gottntp = tp_repPatt_idxs.find(nr);
+        if(gottntp == tp_repPatt_idxs.end()){
+            if(tryBoth){
+                gottntp = tn_repPatt_idxs.find(nr);
+                if(gottntp == tn_repPatt_idxs.end()){
+                    throw SequenceException("Feature number out of range");
+                }
+            }else {
+                throw SequenceException("Feature number out of range");
+            }
+        }
+        idx = gottntp->second.first;
+    }
+    std::unordered_map<size_t, size_t*>::const_iterator got = tptn_ids.find(idx);
+    if(got == tptn_ids.end()){
+        throw SequenceException("Feature number out of range");
+    }
+    return *(got->second);
+}
+
 genMatchSequ::genMatchSequ(const std::string &sequLoadFolder,
                            GenMatchSequParameters &parsMtch_,
                            uint32_t verbose_,
@@ -1681,7 +1842,8 @@ void genMatchSequ::getMostUsedImgs(){
         size_t featureIdx = featureIdxBegin;
         vector<pair<size_t,size_t>> imgUsageFrequ;
         map<size_t,size_t> imgIdx;
-        size_t corr_id = tntpindexer.getCorrID(featureIdxRepPatt[featureIdx]);
+        const size_t tn_start = featureIdxBegin + combNrCorrsTP;
+        size_t corr_id = tntpindexer.getCorrID(featureIdxRepPatt[featureIdx], false, true);
         KeypointIndexer *kpinfo = &corrToIdxMap.at(corr_id);
         size_t uimgID = kpinfo->getUniqueImgID1();
         imgUsageFrequ.emplace_back(make_pair(uimgID, 1));
@@ -1695,7 +1857,7 @@ void genMatchSequ::getMostUsedImgs(){
         }
         featureIdx++;
         for (size_t j = 1; j < nrCorrs[actFrameCnt]; ++j) {
-            corr_id = tntpindexer.getCorrID(featureIdxRepPatt[featureIdx]);
+            corr_id = tntpindexer.getCorrID(featureIdxRepPatt[featureIdx], featureIdx >= tn_start, true);
             kpinfo = &corrToIdxMap.at(corr_id);
             uimgID = kpinfo->getUniqueImgID1();
             if(imgIdx.find(uimgID) != imgIdx.end()){
@@ -1729,11 +1891,13 @@ void genMatchSequ::getMostUsedImgs(){
 }
 
 void genMatchSequ::updateLinearIdx(){
-    for (int i = 0; i < combNrCorrsTP; ++i) {
-        tntpindexer.getNextTPID();
+    const size_t idxEndTP = featureIdxBegin + combNrCorrsTP;
+    const size_t idxEndTN = idxEndTP + combNrCorrsTN;
+    for (size_t i = featureIdxBegin; i < idxEndTP; ++i) {
+        tntpindexer.getNextTPID(featureIdxRepPatt[i], featureIdxBegin);
     }
-    for (int i = 0; i < combNrCorrsTN; ++i) {
-        tntpindexer.getNextTNID();
+    for (size_t i = idxEndTP; i < idxEndTN; ++i) {
+        tntpindexer.getNextTNID(featureIdxRepPatt[i], featureIdxBegin);
     }
 }
 
@@ -2083,7 +2247,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
 //    int show_cnt = 0;
 //    const int show_interval = 50;
     size_t featureIdx = featureIdxBegin_;
-    size_t initCorrID = tntpindexer.getCorrID(featureIdxRepPatt[featureIdx]);
+    size_t initCorrID = tntpindexer.getCorrID(featureIdxRepPatt[featureIdx], useTN);
     KeypointIndexer &initkp = corrToIdxMap.at(initCorrID);
 
     //Calculate image intensity noise distribution for TNs
@@ -2130,9 +2294,9 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
             cerr << "Feature index out of range for a few correspondences. Using new index which "
                     "might point to an already used feature." << endl;
             if(useTN) {
-                patchInfos.featureIdx_tmp = tntpindexer.getNextTNID();
+                patchInfos.featureIdx_tmp = tntpindexer.getNextTNID(numeric_limits<size_t>::max(), featureIdxBegin_);
             }else{
-                patchInfos.featureIdx_tmp = tntpindexer.getNextTPID();
+                patchInfos.featureIdx_tmp = tntpindexer.getNextTPID(numeric_limits<size_t>::max(), featureIdxBegin_);
             }
         }
         patchInfos.visualize = false;
@@ -2190,7 +2354,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
 
         //Get image (check if already in memory)
         Mat img1, img2;
-        size_t corr_id = tntpindexer.getCorrID(featureIdxRepPatt[patchInfos.featureIdx_tmp]);
+        size_t corr_id = tntpindexer.getCorrID(featureIdxRepPatt[patchInfos.featureIdx_tmp], useTN);
         KeypointIndexer &kpinfo = corrToIdxMap.at(corr_id);
         size_t uimgID1 = kpinfo.getUniqueImgID1();
         size_t uimgID2 = kpinfo.getUniqueImgID2();
@@ -2272,6 +2436,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
                     descr21 = kpinfo.getDescriptor2();
                     descrDist = kpinfo.getDescriptorDist();
                 }
+                kp2err = kp3.pt - kp2.pt;
             }
         }else {
             descr21 = calculateDescriptorWarped(img2, kp2, H, homo, patchInfos, kp3, kp2err,
@@ -2344,6 +2509,7 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
     bool reflectionX = false;
     bool reflectionY = false;
     const double minPatchSize = 41.0;
+    const size_t corrID = tntpindexer.getCorrID(featureIdxRepPatt[patchInfos.featureIdx_tmp], patchInfos.useTN);
     cv::Size imgFeatureSize = img.size();
     if(patchInfos.succ) {
         patchInfos.succ = getRectFitsInEllipse(H,
@@ -2788,7 +2954,6 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
             useFallBack = true;
         }else{
             //Check matchability
-            const size_t corrID = tntpindexer.getCorrID(featureIdxRepPatt[patchInfos.featureIdx_tmp]);
             if(!forCam1 && !descr_cam1.empty()){
                 Mat descr1 = descr_cam1.getMat();
                 if(!descr1.empty()){
@@ -2983,7 +3148,6 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                         cerr << "Unable to calculate a matching descriptor! Using the original one - "
                                 "this will result in a descriptor distance of 0 for this particular correspondence!"
                              << endl;
-                        const size_t corrID = tntpindexer.getCorrID(featureIdxRepPatt[patchInfos.featureIdx_tmp]);
                         if(patchInfos.takeImg2FallBack){
                             descr21 = corrToIdxMap.at(corrID).getDescriptor2().clone();
                         }else {
@@ -3013,7 +3177,6 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
             }
             if((err == 0) && !itFI){
                 //Check matchability
-                const size_t corrID = tntpindexer.getCorrID(featureIdxRepPatt[patchInfos.featureIdx_tmp]);
                 if(!forCam1 && !descr_cam1.empty()){
                     Mat descr1 = descr_cam1.getMat();
                     if(!descr1.empty()){
@@ -3073,7 +3236,6 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                                                     desrc_tmp,
                                                     parsMtch.keyPointType) == 0) {
                         if (!pkp21.empty()) {
-                            const size_t corrID = tntpindexer.getCorrID(featureIdxRepPatt[patchInfos.featureIdx_tmp]);
                             double descrDist_tmp;
                             if(patchInfos.takeImg2FallBack){
                                 descrDist_tmp = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor2(),
@@ -3112,7 +3274,6 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                     }
                 }
 #endif
-                const size_t corrID = tntpindexer.getCorrID(featureIdxRepPatt[patchInfos.featureIdx_tmp]);
                 if(patchInfos.takeImg2FallBack){
                     descr21 = corrToIdxMap.at(corrID).getDescriptor2().clone();
                 }else {

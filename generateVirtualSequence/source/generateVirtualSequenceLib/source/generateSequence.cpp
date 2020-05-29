@@ -8885,6 +8885,8 @@ void genStereoSequ::combineCorrespondences() {
             combNrCorrsTN += i.cols;
         }
     }
+    //Update number of correspondences
+    nrCorrs[actFrameCnt] = combNrCorrsTP + combNrCorrsTN;
 
     combCorrsImg1TP.release();
     combCorrsImg2TP.release();
