@@ -10,6 +10,7 @@
 //#include <pcl/common/common.h>
 #include "pcl/common/transforms.h"
 
+#include <boost/thread/thread.hpp>
 #include "helper_funcs.h"
 
 using namespace std;

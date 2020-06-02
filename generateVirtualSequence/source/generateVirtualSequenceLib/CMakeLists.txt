@@ -11,7 +11,8 @@ if(OPENMP_ENABLED)
 endif()
 
 #set(Boost_USE_STATIC_LIBS ON)
-find_package(Boost REQUIRED COMPONENTS
+find_package(Boost 1.71.0 REQUIRED COMPONENTS
+		thread
 		filesystem
 		regex
 		system)
@@ -28,7 +29,13 @@ if(USE_MANUAL_ANNOTATION)
 	endif()
 endif()
 
-find_package(PCL 1.9.1 REQUIRED)
+find_package(VTK 7.2 QUIET NO_MODULE)
+if(NOT VTK_FOUND)
+	find_package(VTK 8.2.0 REQUIRED NO_MODULE)
+endif()
+message(STATUS "VTK Version: ${VTK_VERSION}")
+
+find_package(PCL 1.11.0 REQUIRED)
 #message(STATUS ${PCL_VERSION})
 if(PCL_FOUND)
 	message(STATUS "Found PCL lib!")
@@ -180,6 +187,7 @@ target_include_directories(${target}
     #${EIGEN3_INCLUDE_DIR}
 	#${MATCHINGLIB_INCLUDE_DIRS}
 	#${PFELIB_INCLUDE_DIR}
+	${VTK_USE_FILE}
 	${PCL_INCLUDE_DIRS}
 	${CERES_INCLUDE_DIRS}
 
@@ -203,7 +211,7 @@ target_link_libraries(${target}
 	${Boost_LIBRARIES}
     ${OpenCV_LIBS}
 	#${MATCHINGLIB_LIBRARIES}
-
+	${VTK_LIBRARIES}
 	${PCL_LIBRARY_DIRS}
 	${PCL_COMMON_LIBRARIES}
 	${PCL_OCTREE_LIBRARIES}

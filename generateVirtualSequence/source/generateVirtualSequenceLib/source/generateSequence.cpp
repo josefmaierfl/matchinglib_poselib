@@ -10397,11 +10397,11 @@ bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr clou
 
 //Filters occluded 3D points based on a voxel size corresponding to 1 pixel (when projected to the image plane) at near_depth + (medium depth - near_depth) / 2
 //Returns false if more than 33% are occluded
-bool genStereoSequ::filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
+bool genStereoSequ::filterNotVisiblePts(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloudIn,
                                         std::vector<int> &cloudOut,
                                         bool useNearLeafSize,
                                         bool visRes,
-                                        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded) {
+                                        const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloudOccluded) {
     if (cloudIn->empty())
         return false;
 

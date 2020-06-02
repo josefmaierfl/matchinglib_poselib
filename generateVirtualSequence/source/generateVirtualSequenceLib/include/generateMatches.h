@@ -429,7 +429,7 @@ public:
     explicit TNTPindexer(std::mt19937 *rand2_ = nullptr): tn_idx(0), tp_idx(0), nrCorrs(0), rand2ptr(rand2_){
         if(rand2ptr == nullptr){
             long int seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-            *rand2ptr = std::mt19937(seed);
+            rand_obj = std::mt19937(seed);
         }
     }
 
@@ -447,6 +447,9 @@ public:
 
 private:
     inline size_t rand2(){
+        if(rand2ptr == nullptr){
+            return rand_obj();
+        }
         return (*rand2ptr)();
     }
 
@@ -459,6 +462,7 @@ private:
     std::map<size_t, std::pair<size_t, size_t>> tp_repPatt_idxs;//repeated pattern index, running TP index, minimum index of corresponding frame
     std::map<size_t, std::pair<size_t, size_t>> tn_repPatt_idxs;//repeated pattern index, running TN index, minimum index of corresponding frame
     std::mt19937 *rand2ptr;
+    std::mt19937 rand_obj;
 };
 
 class GENERATEVIRTUALSEQUENCELIB_API genMatchSequ : genStereoSequ {

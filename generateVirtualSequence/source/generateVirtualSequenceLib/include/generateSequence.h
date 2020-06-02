@@ -800,11 +800,11 @@ private:
 	        bool useNearLeafSize = false,
 	        bool visRes = true,
 	        pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded = nullptr);
-    bool filterNotVisiblePts(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudIn,
+    bool filterNotVisiblePts(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloudIn,
                              std::vector<int> &cloudOut,
                              bool useNearLeafSize = false,
                              bool visRes = true,
-                             pcl::PointCloud<pcl::PointXYZ>::Ptr cloudOccluded = nullptr);
+                             const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloudOccluded = nullptr);
 	void getMovObjPtsCam();
 	void getCamPtsFromWorld();
 	void visualizeCamPath();
