@@ -3125,15 +3125,15 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                     kp2err = Point2f(0,0);
                     pkp21 = vector<KeyPoint>(1, kp2);
 
-                    Mat imgcol;
-                    cvtColor(patchwn, imgcol, cv::COLOR_GRAY2BGR);
-                    Point c((int)round(kp2.pt.x), (int)round(kp2.pt.y));
-                    cv::circle(imgcol, c, (int)round(kp2.size / 2.f), Scalar(0,0,255));
-                    namedWindow("Full image", WINDOW_AUTOSIZE);
-                    imshow("Full image", imgcol);
-
-                    waitKey(0);
-                    destroyWindow("Full image");
+//                    Mat imgcol;
+//                    cvtColor(patchwn, imgcol, cv::COLOR_GRAY2BGR);
+//                    Point c((int)round(kp2.pt.x), (int)round(kp2.pt.y));
+//                    cv::circle(imgcol, c, (int)round(kp2.size / 2.f), Scalar(0,0,255));
+//                    namedWindow("Full image", WINDOW_AUTOSIZE);
+//                    imshow("Full image", imgcol);
+//
+//                    waitKey(0);
+//                    destroyWindow("Full image");
 
                     kaze_noFail = true;
                     if((parsMtch.descriptorType == "AKAZE") || (parsMtch.descriptorType == "KAZE")){
