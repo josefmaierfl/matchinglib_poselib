@@ -34,6 +34,8 @@
 #include <random>
 #include <exception>
 #include "GTM/prepareMegaDepth.h"
+#include "boost/container_hash/hash.hpp"
+#include "helper_funcs.h"
 //#include "generateVirtualSequenceLib/generateVirtualSequenceLib_api.h"
 
 /* --------------------------- Defines --------------------------- */
@@ -275,7 +277,70 @@ struct kittiFolders{
 //                 bool &&if1):img1(img1_), img2(img2_), gt12(gt12_), isFlow(if1){}
 };
 
+//bool operator<(cv::Point2f const& a, cv::Point2f const& b)
+//{
+//    return (a.x < b.x) || (a.x == b.x && a.y < b.y);
+//}
+
 /* --------------------------- Classes --------------------------- */
+
+class KeypointDescriptorIndexer{
+public:
+    explicit KeypointDescriptorIndexer(const std::vector<cv::KeyPoint> &keypoints, const cv::Mat &descriptors_):
+            descriptors(descriptors_.clone()){
+        int nrRows = descriptors_.rows;
+        CV_Assert(keypoints.size() == static_cast<size_t>(nrRows));
+        for (int i = 0; i < nrRows; ++i) {
+            kpDescrMap.emplace(keypoints[i].pt, i);
+        }
+    }
+
+    cv::Mat getDescriptors(const std::vector<cv::KeyPoint> &keypoints){
+        std::unordered_map<cv::Point2f, int, KeyHasher, EqualTo>::iterator got;
+        cv::Mat descr;
+        descr.reserve(keypoints.size());
+        for (auto &i: keypoints) {
+            got = kpDescrMap.find(i.pt);
+            if(got == kpDescrMap.end()){
+                throw std::out_of_range("Keypoint not in map");
+            }
+            descr.push_back(descriptors.row(got->second));
+        }
+        return descr.clone();
+    }
+
+    void setNewIndex(const std::vector<cv::KeyPoint> &keypoints, const cv::Mat &descriptors_){
+        int nrRows = descriptors.rows;
+        CV_Assert(keypoints.size() == static_cast<size_t>(nrRows));
+        kpDescrMap.clear();
+        for (int i = 0; i < nrRows; ++i) {
+            kpDescrMap.emplace(keypoints[i].pt, i);
+        }
+        descriptors_.copyTo(descriptors);
+    }
+
+private:
+    struct KeyHasher
+    {
+        std::size_t operator()(const cv::Point2f& pt) const
+        {
+            std::size_t seed = 0;
+            boost::hash_combine(seed, pt.x);
+            boost::hash_combine(seed, pt.y);
+            return seed;
+        }
+    };
+    struct EqualTo
+    {
+        bool operator()(const cv::Point2f& pt1, const cv::Point2f& pt2) const
+        {
+            return nearZero(static_cast<double>(pt1.x) - static_cast<double>(pt2.x)) &&
+                   nearZero(static_cast<double>(pt1.y) - static_cast<double>(pt2.y));
+        }
+    };
+    std::unordered_map<cv::Point2f, int, KeyHasher, EqualTo> kpDescrMap;
+    cv::Mat descriptors;
+};
 
 class baseMatcher {
 public:

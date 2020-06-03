@@ -30,7 +30,6 @@
 #include "opencv2/calib3d/calib3d.hpp"
 #include "opencv2/video/tracking.hpp"
 #include <opencv2/ximgproc/sparse_match_interpolator.hpp>
-#include "helper_funcs.h"
 #include "io_data.h"
 
 #include <Eigen/Core>
@@ -153,8 +152,8 @@ bool baseMatcher::detectFeatures()
         return false; //Too less features detected
     }
 
-#define showfeatures 1
-#if showfeatures
+#define showfeaturesExtr 0
+#if showfeaturesExtr
     cv::Mat img1c;
     drawKeypoints( imgs[0], keypL, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
     imshow("Keypoints 1", img1c );
@@ -167,7 +166,7 @@ bool baseMatcher::detectFeatures()
         return false; //Too less features detected
     }
 
-#if showfeatures
+#if showfeaturesExtr
     cv::Mat img2c;
     drawKeypoints( imgs[1], keypR, img2c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
     imshow("Keypoints 2", img2c );
@@ -211,10 +210,11 @@ int baseMatcher::filterInitFeaturesGT()
     }
 
     //Get descriptors from left keypoints
-    matchinglib::getDescriptors(imgs[0], keypL, GTfilterExtractor, descriptors1, featuretype);
+//    matchinglib::getDescriptors(imgs[0], keypL, GTfilterExtractor, descriptors1, featuretype);
 
     //Get descriptors from right keypoints
     matchinglib::getDescriptors(imgs[1], keypR, GTfilterExtractor, descriptors22nd, featuretype);
+    KeypointDescriptorIndexer keypR2DescrIdx(keypR, descriptors22nd);
 
     //Prepare the coordinates of the keypoints for the KD-tree (must be after descriptor extractor because keypoints near the border are removed)
     EMatFloat2 eigkeypts2(keypR.size(),2);
@@ -346,6 +346,7 @@ int baseMatcher::filterInitFeaturesGT()
     drawKeypoints( imgs[1], keypR, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
     imshow("Keypoints 2", img1c );
     cv::waitKey(0);
+    cv::destroyAllWindows();
 #endif
 
     //Sort distances to get the largest distances first
@@ -411,6 +412,7 @@ int baseMatcher::filterInitFeaturesGT()
     //Recalculate descriptors to exclude descriptors from deleted left keypoints
     descriptors1.release();
     matchinglib::getDescriptors(imgs[0], keypL, GTfilterExtractor, descriptors1, featuretype);
+    KeypointDescriptorIndexer keypL2DescrIdx(keypL, descriptors1);
     leftInlier.clear();
     nearest_dist.clear();
     vector<vector<std::pair<size_t,float>>> second_nearest_dist_vec;
@@ -464,7 +466,8 @@ int baseMatcher::filterInitFeaturesGT()
                 keypR_tmp.push_back(keypR[j.first]);
             }
             keypR_tmp1 = keypR_tmp;
-            matchinglib::getDescriptors(imgs[1], keypR_tmp, GTfilterExtractor, descriptors2, featuretype);
+            descriptors2 = keypR2DescrIdx.getDescriptors(keypR_tmp);
+//            matchinglib::getDescriptors(imgs[1], keypR_tmp, GTfilterExtractor, descriptors2, featuretype);
             if(radius_matches.size() > keypR_tmp.size())
             {
                 if(keypR_tmp.empty())
@@ -593,7 +596,8 @@ int baseMatcher::filterInitFeaturesGT()
                 keypR_tmp.push_back(keypR[j.first]);
             }
             keypR_tmp1 = keypR_tmp;
-            matchinglib::getDescriptors(imgs[1], keypR_tmp, GTfilterExtractor, descriptors2, featuretype);
+            descriptors2 = keypR2DescrIdx.getDescriptors(keypR_tmp);
+//            matchinglib::getDescriptors(imgs[1], keypR_tmp, GTfilterExtractor, descriptors2, featuretype);
             if(radius_matches.size() > keypR_tmp.size())
             {
                 if(keypR_tmp.empty())
@@ -704,6 +708,7 @@ int baseMatcher::filterInitFeaturesGT()
     drawKeypoints( imgs[1], keypR, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
     imshow("Keypoints 2", img1c );
     cv::waitKey(0);
+    cv::destroyAllWindows();
 #endif
 
     //Generate flow from right to left image using neighbor interpolation
@@ -956,7 +961,8 @@ int baseMatcher::filterInitFeaturesGT()
                         keypL_tmp.push_back(keypL[k.first]);
                     }
                     keypL_tmp1 = keypL_tmp;
-                    matchinglib::getDescriptors(imgs[0], keypL_tmp, GTfilterExtractor, descriptorsL1, featuretype);
+                    descriptorsL1 = keypL2DescrIdx.getDescriptors(keypL_tmp);
+//                    matchinglib::getDescriptors(imgs[0], keypL_tmp, GTfilterExtractor, descriptorsL1, featuretype);
                     if(radius_matches.size() > keypL_tmp.size())
                     {
                         if(keypL_tmp.empty())
@@ -1032,7 +1038,8 @@ int baseMatcher::filterInitFeaturesGT()
                     hlpq.indexL = i;
                     hlpq.indexR = nearest_dist[k3 - 1].first;
                     keypL_tmp.push_back(keypL[i]);
-                    matchinglib::getDescriptors(imgs[0], keypL_tmp, GTfilterExtractor, descriptorsL1, featuretype);
+                    descriptorsL1 = keypL2DescrIdx.getDescriptors(keypL_tmp);
+//                    matchinglib::getDescriptors(imgs[0], keypL_tmp, GTfilterExtractor, descriptorsL1, featuretype);
                     keypL_tmp.clear();
                     hlpq.similarity = static_cast<float>(getDescriptorDistance(descriptors22nd.row(static_cast<int>(hlpq.indexR)), descriptorsL1));
                     hlpq.similMarkInl = hlpq.similarity;
@@ -1067,7 +1074,8 @@ int baseMatcher::filterInitFeaturesGT()
                         //Calculate the similarity to the already found nearest matches
                         keypL_tmp.push_back(keypL[idxm]);
                         Mat descriptorsL1;
-                        matchinglib::getDescriptors(imgs[0], keypL_tmp, GTfilterExtractor, descriptorsL1, featuretype);
+                        descriptorsL1 = keypL2DescrIdx.getDescriptors(keypL_tmp);
+//                        matchinglib::getDescriptors(imgs[0], keypL_tmp, GTfilterExtractor, descriptorsL1, featuretype);
                         keypL_tmp.clear();
                         m2qps[k].similMarkInl = static_cast<float>(getDescriptorDistance(descriptors22nd.row(static_cast<int>(m2qps[k].indexMarkInlR)), descriptorsL1));
                     }
@@ -1228,7 +1236,8 @@ int baseMatcher::filterInitFeaturesGT()
                         keypL_tmp.push_back(keypL[k.first]);
                     }
                     keypL_tmp1 = keypL_tmp;
-                    matchinglib::getDescriptors(imgs[0], keypL_tmp, GTfilterExtractor, descriptorsL1, featuretype);
+                    descriptorsL1 = keypL2DescrIdx.getDescriptors(keypL_tmp);
+//                    matchinglib::getDescriptors(imgs[0], keypL_tmp, GTfilterExtractor, descriptorsL1, featuretype);
                     if(radius_matches.size() > keypL_tmp.size())
                     {
                         if(keypL_tmp.empty())
@@ -1304,7 +1313,8 @@ int baseMatcher::filterInitFeaturesGT()
                     hlpq.indexL = i;
                     hlpq.indexR = nearest_dist[k3 - 1].first;
                     keypL_tmp.push_back(keypL[i]);
-                    matchinglib::getDescriptors(imgs[0], keypL_tmp, GTfilterExtractor, descriptorsL1, featuretype);
+                    descriptorsL1 = keypL2DescrIdx.getDescriptors(keypL_tmp);
+//                    matchinglib::getDescriptors(imgs[0], keypL_tmp, GTfilterExtractor, descriptorsL1, featuretype);
                     keypL_tmp.clear();
                     hlpq.similarity = static_cast<float>(getDescriptorDistance(descriptors22nd.row(static_cast<int>(hlpq.indexR)), descriptorsL1));
                     hlpq.similMarkInl = hlpq.similarity;
@@ -1339,7 +1349,8 @@ int baseMatcher::filterInitFeaturesGT()
                         //Calculate the similarity to the already found nearest matches
                         keypL_tmp.push_back(keypL[idxm]);
                         Mat descriptorsL1;
-                        matchinglib::getDescriptors(imgs[0], keypL_tmp, GTfilterExtractor, descriptorsL1, featuretype);
+                        descriptorsL1 = keypL2DescrIdx.getDescriptors(keypL_tmp);
+//                        matchinglib::getDescriptors(imgs[0], keypL_tmp, GTfilterExtractor, descriptorsL1, featuretype);
                         keypL_tmp.clear();
                         m2qps[k].similMarkInl = static_cast<float>(getDescriptorDistance(descriptors22nd.row(static_cast<int>(m2qps[k].indexMarkInlR)), descriptorsL1));
                     }
@@ -1563,18 +1574,20 @@ int baseMatcher::filterInitFeaturesGT()
         //cv::Mat img1c;
         img1c.release();
         drawKeypoints( imgs[0], keypL, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-        imshow("Keypoints 1 after crosscheck", img1c );
+        imshow("Keypoints 1 after crosscheck - Round " + std::to_string(roundcounter), img1c );
         img1c.release();
         drawKeypoints( imgs[1], keypR, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-        imshow("Keypoints 2", img1c );
+        imshow("Keypoints 2 - Round " + std::to_string(roundcounter), img1c );
         cv::waitKey(0);
+        cv::destroyAllWindows();
 #endif
 
         //Search for matching keypoints in the right image as the found indexes arent valid anymore
         //Recalculate descriptors to exclude descriptors from deleted left keypoints
-        descriptors1.release();
+//        descriptors1.release();
         //extractor->compute(imgs[0],keypL,descriptors1);
-        matchinglib::getDescriptors(imgs[0], keypL, GTfilterExtractor, descriptors1, featuretype);
+//        matchinglib::getDescriptors(imgs[0], keypL, GTfilterExtractor, descriptors1, featuretype);
+        descriptors1 = keypL2DescrIdx.getDescriptors(keypL);
         eigkeypts2.resize(keypR.size(),2);
         for(unsigned int i = 0;i<keypR.size();i++)
         {
@@ -1639,7 +1652,8 @@ int baseMatcher::filterInitFeaturesGT()
                     keypR_tmp.push_back(keypR[j.first]);
                 }
                 //extractor->compute(imgs[1],keypR_tmp,descriptors2);
-                matchinglib::getDescriptors(imgs[1], keypR_tmp, GTfilterExtractor, descriptors2, featuretype);
+                descriptors2 = keypR2DescrIdx.getDescriptors(keypR_tmp);
+//                matchinglib::getDescriptors(imgs[1], keypR_tmp, GTfilterExtractor, descriptors2, featuretype);
                 if(radius_matches.size() > keypR_tmp.size())
                 {
                     if(keypR_tmp.empty())
@@ -1775,7 +1789,8 @@ int baseMatcher::filterInitFeaturesGT()
                     keypR_tmp.push_back(keypR[j.first]);
                 }
                 //extractor->compute(imgs[1],keypR_tmp,descriptors2);
-                matchinglib::getDescriptors(imgs[1], keypR_tmp, GTfilterExtractor, descriptors2, featuretype);
+                descriptors2 = keypR2DescrIdx.getDescriptors(keypR_tmp);
+//                matchinglib::getDescriptors(imgs[1], keypR_tmp, GTfilterExtractor, descriptors2, featuretype);
                 if(radius_matches.size() > keypR_tmp.size())
                 {
                     if(keypR_tmp.empty())
@@ -1887,11 +1902,12 @@ int baseMatcher::filterInitFeaturesGT()
         //cv::Mat img1c;
         img1c.release();
         drawKeypoints( imgs[0], keypL, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-        imshow("Keypoints 1 after final radius search", img1c );
+        imshow("Keypoints 1 after final radius search - Round " + std::to_string(roundcounter), img1c );
         img1c.release();
         drawKeypoints( imgs[1], keypR, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-        imshow("Keypoints 2", img1c );
+        imshow("Keypoints 2 - Round " + std::to_string(roundcounter), img1c );
         cv::waitKey(0);
+        cv::destroyAllWindows();
 #endif
 
     }while((additionalRound || (roundcounter < 2)));
@@ -2043,17 +2059,7 @@ int baseMatcher::filterInitFeaturesGT()
 	drawKeypoints( imgs[1], keypR, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
 	imshow("Keypoints 2 after equalization of outliers", img1c );
 	cv::waitKey(0);
-#endif
-
-#if showfeatures
-	//cv::Mat img1c;
-	img1c.release();
-	drawKeypoints( imgs[0], keypL, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-	imshow("Keypoints 1 after inlier ratio filtering", img1c );
-	img1c.release();
-	drawKeypoints( imgs[1], keypR, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-	imshow("Keypoints 2 after inlier ratio filtering", img1c );
-	cv::waitKey(0);
+    cv::destroyAllWindows();
 #endif
 
 	//Store ground truth matches
@@ -2109,7 +2115,8 @@ int baseMatcher::filterInitFeaturesGT()
 	inlRatio = static_cast<double>(positivesGT) / static_cast<double>(keypR.size());
 
 	//Show ground truth matches
-	/*{
+#if showfeatures
+	{
 		Mat img_match;
 		std::vector<cv::KeyPoint> keypL_reduced;//Left keypoints
 		std::vector<cv::KeyPoint> keypR_reduced;//Right keypoints
@@ -2151,7 +2158,9 @@ int baseMatcher::filterInitFeaturesGT()
 		drawMatches(imgs[0], keypL_reduced1, imgs[1], keypR_reduced1, matches_reduced1, img_match);
 		imshow("Ground truth matches", img_match);
 		waitKey(0);
-	}*/
+		cv::destroyAllWindows();
+	}
+#endif
 
 	return 0;
 }
@@ -5702,7 +5711,7 @@ bool baseMatcher::refineFoundGTM(int remainingImgs){
                              quality.distances, remainingImgs, quality.notMatchable,
                              quality.errvecs, quality.perfectMatches, quality.matchesGT_idx,
                              quality.HE, quality.validityValFalseGT, quality.errvecsGT, quality.distancesGT,
-                             quality.validityValGT, quality.distancesEstModel, quality.autoManualAnnot, "SIFT");
+                             quality.validityValGT, quality.distancesEstModel, quality.autoManualAnnot, "ORB");
     if(!res){
         return false;
     }
@@ -5807,7 +5816,7 @@ bool baseMatcher::loadOxfordImagesHomographies(const std::string &path,
 
     string iname0 = filenamesi[0];
     string iname1;
-    for (size_t idx1 = 0; idx1 < nr_is; idx1++)
+    for (size_t idx1 = 0; idx1 < nr_hs; idx1++)
     {
         homographies.emplace_back(Hs[idx1].clone());
         iname1 = filenamesi[idx1 + 1];

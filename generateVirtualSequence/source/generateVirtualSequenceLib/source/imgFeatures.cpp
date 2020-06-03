@@ -148,7 +148,7 @@ namespace matchinglib
             return -3;
         }
 
-        if(dynamicKeypDet == true)
+        if(dynamicKeypDet)
         {
             //if(!featuretype.compare("GFTT"))
             //  {
