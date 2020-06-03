@@ -118,7 +118,7 @@ size_t TNTPindexer::getNextTPID(const size_t &tp_repPatt_idx, const size_t &min_
     }else if(tp_repPatt_idx_ == numeric_limits<size_t>::max()){
         tp_repPatt_idx_ = tp_repPatt_idxs.rbegin()->first + 1;
     }
-    tptn_ids.emplace(tp_idx + tn_idx, &tp_ids[idx]);
+//    tptn_ids.emplace(tp_idx + tn_idx, &tp_ids[idx]);
     tp_repPatt_idxs.emplace(tp_repPatt_idx_, std::make_pair(idx, min_frm_idx));
     tp_idx++;
     nrCorrs++;
@@ -180,7 +180,7 @@ size_t TNTPindexer::getNextTNID(const size_t &tn_repPatt_idx, const size_t &min_
     }else if(tn_repPatt_idx_ == numeric_limits<size_t>::max()){
         tn_repPatt_idx_ = tn_repPatt_idxs.rbegin()->first + 1;
     }
-    tptn_ids.emplace(tp_idx + tn_idx, &tn_ids[idx]);
+//    tptn_ids.emplace(tp_idx + tn_idx, &tn_ids[idx]);
     tn_repPatt_idxs.emplace(tn_repPatt_idx_, std::make_pair(idx, min_frm_idx));
     tn_idx++;
     nrCorrs++;
@@ -188,7 +188,6 @@ size_t TNTPindexer::getNextTNID(const size_t &tn_repPatt_idx, const size_t &min_
 }
 
 size_t TNTPindexer::getCorrID(const size_t &nr, const bool &isTN, const bool &tryBoth){
-    size_t idx;
     std::map<size_t, std::pair<size_t, size_t>>::const_iterator gottntp;
     if(isTN){
         gottntp = tn_repPatt_idxs.find(nr);
@@ -198,30 +197,24 @@ size_t TNTPindexer::getCorrID(const size_t &nr, const bool &isTN, const bool &tr
                 if(gottntp == tp_repPatt_idxs.end()){
                     throw SequenceException("Feature number out of range");
                 }
-            }else {
-                throw SequenceException("Feature number out of range");
+                return tp_ids[gottntp->second.first];
             }
+            throw SequenceException("Feature number out of range");
         }
-        idx = gottntp->second.first;
-    }else{
-        gottntp = tp_repPatt_idxs.find(nr);
-        if(gottntp == tp_repPatt_idxs.end()){
-            if(tryBoth){
-                gottntp = tn_repPatt_idxs.find(nr);
-                if(gottntp == tn_repPatt_idxs.end()){
-                    throw SequenceException("Feature number out of range");
-                }
-            }else {
-                throw SequenceException("Feature number out of range");
-            }
-        }
-        idx = gottntp->second.first;
+        return tn_ids[gottntp->second.first];
     }
-    std::unordered_map<size_t, size_t*>::const_iterator got = tptn_ids.find(idx);
-    if(got == tptn_ids.end()){
+    gottntp = tp_repPatt_idxs.find(nr);
+    if(gottntp == tp_repPatt_idxs.end()){
+        if(tryBoth){
+            gottntp = tn_repPatt_idxs.find(nr);
+            if(gottntp == tn_repPatt_idxs.end()){
+                throw SequenceException("Feature number out of range");
+            }
+            return tn_ids[gottntp->second.first];
+        }
         throw SequenceException("Feature number out of range");
     }
-    return *(got->second);
+    return tp_ids[gottntp->second.first];
 }
 
 genMatchSequ::genMatchSequ(const std::string &sequLoadFolder,
@@ -1365,8 +1358,8 @@ bool genMatchSequ::getFeatures() {
         double inlRatTmp = static_cast<double>(nrTPFullSequ) / static_cast<double>(nrCorrsFullSequ);
         auto tp_part = static_cast<size_t>(round(inlRatTmp * static_cast<double>(kpCntDiff)));
         auto tn_part = kpCntDiff - tp_part;
-        auto gross_part = static_cast<size_t>(round(parsMtch.portionGrossTN * static_cast<double>(tn_part) / 2.));
-        nrTNFullSequWarped += tn_part;
+        auto gross_part = static_cast<size_t>(floor(parsMtch.portionGrossTN * static_cast<double>(tn_part) / 2.));
+        nrTNFullSequWarped += tn_part - gross_part;
         nrGrossTNFullSequWarped += gross_part;
         nrTPFullSequWarped += tp_part;
         nrCorrsExtractWarped = kpCnt;
@@ -1645,19 +1638,16 @@ bool genMatchSequ::getFeatures() {
         loadImgsEveryFrame = true;
     }else{
         loadImgsEveryFrame = false;
-        for (size_t i = 0; i < imageList.size(); ++i) {
-            imgFrameIdxMap[0].first[i] = i;
-            imgFrameIdxMap[0].second.push_back(i);
+        size_t idx = 0;
+        for(auto &i: uniqueImgIDToName){
+            imgFrameIdxMap[0].first[i.first] = idx;
+            imgFrameIdxMap[0].second.push_back(i.first);
+            idx++;
         }
-        if (gtmdata.isValid()) {
-            size_t i = imgFrameIdxMap[0].second.size();
-            for (auto &idn: gtmdata.uniqueImgIDTo1ImgName) {
-                imgFrameIdxMap[0].first[idn.first] = i++;
-                imgFrameIdxMap[0].second.push_back(idn.first);
-                imgs.emplace_back(cv::imread(*idn.second, IMREAD_GRAYSCALE));
-            }
+        for(auto& i : imgFrameIdxMap[0].second){
+            imgs.emplace_back(cv::imread(*uniqueImgIDToName.at(i), IMREAD_GRAYSCALE));
         }
-        imgFrameIdxMap.insert(imgFrameIdxMap.end(), nrFramesGenMatches - 1, imgFrameIdxMap[0]);
+        imgFrameIdxMap.insert(imgFrameIdxMap.begin() + 1, nrFramesGenMatches - 1, imgFrameIdxMap[0]);
     }
 
     return true;
@@ -1673,6 +1663,7 @@ void genMatchSequ::buildCorrsIdx(){
         corrTypeIdx.insert(corrTypeIdx.end(), nrGrossTNFullSequWarped, 1);
     }
     size_t nrTNwarpSingle = nrTNFullSequWarped - nrGrossTNFullSequWarped;
+    CV_Assert(nrTNwarpSingle <= nrTNFullSequWarped);
     if(nrTNwarpSingle > 0){
         corrTypeIdx.insert(corrTypeIdx.end(), nrTNwarpSingle, 2);
     }
@@ -2607,6 +2598,17 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                 Mat Haff2 = scale * Rrot * Rdeform.t() * D * Rdeform;
                 H = Mat::eye(3, 3, CV_64FC1);
                 Haff2.copyTo(H.colRange(0, 2).rowRange(0, 2));
+                //Eliminate the translation
+                Mat x1 = (Mat_<double>(3, 1) << (double) kp.pt.x, (double) kp.pt.y, 1.0);
+                Mat tm = H * x1;
+                tm /= tm.at<double>(2);
+                tm = x1 - tm;
+                if(!nearZero(cv::norm(tm))) {
+                    Mat tback = Mat::eye(3, 3, CV_64FC1);
+                    tback.at<double>(0, 2) = tm.at<double>(0);
+                    tback.at<double>(1, 2) = tm.at<double>(1);
+                    H = tback * H;
+                }
             }
         }while(useFallBack && (fbCnt < 21));
     }
@@ -2919,7 +2921,7 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
     }
     if(!useFallBack){
         //Apply noise
-        if(patchInfos.useTN){
+        if(patchInfos.useTN && !patchInfos.takeImg2FallBack){
             Mat patchwnsp;
             if(combDistTNtoReal[patchInfos.i] < 10.0){
                 double stdNoiseTNNear = 2.0 * max(2.0, patchInfos.stdNoiseTN / (1.0 + (10.0 - combDistTNtoReal[patchInfos.i]) / 10.0));
@@ -2936,11 +2938,13 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                                  visPatchNoise);
                 addImgNoiseSaltAndPepper(patchwnsp, patchwn, 32, 223, visPatchNoise);
             }
-        }else {
+        }else if(!patchInfos.takeImg2FallBack){
             if (!nearZero(parsMtch.imgIntNoise.first) || !nearZero(parsMtch.imgIntNoise.second)) {
                 addImgNoiseGauss(patchw, patchwn, parsMtch.imgIntNoise.first, parsMtch.imgIntNoise.second,
                                  visPatchNoise);
             }
+        }else{
+            patchw.copyTo(patchwn);
         }
 
         //Get descriptor
@@ -2959,25 +2963,21 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                 if(!descr1.empty()){
                     descrDist = getDescriptorDistance(descr1, descr21);
                 }else{
-                    if(patchInfos.takeImg2FallBack){
-                        descrDist = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor2(), descr21);
-                    }else {
-                        descrDist = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor1(), descr21);
-                    }
-                }
-            }else {
-                if(patchInfos.takeImg2FallBack){
-                    descrDist = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor2(), descr21);
-                }else {
                     descrDist = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor1(), descr21);
                 }
+            }else {
+                descrDist = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor1(), descr21);
             }
             if(patchInfos.useTN){
-                if (((combDistTNtoReal[patchInfos.i] >= 10.0) && (descrDist < patchInfos.ThTn)) || (descrDist < patchInfos.ThTnNear)) {
+                if (!patchInfos.takeImg2FallBack &&
+                (((combDistTNtoReal[patchInfos.i] >= 10.0) && (descrDist < patchInfos.ThTn)) ||
+                (descrDist < patchInfos.ThTnNear))) {
                     useFallBack = true;
                 }
             }else {
-                if (parsMtch.checkDescriptorDist && (descrDist > patchInfos.ThTp)) {
+                if (parsMtch.checkDescriptorDist &&
+                    ((!patchInfos.takeImg2FallBack && (descrDist > patchInfos.ThTp)) ||
+                     (patchInfos.takeImg2FallBack && (descrDist > 1.2 * patchInfos.ThTp)))) {
                     useFallBack = true;
                 }
             }
@@ -3055,10 +3055,13 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
         const int saltPepMinLowMin = 5, saltPepMaxLowMax = 250;
         int saltPepMinHigh = 25, saltPepMaxHigh = 230;
         const int saltPepMinHighMax = 35, saltPepMaxHighMin = 220;
+        bool try_again = false;
         do{
             Mat patchwgn;
-            if((!patchInfos.useTN && parsMtch.checkDescriptorDist && (descrDist > patchInfos.ThTp))
-               || (patchInfos.useTN && (descrDist > badDescrTH.maxVal))
+            if((!patchInfos.useTN && parsMtch.checkDescriptorDist &&
+                ((!patchInfos.takeImg2FallBack && (descrDist > patchInfos.ThTp)) ||
+                 (patchInfos.takeImg2FallBack && (descrDist > 1.2 * patchInfos.ThTp))))
+               || (!patchInfos.takeImg2FallBack && patchInfos.useTN && (descrDist > badDescrTH.maxVal))
                || (!patchInfos.useTN && (descrDist < 0))){
                 if(!noPosChange) {
                     kp2 = kp;
@@ -3075,18 +3078,20 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                     kp2err.y = kp2.pt.y + (float)patchROIimg1.y - kp.pt.y;
                 }
 
-                meang = getRandDoubleValRng(-10.0, 10.0);
-                stdg = getRandDoubleValRng(-12.0, 12.0);
                 patchwn = patchfb.clone();
+                if(!patchInfos.takeImg2FallBack) {
+                    meang = getRandDoubleValRng(-10.0, 10.0);
+                    stdg = getRandDoubleValRng(-12.0, 12.0);
+                    addImgNoiseGauss(patchwn, patchwgn, meang, stdg, visPatchNoise);
+                    addImgNoiseSaltAndPepper(patchwgn, patchwn, saltPepMinLow, saltPepMaxLow, visPatchNoise);
+                    saltPepMinLow--;
+                    saltPepMinLow = max(saltPepMinLow, saltPepMinLowMin);
+                    saltPepMaxLow++;
+                    saltPepMaxLow = min(saltPepMaxLow, saltPepMaxLowMax);
+                }
+            }else if(!patchInfos.takeImg2FallBack){
                 addImgNoiseGauss(patchwn, patchwgn, meang, stdg, visPatchNoise);
-                addImgNoiseSaltAndPepper(patchwgn, patchwn, saltPepMinLow, saltPepMaxLow, visPatchNoise);
-                saltPepMinLow--;
-                saltPepMinLow = max(saltPepMinLow, saltPepMinLowMin);
-                saltPepMaxLow++;
-                saltPepMaxLow = min(saltPepMaxLow, saltPepMaxLowMax);
-            }else {
-                addImgNoiseGauss(patchwn, patchwgn, meang, stdg, visPatchNoise);
-                addImgNoiseSaltAndPepper(patchwgn, patchwn, 25, 230, visPatchNoise);
+                addImgNoiseSaltAndPepper(patchwgn, patchwn, saltPepMinHigh, saltPepMaxHigh, visPatchNoise);
                 saltPepMinHigh++;
                 saltPepMinHigh = min(saltPepMinHigh, saltPepMinHighMax);
                 saltPepMaxHigh--;
@@ -3120,7 +3125,7 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                     kp2err = Point2f(0,0);
                     pkp21 = vector<KeyPoint>(1, kp2);
 
-                    /*Mat imgcol;
+                    Mat imgcol;
                     cvtColor(patchwn, imgcol, cv::COLOR_GRAY2BGR);
                     Point c((int)round(kp2.pt.x), (int)round(kp2.pt.y));
                     cv::circle(imgcol, c, (int)round(kp2.size / 2.f), Scalar(0,0,255));
@@ -3128,7 +3133,7 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                     imshow("Full image", imgcol);
 
                     waitKey(0);
-                    destroyWindow("Full image");*/
+                    destroyWindow("Full image");
 
                     kaze_noFail = true;
                     if((parsMtch.descriptorType == "AKAZE") || (parsMtch.descriptorType == "KAZE")){
@@ -3145,12 +3150,12 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                     }
                     if (err != 0) {
                         //Use the original descriptor
-                        cerr << "Unable to calculate a matching descriptor! Using the original one - "
-                                "this will result in a descriptor distance of 0 for this particular correspondence!"
-                             << endl;
                         if(patchInfos.takeImg2FallBack){
                             descr21 = corrToIdxMap.at(corrID).getDescriptor2().clone();
                         }else {
+                            cerr << "Unable to calculate a matching descriptor! Using the original one - "
+                                    "this will result in a descriptor distance of 0 for this particular correspondence!"
+                                 << endl;
                             descr21 = corrToIdxMap.at(corrID).getDescriptor1().clone();
                         }
                         break;
@@ -3183,101 +3188,103 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                         descrDist = getDescriptorDistance(descr1, descr21);
                     }
                     else{
-                        if(patchInfos.takeImg2FallBack){
-                            descrDist = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor2(), descr21);
-                        }else {
-                            descrDist = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor1(), descr21);
-                        }
-                    }
-                }else {
-                    if(patchInfos.takeImg2FallBack){
-                        descrDist = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor2(), descr21);
-                    }else {
                         descrDist = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor1(), descr21);
                     }
+                }else {
+                    descrDist = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor1(), descr21);
                 }
             }
             itCnt++;
-        }while(((!patchInfos.useTN && ((descrDist < patchInfos.minDescrDistTP) || (parsMtch.checkDescriptorDist && (descrDist > patchInfos.ThTp))))
-                || (patchInfos.useTN && ((((combDistTNtoReal[patchInfos.i] >= 10.0) && (descrDist < patchInfos.ThTn)) || (descrDist < patchInfos.ThTnNear))
-                                         || (descrDist > badDescrTH.maxVal))))
-               && (itCnt < 25));
+            bool tp_again = !patchInfos.useTN &&
+                            ((!patchInfos.takeImg2FallBack && (descrDist < patchInfos.minDescrDistTP)) ||
+                             (parsMtch.checkDescriptorDist && ((!patchInfos.takeImg2FallBack && (descrDist > patchInfos.ThTp)) ||
+                                                               (patchInfos.takeImg2FallBack && (descrDist > 1.2 * patchInfos.ThTp)))));
+            bool tn_again = !patchInfos.takeImg2FallBack && patchInfos.useTN &&
+                            ((((combDistTNtoReal[patchInfos.i] >= 10.0) && (descrDist < patchInfos.ThTn)) ||
+                              (descrDist < patchInfos.ThTnNear))
+                             || (descrDist > badDescrTH.maxVal));
+            try_again = tp_again || tn_again;
+        }while(try_again && (itCnt < 25));
         if(itCnt >= 25){
-            if((!patchInfos.useTN && ((descrDist < 0.75 * patchInfos.minDescrDistTP) || (parsMtch.checkDescriptorDist && (descrDist > 1.25 * patchInfos.ThTp))))
-               || (patchInfos.useTN && ((((combDistTNtoReal[patchInfos.i] >= 10.0) && (descrDist < 0.75 * patchInfos.ThTn))
-                                         || (descrDist < 0.75 * patchInfos.ThTnNear))
-                                        || (descrDist > 1.2 * badDescrTH.maxVal)))) {
+            bool tp_again = !patchInfos.useTN &&
+                            ((!patchInfos.takeImg2FallBack && (descrDist < 0.75 * patchInfos.minDescrDistTP)) ||
+                             (parsMtch.checkDescriptorDist && ((!patchInfos.takeImg2FallBack && (descrDist > 1.25 * patchInfos.ThTp)) ||
+                                                               (patchInfos.takeImg2FallBack && (descrDist > 1.5 * patchInfos.ThTp)))));
+            bool tn_again = !patchInfos.takeImg2FallBack && patchInfos.useTN &&
+                            ((((combDistTNtoReal[patchInfos.i] >= 10.0) && (descrDist < 0.75 * patchInfos.ThTn)) ||
+                              (descrDist < 0.75 * patchInfos.ThTnNear))
+                             || (descrDist > 1.2 * badDescrTH.maxVal));
+            if(tp_again || tn_again) {
                 //Use the original descriptor
-                cerr << "Unable to calculate a matching descriptor! Using the original one - "
-                        "this will result in a descriptor distance of 0 for this particular correspondence!"
-                     << endl;
+                if(!patchInfos.takeImg2FallBack) {
+                    cerr << "Unable to calculate a matching descriptor! Using the original one - "
+                            "this will result in a descriptor distance of 0 for this particular correspondence!"
+                         << endl;
+                }
 #if 1
                 //Check if the descriptor extracted again without changes on the patch is the same
-                vector<KeyPoint> pkp21;
-                Mat desrc_tmp;
-                if(fullImgUsed){
-                    pkp21 = vector<KeyPoint>(1, kp);
-                }else{
-                    KeyPoint kp2_tmp = kp;
-                    kp2_tmp.pt.x -= (float) patchROIimg1.x;
-                    kp2_tmp.pt.y -= (float) patchROIimg1.y;
-                    pkp21 = vector<KeyPoint>(1, kp2_tmp);
-                }
-                bool kaze_noFail = true;
-                if((parsMtch.descriptorType == "AKAZE") || (parsMtch.descriptorType == "KAZE")){
-                    KeyPoint kz_tmp = pkp21[0];
-                    kaze_noFail = getKazeProperties(patchfb, pkp21, kz_tmp);
-                }
-                int err = 0;
-                if(kaze_noFail) {
-                    if (matchinglib::getDescriptors(patchfb,
-                                                    pkp21,
-                                                    parsMtch.descriptorType,
-                                                    desrc_tmp,
-                                                    parsMtch.keyPointType) == 0) {
-                        if (!pkp21.empty()) {
-                            double descrDist_tmp;
-                            if(patchInfos.takeImg2FallBack){
-                                descrDist_tmp = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor2(),
-                                                                      desrc_tmp);
-                            }else {
+                if(!patchInfos.takeImg2FallBack) {
+                    vector<KeyPoint> pkp21;
+                    Mat desrc_tmp;
+                    if (fullImgUsed) {
+                        pkp21 = vector<KeyPoint>(1, kp);
+                    } else {
+                        KeyPoint kp2_tmp = kp;
+                        kp2_tmp.pt.x -= (float) patchROIimg1.x;
+                        kp2_tmp.pt.y -= (float) patchROIimg1.y;
+                        pkp21 = vector<KeyPoint>(1, kp2_tmp);
+                    }
+                    bool kaze_noFail = true;
+                    if ((parsMtch.descriptorType == "AKAZE") || (parsMtch.descriptorType == "KAZE")) {
+                        KeyPoint kz_tmp = pkp21[0];
+                        kaze_noFail = getKazeProperties(patchfb, pkp21, kz_tmp);
+                    }
+                    int err = 0;
+                    if (kaze_noFail) {
+                        if (matchinglib::getDescriptors(patchfb,
+                                                        pkp21,
+                                                        parsMtch.descriptorType,
+                                                        desrc_tmp,
+                                                        parsMtch.keyPointType) == 0) {
+                            if (!pkp21.empty()) {
+                                double descrDist_tmp;
                                 descrDist_tmp = getDescriptorDistance(corrToIdxMap.at(corrID).getDescriptor1(),
                                                                       desrc_tmp);
-                            }
-                            if (!nearZero(descrDist_tmp)) {
-                                cerr << "SOMETHING WENT WRONG: THE USED IMAGE PATCH IS NOT THE SAME AS FOR "
-                                        "CALCULATING THE INITIAL DESCRIPTOR!" << endl;
-                                if (verbose & SHOW_IMGS_AT_ERROR) {
-                                    //Show correspondence in original image
-                                    Mat fullimg, patchCol;
-                                    cvtColor(img, fullimg, cv::COLOR_GRAY2BGR);
-                                    Point c = kp_ri;
-                                    cv::circle(fullimg, c, (int) round(kp.size / 2.f), Scalar(0, 0, 255));
-                                    //Draw exact correspondence location
-                                    cv::circle(fullimg, c, 1, Scalar(0, 255, 0));
+                                if (!nearZero(descrDist_tmp)) {
+                                    cerr << "SOMETHING WENT WRONG: THE USED IMAGE PATCH IS NOT THE SAME AS FOR "
+                                            "CALCULATING THE INITIAL DESCRIPTOR!" << endl;
+                                    if (verbose & SHOW_IMGS_AT_ERROR) {
+                                        //Show correspondence in original image
+                                        Mat fullimg, patchCol;
+                                        cvtColor(img, fullimg, cv::COLOR_GRAY2BGR);
+                                        Point c = kp_ri;
+                                        cv::circle(fullimg, c, (int) round(kp.size / 2.f), Scalar(0, 0, 255));
+                                        //Draw exact correspondence location
+                                        cv::circle(fullimg, c, 1, Scalar(0, 255, 0));
 
-                                    cvtColor(patchfb, patchCol, cv::COLOR_GRAY2BGR);
-                                    c = Point((int) round(pkp21[0].pt.x), (int) round(pkp21[0].pt.y));
-                                    cv::circle(patchCol, c, (int) round(kp.size / 2.f), Scalar(0, 0, 255));
-                                    //Draw exact correspondence location
-                                    cv::circle(patchCol, c, 1, Scalar(0, 255, 0));
-                                    namedWindow("Original image with keypoint", WINDOW_AUTOSIZE);
-                                    imshow("Original image with keypoint", fullimg);
-                                    namedWindow("Patch with keypoint", WINDOW_AUTOSIZE);
-                                    imshow("Patch with keypoint", patchCol);
-                                    waitKey(0);
-                                    destroyWindow("Original image with keypoint");
-                                    destroyWindow("Patch with keypoint");
+                                        cvtColor(patchfb, patchCol, cv::COLOR_GRAY2BGR);
+                                        c = Point((int) round(pkp21[0].pt.x), (int) round(pkp21[0].pt.y));
+                                        cv::circle(patchCol, c, (int) round(kp.size / 2.f), Scalar(0, 0, 255));
+                                        //Draw exact correspondence location
+                                        cv::circle(patchCol, c, 1, Scalar(0, 255, 0));
+                                        namedWindow("Original image with keypoint", WINDOW_AUTOSIZE);
+                                        imshow("Original image with keypoint", fullimg);
+                                        namedWindow("Patch with keypoint", WINDOW_AUTOSIZE);
+                                        imshow("Patch with keypoint", patchCol);
+                                        waitKey(0);
+                                        destroyWindow("Original image with keypoint");
+                                        destroyWindow("Patch with keypoint");
+                                    }
                                 }
                             }
                         }
                     }
                 }
 #endif
-                if(patchInfos.takeImg2FallBack){
-                    descr21 = corrToIdxMap.at(corrID).getDescriptor2().clone();
-                }else {
+                if(forCam1 || !patchInfos.takeImg2FallBack){
                     descr21 = corrToIdxMap.at(corrID).getDescriptor1().clone();
+                }else {
+                    descr21 = corrToIdxMap.at(corrID).getDescriptor2().clone();
                 }
                 kp2 = kp;
                 kp2err = Point2f(0, 0);

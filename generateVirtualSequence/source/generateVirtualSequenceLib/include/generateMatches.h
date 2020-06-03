@@ -458,7 +458,7 @@ private:
     size_t nrCorrs = 0;
     std::vector<size_t> tn_ids;
     std::vector<size_t> tp_ids;
-    std::unordered_map<size_t, size_t*> tptn_ids;
+//    std::unordered_map<size_t, size_t*> tptn_ids;
     std::map<size_t, std::pair<size_t, size_t>> tp_repPatt_idxs;//repeated pattern index, running TP index, minimum index of corresponding frame
     std::map<size_t, std::pair<size_t, size_t>> tn_repPatt_idxs;//repeated pattern index, running TN index, minimum index of corresponding frame
     std::mt19937 *rand2ptr;
@@ -672,7 +672,7 @@ public:
 private:
     int minPatchSize2 = 85;//Corresponds to the minimal patch size (must be an odd number) we want after warping. It is also used to define the maximum patch size by multiplying it with maxPatchSizeMult2
     const int maxPatchSizeMult2 = 3;//Multiplication factor for minPatchSize2 to define the maximum allowed patch size of the warped image
-    const size_t maxImgLoad = 100;//Defines the maximum number of images that are loaded and saved in a vector
+    const size_t maxImgLoad = 200;//Defines the maximum number of images that are loaded and saved in a vector
     size_t minNrFramesMatch = 10;//Minimum number of required frames that should be generated if there are too less keypoints available
     size_t featureIdxBegin = 0;//Index for features at the beginning of every calculated frame
     std::vector<size_t> featureIdxRepPatt;//Index to keypoints, descriptors, and featureImgIdx with possible duplicates to simulate repeated patterns
