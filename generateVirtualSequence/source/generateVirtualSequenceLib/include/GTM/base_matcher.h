@@ -351,7 +351,7 @@ public:
 
 	//Constructor
     baseMatcher(std::string _featuretype, std::string _imgsPath, std::string _descriptortype,
-            std::mt19937 *rand2_ = nullptr, bool refineGTM_ = true);
+                uint32_t verbose_ = 0, std::mt19937 *rand2_ = nullptr, bool refineGTM_ = true);
 
     GTMdata &&moveGTMdata(){
         return std::move(gtmdata);
@@ -384,6 +384,7 @@ private:
     annotImgPars quality;
     bool refinedGTMAvailable = false;
     std::mt19937 *rand2ptr;
+    uint32_t verbose = 0;
 
     //Quality parameters after feature extraction
     double inlRatio, inlRatio_refined;//Inlier ratio over all keypoints in both images
@@ -420,7 +421,7 @@ private:
     //Refines keypoint positions of found GTM. Optionally, manual annotation can be performed
     bool refineFoundGTM(int remainingImgs);
     //Filters refined GTM positions based on a new estimated model (H or F) and stores refined GTM into matchesGT_refined, keypR_refined, and keypL_refined
-    void getRefinedGTM();
+    bool getRefinedGTM();
     //Stores refined GTM into GTM variables
     void switchToRefinedGTM();
     //Calculates, refines, and stores GTM of an Oxford image pair
@@ -428,7 +429,7 @@ private:
                                    const std::string &gtm_path, const std::string &sub,
                                    const int &remainingImgs, bool save_it = true);
     //Check if GTM are available on disk and load them
-    bool loadGTM(const std::string &gtm_path, const std::pair<std::string, std::string> &imageNames);
+    int loadGTM(const std::string &gtm_path, const std::pair<std::string, std::string> &imageNames);
     //Extract image names from GTM file name given a list of image file names of the folder containing the images
     bool getImgNamesFromGTM(const std::string &file, const std::vector<std::string> &imgNames,
                             std::string &imgName1, std::string &imgName2);
@@ -446,6 +447,10 @@ private:
     //Loads KITTI GT, interpolates flow/disparity, and calculates GTM
     bool getKitti_MD_GTM(const std::string &img1f, const std::string &img2f, const std::string &gt, bool is_flow,
                          cv::InputArray flow = cv::noArray());
+    //Splits the image into parts and performs flow interpolation
+    bool interpolateDispFlow(const std::vector<cv::Point2f> &pts1,
+                             const std::vector<cv::Point2f> &pts2,
+                             const cv::Mat &initFlow);
     //Calculates, refines, and stores GTM of an KITTI image pair
     bool calcRefineStoreGTM_KITTI_MD(const std::tuple<std::string, std::string, std::string> &fileNames,
                                      bool is_flow, const std::string &gtm_path, const std::string &sub,
@@ -471,9 +476,9 @@ private:
 	//Filter initial features with a ground truth flow file if available and calculate ground truth quality parameters
 	int filterInitFeaturesGT();
 
-	bool readGTMatchesDisk(const std::string &filenameGT);
+	int readGTMatchesDisk(const std::string &filenameGT);
 
-	bool writeGTMatchesDisk(const std::string &filenameGT, bool writeQualityPars = false);
+	bool writeGTMatchesDisk(const std::string &filenameGT, bool writeQualityPars = false, bool writeEmptyFile = false);
 
 	void clearGTvars();
 

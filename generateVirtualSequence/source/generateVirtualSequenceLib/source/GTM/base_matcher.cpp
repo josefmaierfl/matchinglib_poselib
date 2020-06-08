@@ -115,9 +115,11 @@ void findLocalMin(const Mat& patchL, const Mat& patchR, float quarterpatch, floa
  * string _imgsPath				Input  -> Path to the images which is necessary for loading and storing the ground truth matches
  *
  */
-baseMatcher::baseMatcher(std::string _featuretype, std::string _imgsPath, std::string _descriptortype, std::mt19937 *rand2_, bool refineGTM_) :
+baseMatcher::baseMatcher(std::string _featuretype, std::string _imgsPath, std::string _descriptortype,
+                         uint32_t verbose_, std::mt19937 *rand2_, bool refineGTM_) :
         refineGTM(refineGTM_),
         rand2ptr(rand2_),
+        verbose(verbose_),
         inlRatio(0),
         inlRatio_refined(0),
         positivesGT(0),
@@ -152,12 +154,11 @@ bool baseMatcher::detectFeatures()
         return false; //Too less features detected
     }
 
-#define showfeaturesExtr 0
-#if showfeaturesExtr
-    cv::Mat img1c;
-    drawKeypoints( imgs[0], keypL, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-    imshow("Keypoints 1", img1c );
-#endif
+    if(verbose & SHOW_GTM_KEYPOINTS) {
+        cv::Mat img1c;
+        drawKeypoints(imgs[0], keypL, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
+        imshow("Keypoints 1", img1c);
+    }
 
     if (matchinglib::getKeypoints(imgs[1], keypR, featuretype, false, INT_MAX) != 0)
         return false;
@@ -166,13 +167,13 @@ bool baseMatcher::detectFeatures()
         return false; //Too less features detected
     }
 
-#if showfeaturesExtr
-    cv::Mat img2c;
-    drawKeypoints( imgs[1], keypR, img2c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-    imshow("Keypoints 2", img2c );
-    waitKey(0);
-    cv::destroyAllWindows();
-#endif
+    if(verbose & SHOW_GTM_KEYPOINTS) {
+        cv::Mat img2c;
+        drawKeypoints(imgs[1], keypR, img2c, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
+        imshow("Keypoints 2", img2c);
+        waitKey(0);
+        cv::destroyAllWindows();
+    }
 	return true;
 }
 
@@ -189,7 +190,6 @@ bool baseMatcher::detectFeatures()
  */
 int baseMatcher::filterInitFeaturesGT()
 {
-#define showfeatures 1
 	Mat descriptors1, descriptors22nd;
 	std::vector<cv::KeyPoint> keypR_tmp, keypR_tmp1;//Right found keypoints
 	std::vector<cv::KeyPoint> keypL_tmp, keypL_tmp1;//Left found keypoints
@@ -338,16 +338,16 @@ int baseMatcher::filterInitFeaturesGT()
     if(nearest_dist.empty())
         return -1; //No corresponding keypoints found
 
-#if showfeatures
-    cv::Mat img1c;
-    drawKeypoints( imgs[0], keypL, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-    imshow("Keypoints 1 after invalid GT filtering", img1c );
-    img1c.release();
-    drawKeypoints( imgs[1], keypR, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-    imshow("Keypoints 2", img1c );
-    cv::waitKey(0);
-    cv::destroyAllWindows();
-#endif
+    if(verbose & SHOW_GTM_GEN_PROCESS) {
+        cv::Mat img1c;
+        drawKeypoints(imgs[0], keypL, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
+        imshow("Keypoints 1 after invalid GT filtering", img1c);
+        img1c.release();
+        drawKeypoints(imgs[1], keypR, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
+        imshow("Keypoints 2", img1c);
+        cv::waitKey(0);
+        cv::destroyAllWindows();
+    }
 
     //Sort distances to get the largest distances first
     sort(nearest_dist.begin(), nearest_dist.end(),
@@ -699,17 +699,17 @@ int baseMatcher::filterInitFeaturesGT()
         }
     }
 
-#if showfeatures
-    //cv::Mat img1c;
-    img1c.release();
-    drawKeypoints( imgs[0], keypL, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-    imshow("Keypoints 1 after min. Similarity filtering", img1c );
-    img1c.release();
-    drawKeypoints( imgs[1], keypR, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-    imshow("Keypoints 2", img1c );
-    cv::waitKey(0);
-    cv::destroyAllWindows();
-#endif
+    if(verbose & SHOW_GTM_GEN_PROCESS) {
+        cv::Mat img1c;
+        img1c.release();
+        drawKeypoints(imgs[0], keypL, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
+        imshow("Keypoints 1 after min. Similarity filtering", img1c);
+        img1c.release();
+        drawKeypoints(imgs[1], keypR, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
+        imshow("Keypoints 2", img1c);
+        cv::waitKey(0);
+        cv::destroyAllWindows();
+    }
 
     //Generate flow from right to left image using neighbor interpolation
     vector<Mat> channels21;
@@ -1570,17 +1570,17 @@ int baseMatcher::filterInitFeaturesGT()
             delCorrR.clear();
         }
 
-#if showfeatures
-        //cv::Mat img1c;
-        img1c.release();
-        drawKeypoints( imgs[0], keypL, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-        imshow("Keypoints 1 after crosscheck - Round " + std::to_string(roundcounter), img1c );
-        img1c.release();
-        drawKeypoints( imgs[1], keypR, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-        imshow("Keypoints 2 - Round " + std::to_string(roundcounter), img1c );
-        cv::waitKey(0);
-        cv::destroyAllWindows();
-#endif
+        if(verbose & SHOW_GTM_GEN_PROCESS) {
+            cv::Mat img1c;
+            img1c.release();
+            drawKeypoints(imgs[0], keypL, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
+            imshow("Keypoints 1 after crosscheck - Round " + std::to_string(roundcounter), img1c);
+            img1c.release();
+            drawKeypoints(imgs[1], keypR, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
+            imshow("Keypoints 2 - Round " + std::to_string(roundcounter), img1c);
+            cv::waitKey(0);
+            cv::destroyAllWindows();
+        }
 
         //Search for matching keypoints in the right image as the found indexes arent valid anymore
         //Recalculate descriptors to exclude descriptors from deleted left keypoints
@@ -1898,17 +1898,17 @@ int baseMatcher::filterInitFeaturesGT()
             }
         }
 
-#if showfeatures
-        //cv::Mat img1c;
-        img1c.release();
-        drawKeypoints( imgs[0], keypL, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-        imshow("Keypoints 1 after final radius search - Round " + std::to_string(roundcounter), img1c );
-        img1c.release();
-        drawKeypoints( imgs[1], keypR, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-        imshow("Keypoints 2 - Round " + std::to_string(roundcounter), img1c );
-        cv::waitKey(0);
-        cv::destroyAllWindows();
-#endif
+        if(verbose & SHOW_GTM_GEN_PROCESS) {
+            cv::Mat img1c;
+            img1c.release();
+            drawKeypoints(imgs[0], keypL, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
+            imshow("Keypoints 1 after final radius search - Round " + std::to_string(roundcounter), img1c);
+            img1c.release();
+            drawKeypoints(imgs[1], keypR, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
+            imshow("Keypoints 2 - Round " + std::to_string(roundcounter), img1c);
+            cv::waitKey(0);
+            cv::destroyAllWindows();
+        }
 
     }while((additionalRound || (roundcounter < 2)));
 
@@ -2050,17 +2050,17 @@ int baseMatcher::filterInitFeaturesGT()
     CV_Assert(keypR.size() == keypL.size());
 
 
-#if showfeatures
-	//cv::Mat img1c;
-	img1c.release();
-	drawKeypoints( imgs[0], keypL, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-	imshow("Keypoints 1 after equalization of outliers", img1c );
-	img1c.release();
-	drawKeypoints( imgs[1], keypR, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-	imshow("Keypoints 2 after equalization of outliers", img1c );
-	cv::waitKey(0);
-    cv::destroyAllWindows();
-#endif
+    if(verbose & SHOW_GTM_GEN_PROCESS) {
+        cv::Mat img1c;
+        img1c.release();
+        drawKeypoints(imgs[0], keypL, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
+        imshow("Keypoints 1 after equalization of outliers", img1c);
+        img1c.release();
+        drawKeypoints(imgs[1], keypR, img1c, Scalar::all(-1), DrawMatchesFlags::DEFAULT);
+        imshow("Keypoints 2 after equalization of outliers", img1c);
+        cv::waitKey(0);
+        cv::destroyAllWindows();
+    }
 
 	//Store ground truth matches
 	cv::DMatch singleMatch;
@@ -2108,15 +2108,14 @@ int baseMatcher::filterInitFeaturesGT()
 			//}
 		}
 	}
-	if(k < 15)
+	if(k < 10)
 		return -1; //Too less features remaining
 	positivesGT = k;
 	negativesGT = leftInlier.size() - k;
 	inlRatio = static_cast<double>(positivesGT) / static_cast<double>(keypR.size());
 
 	//Show ground truth matches
-#if showfeatures
-	{
+    if(verbose & SHOW_GTM_GEN_PROCESS) {
 		Mat img_match;
 		std::vector<cv::KeyPoint> keypL_reduced;//Left keypoints
 		std::vector<cv::KeyPoint> keypR_reduced;//Right keypoints
@@ -2129,13 +2128,13 @@ int baseMatcher::filterInitFeaturesGT()
 		size_t keepXthMatch = 1;
 		if(matchesGT.size() > keepNMatches)
 			keepXthMatch = matchesGT.size() / keepNMatches;
-		for (unsigned int i = 0; i < matchesGT.size(); i++)
+		for (auto & i : matchesGT)
 		{
-			int idx = matchesGT[i].queryIdx;
+			int idx = i.queryIdx;
 			if(leftInlier[idx])
 			{
 				keypL_reduced.push_back(keypL[idx]);
-				matches_reduced.push_back(matchesGT[i]);
+				matches_reduced.push_back(i);
 				matches_reduced.back().queryIdx = j;
 				keypR_reduced.push_back(keypR[matches_reduced.back().trainIdx]);
 				matches_reduced.back().trainIdx = j;
@@ -2160,7 +2159,6 @@ int baseMatcher::filterInitFeaturesGT()
 		waitKey(0);
 		cv::destroyAllWindows();
 	}
-#endif
 
 	return 0;
 }
@@ -2200,12 +2198,16 @@ std::string baseMatcher::getGTMbasename() const{
  *
  * string filenameGT			Input  -> The path and filename of the ground truth file
  */
-bool baseMatcher::readGTMatchesDisk(const std::string &filenameGT)
+int baseMatcher::readGTMatchesDisk(const std::string &filenameGT)
 {
     FileStorage fs(filenameGT, FileStorage::READ);
     if (!fs.isOpened()) {
         cerr << "Failed to open " << filenameGT << endl;
-        return false;
+        return -1;
+    }
+    FileNode n = fs["noDataAvailable"];
+    if(!n.empty()){
+        return -2;
     }
     fs["keypointType"] >> featuretype;
     fs["descriptorType"] >> GTfilterExtractor;
@@ -2219,10 +2221,10 @@ bool baseMatcher::readGTMatchesDisk(const std::string &filenameGT)
     fs["keypL"] >> keypL;
     fs["keypR"] >> keypR;
     fs["matchesGT"] >> matchesGT;
-    FileNode n = fs["leftInlier"];
+    n = fs["leftInlier"];
     if (n.type() != FileNode::SEQ) {
         cerr << "leftInlier is not a sequence! FAIL" << endl;
-        return false;
+        return -1;
     }
     leftInlier.clear();
     FileNodeIterator it = n.begin(), it_end = n.end();
@@ -2234,7 +2236,7 @@ bool baseMatcher::readGTMatchesDisk(const std::string &filenameGT)
     n = fs["rightInlier"];
     if (n.type() != FileNode::SEQ) {
         cerr << "rightInlier is not a sequence! FAIL" << endl;
-        return false;
+        return -1;
     }
     rightInlier.clear();
     it = n.begin(), it_end = n.end();
@@ -2249,7 +2251,7 @@ bool baseMatcher::readGTMatchesDisk(const std::string &filenameGT)
     if(!n.empty()) {
         if (n.type() != FileNode::SEQ) {
             cerr << "falseGT is not a sequence! FAIL" << endl;
-            return false;
+            return -1;
         }
         it = n.begin(), it_end = n.end();
         for (; it != it_end; ++it) {
@@ -2264,7 +2266,7 @@ bool baseMatcher::readGTMatchesDisk(const std::string &filenameGT)
     if(!n.empty()) {
         if (n.type() != FileNode::SEQ) {
             cerr << "distanceHisto is not a sequence! FAIL" << endl;
-            return false;
+            return -1;
         }
         it = n.begin(), it_end = n.end();
         for (; it != it_end; ++it) {
@@ -2280,7 +2282,7 @@ bool baseMatcher::readGTMatchesDisk(const std::string &filenameGT)
     if(!n.empty()) {
         if (n.type() != FileNode::SEQ) {
             cerr << "distances is not a sequence! FAIL" << endl;
-            return false;
+            return -1;
         }
         it = n.begin(), it_end = n.end();
         while (it != it_end) {
@@ -2297,7 +2299,7 @@ bool baseMatcher::readGTMatchesDisk(const std::string &filenameGT)
     if(!n.empty()) {
         if (n.type() != FileNode::SEQ) {
             cerr << "errvecs is not a sequence! FAIL" << endl;
-            return false;
+            return -1;
         }
         it = n.begin(), it_end = n.end();
         while (it != it_end) {
@@ -2310,7 +2312,7 @@ bool baseMatcher::readGTMatchesDisk(const std::string &filenameGT)
     if(!n.empty()) {
         if (n.type() != FileNode::SEQ) {
             cerr << "perfectMatches is not a sequence! FAIL" << endl;
-            return false;
+            return -1;
         }
         refinedGTMAvailable = true;
         it = n.begin(), it_end = n.end();
@@ -2328,7 +2330,7 @@ bool baseMatcher::readGTMatchesDisk(const std::string &filenameGT)
     if(!n.empty()) {
         if (n.type() != FileNode::SEQ) {
             cerr << "matchesGT_idx is not a sequence! FAIL" << endl;
-            return false;
+            return -1;
         }
         refinedGTMAvailable &= true;
         it = n.begin(), it_end = n.end();
@@ -2348,7 +2350,7 @@ bool baseMatcher::readGTMatchesDisk(const std::string &filenameGT)
     if(!n.empty()) {
         if (n.type() != FileNode::SEQ) {
             cerr << "validityValFalseGT is not a sequence! FAIL" << endl;
-            return false;
+            return -1;
         }
         it = n.begin(), it_end = n.end();
         while (it != it_end) {
@@ -2361,7 +2363,7 @@ bool baseMatcher::readGTMatchesDisk(const std::string &filenameGT)
     if(!n.empty()) {
         if (n.type() != FileNode::SEQ) {
             cerr << "errvecsGT is not a sequence! FAIL" << endl;
-            return false;
+            return -1;
         }
         it = n.begin(), it_end = n.end();
         while (it != it_end) {
@@ -2374,7 +2376,7 @@ bool baseMatcher::readGTMatchesDisk(const std::string &filenameGT)
     if(!n.empty()) {
         if (n.type() != FileNode::SEQ) {
             cerr << "distancesGT is not a sequence! FAIL" << endl;
-            return false;
+            return -1;
         }
         it = n.begin(), it_end = n.end();
         while (it != it_end) {
@@ -2387,7 +2389,7 @@ bool baseMatcher::readGTMatchesDisk(const std::string &filenameGT)
     if(!n.empty()) {
         if (n.type() != FileNode::SEQ) {
             cerr << "validityValGT is not a sequence! FAIL" << endl;
-            return false;
+            return -1;
         }
         it = n.begin(), it_end = n.end();
         while (it != it_end) {
@@ -2400,7 +2402,7 @@ bool baseMatcher::readGTMatchesDisk(const std::string &filenameGT)
     if(!n.empty()) {
         if (n.type() != FileNode::SEQ) {
             cerr << "distancesEstModel is not a sequence! FAIL" << endl;
-            return false;
+            return -1;
         }
         refinedGTMAvailable &= true;
         it = n.begin(), it_end = n.end();
@@ -2420,7 +2422,7 @@ bool baseMatcher::readGTMatchesDisk(const std::string &filenameGT)
     if(!n.empty()) {
         if (n.type() != FileNode::SEQ) {
             cerr << "autoManualAnnot is not a sequence! FAIL" << endl;
-            return false;
+            return -1;
         }
         it = n.begin(), it_end = n.end();
         while (it != it_end) {
@@ -2430,7 +2432,7 @@ bool baseMatcher::readGTMatchesDisk(const std::string &filenameGT)
         }
     }
 
-	return true;
+	return 0;
 }
 
 /* Clears vectors containing ground truth information
@@ -2482,25 +2484,22 @@ bool readDoubleVal(ifstream & gtFromFile, const std::string& keyWord, double *va
  *
  * string filenameGT			Input  -> The path and filename of the ground truth file
  * bool writeEmptyFile			Input  -> If true [Default = false], the gound truth generation
- *										  was not successful due to too less positives or a
- *										  too small inlier ratio. For this reason the following
- *										  values are written to the file: usedMatchTH = 0, 
- *										  inlRatioL = 0.00034, inlRatioR = 0.00021, positivesGT = 0,
- *										  negativesGT = 0, and negativesGTr = 0. Thus, if these
- *										  values are read from the file, no new ground truth generation
- *										  has to be performed which would fail again.
+ *										  was not successful due to too less positives.
  *
  * Return value:				 0:	Success
  *								-1: Bad filename or directory
  */
-bool baseMatcher::writeGTMatchesDisk(const std::string &filenameGT, bool writeQualityPars) {
+bool baseMatcher::writeGTMatchesDisk(const std::string &filenameGT, bool writeQualityPars, bool writeEmptyFile) {
     FileStorage fs(filenameGT, FileStorage::WRITE);
     if (!fs.isOpened()) {
         cerr << "Failed to open " << filenameGT << endl;
         return false;
     }
-
-    fs.writeComment("This file contains Ground Truth Matches (GTM) and some related information.\n");
+    if(writeEmptyFile){
+        fs.writeComment("No Ground Truth Matches (GTM) could be generated for the related image pair.\n");
+    }else {
+        fs.writeComment("This file contains Ground Truth Matches (GTM) and some related information.\n");
+    }
 
     fs.writeComment("Keypoint type");
     fs << "keypointType" << featuretype;
@@ -2508,6 +2507,10 @@ bool baseMatcher::writeGTMatchesDisk(const std::string &filenameGT, bool writeQu
     fs << "descriptorType" << GTfilterExtractor;
     fs.writeComment("Used distance threshold for generating GTM");
     fs << "usedMatchTH" << usedMatchTH;
+    if(writeEmptyFile){
+        fs << "noDataAvailable" << true;
+        return true;
+    }
     fs.writeComment("Inlier ratio");
     fs << "inlRatio" << inlRatio;
     fs.writeComment("Number of true positives (TP)");
@@ -5190,7 +5193,7 @@ bool baseMatcher::calcGTM_MegaDepth(size_t &min_nrTP){
                         std::string imgName1, imgName2;
                         if(getImgNamesFromGTM(gtf, img_filenames, imgName1, imgName2)){
                             std::pair<std::string, std::string> imageNames = make_pair(imgName1, imgName2);
-                            if(!loadGTM(gtm_path, imageNames)){
+                            if(loadGTM(gtm_path, imageNames) != 0){
                                 continue;
                             }
                             addGTMdataToPool();
@@ -5343,7 +5346,11 @@ bool baseMatcher::calcGTM_KITTI(size_t &min_nrTP){
         if(checkPathExists(gtm_path)){
             for (size_t j = 0; j < nrGts; ++j){
                 std::pair<std::string, std::string> imageNames = make_pair(get<0>(fileNames[j]), get<1>(fileNames[j]));
-                if(!loadGTM(gtm_path, imageNames)){
+                int err = loadGTM(gtm_path, imageNames);
+                if(err != 0){
+                    if(err == -2){
+                        continue;
+                    }
                     if(!calcRefineStoreGTM_KITTI_MD(fileNames[j], i.isFlow, gtm_path, i.gt12.sub_folder,
                                                     static_cast<int>(nrGts - j), true, "KITTI")){
                         continue;
@@ -5446,50 +5453,7 @@ bool baseMatcher::getKitti_MD_GTM(const std::string &img1f, const std::string &i
     }
     //Interpolate missing values
     if(interpolFlow) {
-        Mat dense_flow(imgs[0].rows, imgs[0].cols, CV_32FC2);
-        Ptr<ximgproc::EdgeAwareInterpolator> gd = ximgproc::createEdgeAwareInterpolator();
-        gd->setK(128);
-        gd->setSigma(0.05f);
-        gd->setLambda(999.f);
-        gd->setFGSLambda(500.0f);
-        gd->setFGSSigma(1.5f);
-        gd->setUsePostProcessing(false);
-        gd->interpolate(imgs[0], pts1, imgs[1], pts2, dense_flow);
-        CV_Assert(dense_flow.type() == CV_32FC2);
-
-#define SHOWINTERIM 1
-        std::vector<Mat> flow_ch;
-        cv::split(flow_img, flow_ch);
-        Mat mask = cv::abs(flow_ch[0]) + cv::abs(flow_ch[1]);
-        cv::threshold(mask, mask, 0, 255.0, cv::THRESH_BINARY);
-        mask.convertTo(mask, CV_8UC1);
-        Mat structElem = getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(15, 15));
-        cv::morphologyEx(mask, mask, MORPH_CLOSE, structElem);
-#if SHOWINTERIM
-        namedWindow("Mask", WINDOW_AUTOSIZE);// Create a window for display.
-        imshow("Mask", mask);
-        cv::waitKey(0);
-#endif
-        std::vector<Mat> vecMats;
-        cv::split(dense_flow, vecMats);
-        cv::Mat validity(vecMats.back().size(), CV_8UC1, 2);
-        validity &= mask;
-        validity.convertTo(validity, vecMats.back().type());
-        for (auto &pos: pts1) {
-            validity.at<float>(static_cast<int>(pos.y), static_cast<int>(pos.x)) = 1.f;
-        }
-        vecMats.emplace_back(move(validity));
-#if SHOWINTERIM
-        namedWindow("Channel 1", WINDOW_AUTOSIZE);// Create a window for display.
-        imshow("Channel 1", vecMats[0]);
-        namedWindow("Channel 2", WINDOW_AUTOSIZE);// Create a window for display.
-        imshow("Channel 2", vecMats[1]);
-        namedWindow("Channel 3", WINDOW_AUTOSIZE);// Create a window for display.
-        imshow("Channel 3", vecMats[2]);
-        cv::waitKey(0);
-        cv::destroyAllWindows();
-#endif
-        cv::merge(vecMats, flowGT);
+        interpolateDispFlow(pts1, pts2, flow_img);
     }else{
         flowGT = flow_img;
     }
@@ -5498,6 +5462,233 @@ bool baseMatcher::getKitti_MD_GTM(const std::string &img1f, const std::string &i
     }
     int err = filterInitFeaturesGT();
     return err == 0;
+}
+
+bool baseMatcher::interpolateDispFlow(const vector<cv::Point2f> &pts1,
+                                      const vector<cv::Point2f> &pts2,
+                                      const cv::Mat &initFlow){
+    size_t nr_points = pts1.size();
+    CV_Assert(nr_points == pts2.size());
+    CV_Assert(!initFlow.empty() && initFlow.type() == CV_32FC3);
+    CV_Assert(!imgs[0].empty() && !imgs[1].empty());
+    const cv::Size2i imgSI = imgs[0].size();
+    const cv::Size2i img2SI = imgs[1].size();
+    //Get size of patches
+    auto nr_patches = ceil(static_cast<float>(nr_points) / static_cast<float>(SHRT_MAX));
+    auto nr_patches_xy = max(static_cast<size_t>(ceil(std::sqrt(nr_patches))), static_cast<size_t>(2));
+    auto patchSi_x = static_cast<int>(ceil(static_cast<float>(imgs[0].cols) / static_cast<float>(nr_patches_xy)));
+    auto patchSi_xd = static_cast<int>(round(0.2f * static_cast<float>(patchSi_x)));
+    auto patchSi_xl = patchSi_x + 2 * patchSi_xd;
+    auto patchSi_y = static_cast<int>(ceil(static_cast<float>(imgs[0].rows) / static_cast<float>(nr_patches_xy)));
+    auto patchSi_yd = static_cast<int>(round(0.2f * static_cast<float>(patchSi_y)));
+    auto patchSi_yl = patchSi_y + 2 * patchSi_yd;
+    std::vector<Mat> flow_ch;
+    cv::split(initFlow, flow_ch);
+    Mat mask = cv::abs(flow_ch[0]) + cv::abs(flow_ch[1]);
+    cv::threshold(mask, mask, 0, 255.0, cv::THRESH_BINARY);
+    mask.convertTo(mask, CV_8UC1);
+    bool retry = false;
+    vector<cv::Rect2i> rois;
+    do{
+        int actx = 0, acty = 0;
+        rois.clear();
+        retry = false;
+        for(size_t y = 0; y < nr_patches_xy; ++y){
+            const int maxHeight = (acty + patchSi_yl - patchSi_yd) <= imgSI.height ? patchSi_yl:(imgSI.height - acty);
+            for(size_t x = 0; x < nr_patches_xy; ++x){
+                const int maxWidth = (actx + patchSi_xl - patchSi_xd) <= imgSI.width ? patchSi_xl:(imgSI.width - actx);
+                rois.emplace_back(Rect2i(max(actx - patchSi_xd, 0),
+                                         max(acty - patchSi_yd, 0),
+                                         maxWidth,
+                                         maxHeight));
+                const int cntPts = cv::countNonZero(mask(rois.back()));
+                if(cntPts >= static_cast<int>(SHRT_MAX)){
+                    retry = true;
+                    nr_patches_xy = max(static_cast<size_t>(round(1.25f * static_cast<float>(nr_patches_xy))),
+                                        nr_patches_xy + 2);
+                    patchSi_x = static_cast<int>(ceil(static_cast<float>(imgs[0].cols) / static_cast<float>(nr_patches_xy)));
+                    patchSi_xd = static_cast<int>(round(0.2f * static_cast<float>(patchSi_x)));
+                    patchSi_xl = patchSi_x + 2 * patchSi_xd;
+                    patchSi_y = static_cast<int>(ceil(static_cast<float>(imgs[0].rows) / static_cast<float>(nr_patches_xy)));
+                    patchSi_yd = static_cast<int>(round(0.2f * static_cast<float>(patchSi_y)));
+                    patchSi_yl = patchSi_y + 2 * patchSi_yd;
+                    break;
+                }
+                actx += patchSi_x;
+            }
+            if(retry){
+                break;
+            }
+            acty += patchSi_y;
+            actx = 0;
+        }
+    }while(retry);
+
+    //Get min/max flow of patches to calculate ROIs in second images
+    vector<Point2i> minFlow, maxFlow;
+    vector<cv::Rect2i> roisImg2;
+    for(auto &roi: rois){
+        double miFx, maFx, miFy, maFy;
+        cv::minMaxLoc(flow_ch[0](roi), &miFx, &maFx);
+        cv::minMaxLoc(flow_ch[1](roi), &miFy, &maFy);
+        if(miFx > 0) miFx = 0;
+        if(maFx < 0) maFx = 0;
+        if(miFy > 0) miFy = 0;
+        if(maFy < 0) maFy = 0;
+        miFx *= 1.1;
+        miFy *= 1.1;
+        maFx *= 1.1;
+        maFy *= 1.1;
+        int x2 = min(max(roi.x + static_cast<int>(round(miFx)), 0), img2SI.width - 20);
+        int y2 = min(max(roi.y + static_cast<int>(round(miFy)), 0), img2SI.height - 20);
+        int width2 = roi.width + static_cast<int>(round(abs(miFx) + abs(maFx)));
+        if(x2 + width2 > img2SI.width) width2 = img2SI.width - x2;
+        int height2 = roi.height + static_cast<int>(round(abs(miFy) + abs(maFy)));
+        if(y2 + height2 > img2SI.height) height2 = img2SI.height - y2;
+        roisImg2.emplace_back(Rect2i(x2, y2, width2, height2));
+    }
+
+    //Get flow for ROIs
+    size_t nr_elems = rois.size();
+    vector<vector<cv::Point2f>> pts1_tmp(nr_elems), pts2_tmp(nr_elems);
+    for(size_t i = 0; i < nr_elems; ++i){
+        const auto roiXdiff = static_cast<float>(rois[i].x - roisImg2[i].x);
+        const auto roiYdiff = static_cast<float>(rois[i].y - roisImg2[i].y);
+        for (int y = rois[i].y; y < rois[i].y + rois[i].height; ++y) {
+            const auto actY = static_cast<float>(y - rois[i].y);
+            const auto actY2 = actY + roiYdiff;
+            for (int x = rois[i].x; x < rois[i].x + rois[i].width; ++x) {
+                if(flow_ch[2].at<float>(y, x) > 0){
+                    const auto actX = static_cast<float>(x - rois[i].x);
+                    pts1_tmp[i].emplace_back(actX, actY);
+                    const float x2 = actX + roiXdiff + flow_ch[0].at<float>(y, x);
+                    const float y2 = actY2 + flow_ch[1].at<float>(y, x);
+                    pts2_tmp[i].emplace_back(x2, y2);
+                }
+            }
+        }
+    }
+
+    //Interpolate flow patches
+    vector<Mat> dense_flowP(nr_elems);
+    Ptr<ximgproc::EdgeAwareInterpolator> gd = ximgproc::createEdgeAwareInterpolator();
+    gd->setK(128);
+    gd->setSigma(0.05f);
+    gd->setLambda(999.f);
+    gd->setFGSLambda(500.0f);
+    gd->setFGSSigma(1.5f);
+    gd->setUsePostProcessing(false);
+    for(size_t i = 0; i < nr_elems; ++i) {
+        gd->interpolate(imgs[0](rois[i]), pts1_tmp[i], imgs[1](roisImg2[i]), pts2_tmp[i], dense_flowP[i]);
+    }
+
+    //Calculate flow values in original image
+    vector<Mat> dense_flowA(nr_elems, cv::Mat::ones(imgs[0].size(), CV_32FC2) * 99999.f);
+    for(size_t i = 0; i < nr_elems; ++i) {
+        std::vector<Mat> flow_chI;
+        cv::split(dense_flowP[i], flow_chI);
+        const auto roiXdiff = static_cast<float>(roisImg2[i].x - rois[i].x);
+        const auto roiYdiff = static_cast<float>(roisImg2[i].y - rois[i].y);
+        for (int y = 0; y < rois[i].height; ++y) {
+            const auto actY = rois[i].y + y;
+            for (int x = 0; x < rois[i].width; ++x) {
+                const int actX = rois[i].x + x;
+                auto *ptrFx = dense_flowA[i].ptr<float>(actY, actX);
+                auto *ptrFy = ptrFx + 1;
+                *ptrFx = flow_chI[0].at<float>(y, x) + roiXdiff;
+                *ptrFy = flow_chI[1].at<float>(y, x) + roiYdiff;
+            }
+        }
+    }
+
+    //Validate overlapping flow values
+    vector<Mat> dense_flowC(2, Mat::zeros(imgs[0].size(), CV_32FC1));
+    Mat mask1 = cv::Mat::zeros(imgs[0].size(), CV_8UC1);
+    for (int y = 0; y < imgs[0].rows; ++y) {
+        for (int x = 0; x < imgs[0].cols; ++x) {
+            vector<float> valsX, valsY;
+            for(size_t i = 0; i < nr_elems; ++i) {
+                auto *ptrFx = dense_flowA[i].ptr<float>(y, x);
+                if(*ptrFx > 99990.f) continue;
+                auto *ptrFy = ptrFx + 1;
+                valsX.push_back(*ptrFx);
+                valsY.push_back(*ptrFy);
+            }
+            const size_t nrFs = valsX.size();
+            if(nrFs == 1){
+                dense_flowC[0].at<float>(y, x) = valsX[0];
+                dense_flowC[1].at<float>(y, x) = valsY[0];
+                mask1.at<unsigned char>(y, x) = 255;
+                continue;
+            }else if(nrFs == 0){
+                continue;
+            }
+            vector<float> valsX1 = valsX, valsY1 = valsY, diffs;
+            std::sort(valsX1.begin(), valsX1.end());
+            std::sort(valsY1.begin(), valsY1.end());
+            Point2f med;
+            if(nrFs % 2){
+                med.x = valsX1[(nrFs - 1) / 2];
+                med.y = valsY1[(nrFs - 1) / 2];
+            }else{
+                const size_t mid = nrFs / 2;
+                med.x = (valsX1[mid] + valsX1[mid - 1]) / 2.f;
+                med.y = (valsY1[mid] + valsY1[mid - 1]) / 2.f;
+            }
+            vector<Point2f> goodFs;
+            for(size_t i = 0; i < nrFs; ++i) {
+                const float diffx = valsX[i] - med.x;
+                const float diffy = valsY[i] - med.y;
+                const float diffxy2 = diffx * diffx + diffy * diffy;
+                if(diffxy2 > 2.f){
+                    continue;
+                }
+                goodFs.emplace_back(valsX[i], valsY[i]);
+            }
+            if(goodFs.size() < 2){
+                continue;
+            }
+            Point2f meanF(0, 0);
+            for(auto &pt: goodFs){
+                meanF += pt;
+            }
+            meanF /= static_cast<float>(goodFs.size());
+            dense_flowC[0].at<float>(y, x) = meanF.x;
+            dense_flowC[1].at<float>(y, x) = meanF.y;
+            mask1.at<unsigned char>(y, x) = 255;
+        }
+    }
+
+    //Generate validity mask from initial flow
+    Mat structElem = getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(15, 15));
+    cv::morphologyEx(mask, mask, MORPH_CLOSE, structElem);
+    mask1 &= mask;
+    if(verbose & SHOW_GTM_INTERPOL_FLOW) {
+        namedWindow("Validity Mask from initial flow", WINDOW_AUTOSIZE);// Create a window for display.
+        imshow("Validity Mask from initial flow", mask);
+        namedWindow("Final Validity Mask", WINDOW_AUTOSIZE);// Create a window for display.
+        imshow("Final Validity Mask", mask1);
+//        cv::waitKey(0);
+    }
+    cv::Mat validity(dense_flowC.back().size(), CV_8UC1, 2);
+    validity &= mask1;
+    validity.convertTo(validity, dense_flowC.back().type());
+    for (auto &pos: pts1) {
+        validity.at<float>(static_cast<int>(pos.y), static_cast<int>(pos.x)) = 1.f;
+    }
+    dense_flowC.emplace_back(move(validity));
+    if(verbose & SHOW_GTM_INTERPOL_FLOW) {
+        namedWindow("Channel 1", WINDOW_AUTOSIZE);// Create a window for display.
+        imshow("Channel 1", dense_flowC[0]);
+        namedWindow("Channel 2", WINDOW_AUTOSIZE);// Create a window for display.
+        imshow("Channel 2", dense_flowC[1]);
+        namedWindow("Channel 3", WINDOW_AUTOSIZE);// Create a window for display.
+        imshow("Channel 3", dense_flowC[2]);
+        cv::waitKey(0);
+        cv::destroyAllWindows();
+    }
+    cv::merge(dense_flowC, flowGT);
+    return true;
 }
 
 bool baseMatcher::loadKittiImageGtFnames(const std::string &mainPath, kittiFolders &info,
@@ -5563,7 +5754,11 @@ bool baseMatcher::getOxfordGTM(const std::string &path, size_t &min_nrTP){
         size_t nrGts = imgNames.size();
         if(checkPathExists(gtm_path)){
             for (size_t i = 0; i < nrGts; ++i){
-                if(!loadGTM(gtm_path, imgNames[i])){
+                int err = loadGTM(gtm_path, imgNames[i]);
+                if(err != 0){
+                    if(err == -2){
+                        continue;
+                    }
                     if(!calcRefineStoreGTM_Oxford(imgNames[i], homographies[i], gtm_path, sub, static_cast<int>(nrGts - i), true)){
                         continue;
                     }
@@ -5627,19 +5822,22 @@ void baseMatcher::addGTMdataToPool(){
     gtmdata.matchesGTAll.emplace_back(std::move(matchesGT));
 }
 
-bool baseMatcher::loadGTM(const std::string &gtm_path, const std::pair<std::string, std::string> &imageNames){
+int baseMatcher::loadGTM(const std::string &gtm_path, const std::pair<std::string, std::string> &imageNames){
     string GT_filename = prepareFileNameGT(imageNames, gtm_path);
     if(!checkFileExists(GT_filename)){
-        return false;
+        return -1;
     }
-    if(!readGTMatchesDisk(GT_filename)){
-        return false;
+    int err = readGTMatchesDisk(GT_filename);
+    if(err != 0){
+        return err;
     }
     if(refinedGTMAvailable && refineGTM){
-        getRefinedGTM();
+        if(!getRefinedGTM()){
+            return -2;
+        }
         switchToRefinedGTM();
     }
-    return true;
+    return 0;
 }
 
 bool baseMatcher::calcRefineStoreGTM_Oxford(const std::pair<std::string, std::string> &imageNames, const cv::Mat &H,
@@ -5647,6 +5845,13 @@ bool baseMatcher::calcRefineStoreGTM_Oxford(const std::pair<std::string, std::st
                                             const int &remainingImgs, bool save_it) {
     if(!calculateGTM_Oxford(imageNames, H)){
         cout << "Unable to calculate GTM for images " << imageNames.first << " --> " << imageNames.second << endl;
+        if(save_it) {
+            string GT_filename = prepareFileNameGT(imageNames, gtm_path);
+            if (!writeGTMatchesDisk(GT_filename, false, true)) {
+                cerr << "Unable to store GTM for images " << imageNames.first << " --> " << imageNames.second
+                     << endl;
+            }
+        }
         return false;
     }
     bool is_refined = false;
@@ -5675,11 +5880,18 @@ bool baseMatcher::calcRefineStoreGTM_KITTI_MD(const std::tuple<std::string, std:
                                               bool is_flow, const std::string &gtm_path, const std::string &sub,
                                               const int &remainingImgs, bool save_it, const std::string &gt_type,
                                               cv::InputArray flow) {
+    std::pair<std::string, std::string> imageNames = make_pair(get<0>(fileNames), get<1>(fileNames));
     if(!getKitti_MD_GTM(get<0>(fileNames), get<1>(fileNames), get<2>(fileNames), is_flow, flow)){
         cout << "Unable to calculate GTM for images " << get<0>(fileNames) << " --> " << get<1>(fileNames) << endl;
+        if(save_it) {
+            string GT_filename = prepareFileNameGT(imageNames, gtm_path);
+            if (!writeGTMatchesDisk(GT_filename, false, true)) {
+                cerr << "Unable to store GTM for images " << imageNames.first << " --> " << imageNames.second
+                     << endl;
+            }
+        }
         return false;
     }
-    std::pair<std::string, std::string> imageNames = make_pair(get<0>(fileNames), get<1>(fileNames));
     bool is_refined = false;
     if(refineGTM){
         if(refineFoundGTM(remainingImgs)) {
@@ -5715,11 +5927,14 @@ bool baseMatcher::refineFoundGTM(int remainingImgs){
     if(!res){
         return false;
     }
-    getRefinedGTM();
-    return true;
+    if(quality.matchesGT_idx.size() < 5){
+        return false;
+    }
+
+    return getRefinedGTM();
 }
 
-void baseMatcher::getRefinedGTM(){
+bool baseMatcher::getRefinedGTM(){
     matchesGT_refined.clear();
     keypL_refined.clear();
     keypR_refined.clear();
@@ -5727,7 +5942,7 @@ void baseMatcher::getRefinedGTM(){
     rightInlier_refined.clear();
     size_t idx = 0, idx1 = 0;
     for(auto &i: quality.matchesGT_idx){
-        if(quality.distancesEstModel[idx1] > 0.75){
+        if(quality.distancesEstModel[idx1] > 1.){
             idx1++;
             continue;
         }
@@ -5758,7 +5973,11 @@ void baseMatcher::getRefinedGTM(){
         }
     }
     negativesGT_refined = rightInlier_refined.size() - positivesGT_refined;
+    if(positivesGT_refined == 0 || (positivesGT_refined < 5 && negativesGT_refined < 5)){
+        return false;
+    }
     inlRatio_refined = static_cast<double>(positivesGT_refined) / static_cast<double>(positivesGT_refined + negativesGT_refined);
+    return true;
 }
 
 void baseMatcher::switchToRefinedGTM(){

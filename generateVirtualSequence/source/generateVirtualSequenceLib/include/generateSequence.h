@@ -83,30 +83,6 @@ enum GENERATEVIRTUALSEQUENCELIB_API depthClass
 	FAR = 0x04
 };
 
-enum GENERATEVIRTUALSEQUENCELIB_API vorboseType
-{
-	SHOW_INIT_CAM_PATH = 0x01,
-	SHOW_BUILD_PROC_MOV_OBJ = 0x02,
-	SHOW_MOV_OBJ_DISTANCES = 0x04,
-	SHOW_MOV_OBJ_3D_PTS = 0x08,
-	SHOW_MOV_OBJ_CORRS_GEN = 0x10,
-	SHOW_BUILD_PROC_STATIC_OBJ = 0x20,
-	SHOW_STATIC_OBJ_DISTANCES = 0x40,
-	SHOW_STATIC_OBJ_CORRS_GEN = 0x80,
-	SHOW_STATIC_OBJ_3D_PTS = 0x100,
-	SHOW_MOV_OBJ_MOVEMENT = 0x200,
-	SHOW_BACKPROJECT_OCCLUSIONS_MOV_OBJ = 0x400,
-	SHOW_BACKPROJECT_OCCLUSIONS_STAT_OBJ = 0x800,
-	SHOW_BACKPROJECT_MOV_OBJ_CORRS = 0x1000,
-	SHOW_STEREO_INTERSECTION = 0x2000,
-	SHOW_COMBINED_CORRESPONDENCES = 0x4000,
-	PRINT_WARNING_MESSAGES = 0x8000,
-	SHOW_IMGS_AT_ERROR = 0x10000,
-	SHOW_PLANES_FOR_HOMOGRAPHY = 0x20000,
-	SHOW_WARPED_PATCHES = 0x40000,
-	SHOW_PATCHES_WITH_NOISE = 0x80000
-};
-
 struct GENERATEVIRTUALSEQUENCELIB_API StereoSequParameters
 {
 	explicit StereoSequParameters(std::vector<cv::Mat> camTrack_,
@@ -482,7 +458,7 @@ class SequenceException : public std::exception
     std::string _msg;
 
 public:
-    explicit SequenceException(const std::string &msg) : _msg(msg) {}
+    explicit SequenceException(std::string msg) : _msg(std::move(msg)) {}
 
     const char *what() const noexcept override
     {
@@ -503,9 +479,9 @@ public:
 			uint32_t verbose = 0,
             const std::string &writeIntermRes_path_ = "");
 
-	genStereoSequ(bool filter_occluded_points_ = false, uint32_t verbose_ = 0, const std::string &writeIntermRes_path_ = ""):
+	genStereoSequ(bool filter_occluded_points_ = false, uint32_t verbose_ = 0, std::string writeIntermRes_path_ = ""):
     verbose(verbose_),
-    writeIntermRes_path(writeIntermRes_path_),
+    writeIntermRes_path(std::move(writeIntermRes_path_)),
     filter_occluded_points(filter_occluded_points_),
     pars(StereoSequParameters()){
         long int seed = randSeed(rand_gen);

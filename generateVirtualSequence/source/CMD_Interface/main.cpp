@@ -2475,7 +2475,10 @@ bool genTemplateFile(const std::string &filename){
     fs << "SHOW_IMGS_AT_ERROR" << 0;
     fs << "SHOW_PLANES_FOR_HOMOGRAPHY" << 0;
     fs << "SHOW_WARPED_PATCHES" << 0;
-    fs << "SHOW_PATCHES_WITH_NOISE" << 0 << "}";
+    fs << "SHOW_PATCHES_WITH_NOISE" << 0;
+    fs << "SHOW_GTM_KEYPOINTS" << 0;
+    fs << "SHOW_GTM_GEN_PROCESS" << 0;
+    fs << "SHOW_GTM_INTERPOL_FLOW" << 0 << "}";
 
     fs.writeComment("Verbosity option for calculating the stereo camera configurations. "
                         "Prints the intermediate error values/results of the Levenberg Marquardt iterations. \n"
@@ -2983,6 +2986,21 @@ bool loadConfigFile(const std::string &filename,
     if(tmp_bool) addPars.verbose |= SHOW_WARPED_PATCHES;
     n["SHOW_PATCHES_WITH_NOISE"] >> tmp_bool;
     if(tmp_bool) addPars.verbose |= SHOW_PATCHES_WITH_NOISE;
+    n1 = n["SHOW_GTM_KEYPOINTS"];
+    if(!n1.empty()){
+        n1 >> tmp_bool;
+        if(tmp_bool) addPars.verbose |= SHOW_GTM_KEYPOINTS;
+    }
+    n1 = n["SHOW_GTM_GEN_PROCESS"];
+    if(!n1.empty()){
+        n1 >> tmp_bool;
+        if(tmp_bool) addPars.verbose |= SHOW_GTM_GEN_PROCESS;
+    }
+    n1 = n["SHOW_GTM_INTERPOL_FLOW"];
+    if(!n1.empty()){
+        n1 >> tmp_bool;
+        if(tmp_bool) addPars.verbose |= SHOW_GTM_INTERPOL_FLOW;
+    }
 
     fs["LMverbose"] >> addPars.LMverbose;
     fs["acceptBadStereoPars"] >> addPars.acceptBadStereoPars;

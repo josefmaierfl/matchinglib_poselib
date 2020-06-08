@@ -1143,7 +1143,7 @@ bool genMatchSequ::calcGTM(){
         resetGTMuse();
         return false;
     }
-    baseMatcher bm(parsMtch.keyPointType, parsMtch.imgPath, parsMtch.descriptorType, &rand2);
+    baseMatcher bm(parsMtch.keyPointType, parsMtch.imgPath, parsMtch.descriptorType, verbose, &rand2);
     bool data_av = false;
     if(use_3dPrtyGT & GT_DATASETS::OXFORD){
         auto min_nrTP = static_cast<size_t>(round(parsMtch.oxfordGTMportion * static_cast<double>(nrTPFullSequ)));

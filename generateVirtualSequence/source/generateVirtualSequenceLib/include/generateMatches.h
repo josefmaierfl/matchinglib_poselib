@@ -21,9 +21,6 @@
 //USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 //Author: Josef Maier (josefjohann-dot-maier-at-gmail-dot-at)
-//
-// Created by maierj on 06.03.19.
-//
 
 #ifndef GENERATEVIRTUALSEQUENCE_GENERATEMATCHES_H
 #define GENERATEVIRTUALSEQUENCE_GENERATEMATCHES_H

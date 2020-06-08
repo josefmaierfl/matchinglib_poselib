@@ -906,7 +906,7 @@ bool convertImageDisparityFile(const std::string &filename, std::vector<cv::Poin
         cerr <<"Error reading flow file" << endl;
         return false;
     }
-    if(intflow.type() != CV_16UC1 || intflow.type() != CV_16UC3){
+    if(intflow.type() != CV_16UC1 && intflow.type() != CV_16UC3){
         cerr <<"Wrong format after reading flow file" << endl;
         return false;
     }
