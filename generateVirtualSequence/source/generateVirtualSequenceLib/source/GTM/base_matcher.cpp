@@ -5656,6 +5656,7 @@ bool baseMatcher::interpolateDispFlow(const vector<cv::Point2f> &pts1,
     for(size_t i = 0; i < nr_elems; ++i) {
         dense_flowA.emplace_back(cv::Mat::ones(imgs[0].size(), CV_32FC2) * 99999.f);
         if(pts1_tmp[i].empty()) continue;
+        if(pts1_tmp[i].size() < 10) continue;
         std::vector<Mat> flow_chI;
         cv::split(dense_flowP[i], flow_chI);
         const auto roiXdiff = static_cast<float>(roisImg2[i].x - rois[i].x);
