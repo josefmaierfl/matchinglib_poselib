@@ -450,7 +450,8 @@ private:
     //Splits the image into parts and performs flow interpolation
     bool interpolateDispFlow(const std::vector<cv::Point2f> &pts1,
                              const std::vector<cv::Point2f> &pts2,
-                             const cv::Mat &initFlow);
+                             const cv::Mat &initFlow,
+                             bool is_flow);
     //Calculates, refines, and stores GTM of an KITTI image pair
     bool calcRefineStoreGTM_KITTI_MD(const std::tuple<std::string, std::string, std::string> &fileNames,
                                      bool is_flow, const std::string &gtm_path, const std::string &sub,

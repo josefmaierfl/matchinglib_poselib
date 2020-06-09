@@ -5453,7 +5453,9 @@ bool baseMatcher::getKitti_MD_GTM(const std::string &img1f, const std::string &i
     }
     //Interpolate missing values
     if(interpolFlow) {
-        interpolateDispFlow(pts1, pts2, flow_img);
+        if(!interpolateDispFlow(pts1, pts2, flow_img, is_flow)){
+            return false;
+        }
     }else{
         flowGT = flow_img;
     }
@@ -5466,7 +5468,8 @@ bool baseMatcher::getKitti_MD_GTM(const std::string &img1f, const std::string &i
 
 bool baseMatcher::interpolateDispFlow(const vector<cv::Point2f> &pts1,
                                       const vector<cv::Point2f> &pts2,
-                                      const cv::Mat &initFlow){
+                                      const cv::Mat &initFlow,
+                                      bool is_flow){
     size_t nr_points = pts1.size();
     CV_Assert(nr_points == pts2.size());
     CV_Assert(!initFlow.empty() && initFlow.type() == CV_32FC3);
@@ -5494,9 +5497,9 @@ bool baseMatcher::interpolateDispFlow(const vector<cv::Point2f> &pts1,
         rois.clear();
         retry = false;
         for(size_t y = 0; y < nr_patches_xy; ++y){
-            const int maxHeight = (acty + patchSi_yl - patchSi_yd) <= imgSI.height ? patchSi_yl:(imgSI.height - acty);
+            const int maxHeight = (acty + patchSi_yl - patchSi_yd) <= imgSI.height ? patchSi_yl:(imgSI.height - acty + patchSi_yd);
             for(size_t x = 0; x < nr_patches_xy; ++x){
-                const int maxWidth = (actx + patchSi_xl - patchSi_xd) <= imgSI.width ? patchSi_xl:(imgSI.width - actx);
+                const int maxWidth = (actx + patchSi_xl - patchSi_xd) <= imgSI.width ? patchSi_xl:(imgSI.width - actx + patchSi_xd);
                 rois.emplace_back(Rect2i(max(actx - patchSi_xd, 0),
                                          max(acty - patchSi_yd, 0),
                                          maxWidth,
@@ -5552,25 +5555,31 @@ bool baseMatcher::interpolateDispFlow(const vector<cv::Point2f> &pts1,
     size_t nr_elems = rois.size();
     vector<vector<cv::Point2f>> pts1_tmp(nr_elems), pts2_tmp(nr_elems);
     for(size_t i = 0; i < nr_elems; ++i){
-        const auto roiXdiff = static_cast<float>(rois[i].x - roisImg2[i].x);
-        const auto roiYdiff = static_cast<float>(rois[i].y - roisImg2[i].y);
+//        const auto roiXdiff = static_cast<float>(rois[i].x - roisImg2[i].x);
+//        const auto roiYdiff = static_cast<float>(rois[i].y - roisImg2[i].y);
+        const auto maxW = static_cast<float>(roisImg2[i].width) - 1.f;
+        const auto maxH = static_cast<float>(roisImg2[i].height) - 1.f;
         for (int y = rois[i].y; y < rois[i].y + rois[i].height; ++y) {
             const auto actY = static_cast<float>(y - rois[i].y);
-            const auto actY2 = actY + roiYdiff;
+            const auto roiYdiff = static_cast<float>(y - roisImg2[i].y);
             for (int x = rois[i].x; x < rois[i].x + rois[i].width; ++x) {
                 if(flow_ch[2].at<float>(y, x) > 0){
                     const auto actX = static_cast<float>(x - rois[i].x);
-                    pts1_tmp[i].emplace_back(actX, actY);
-                    const float x2 = actX + roiXdiff + flow_ch[0].at<float>(y, x);
-                    const float y2 = actY2 + flow_ch[1].at<float>(y, x);
-                    pts2_tmp[i].emplace_back(x2, y2);
+//                    const float x2 = actX + roiXdiff + flow_ch[0].at<float>(y, x);
+//                    const float y2 = actY2 + flow_ch[1].at<float>(y, x);
+                    const float x2 = static_cast<float>(x) + flow_ch[0].at<float>(y, x) - roisImg2[i].x;
+                    if(x2 < 0 || x2 > maxW) continue;
+                    const float y2 = roiYdiff + flow_ch[1].at<float>(y, x);
+                    if(y2 < 0 || y2 > maxH) continue;
+                    pts1_tmp[i].emplace_back(cv::Point2f(actX, actY));
+                    pts2_tmp[i].emplace_back(cv::Point2f(x2, y2));
                 }
             }
         }
     }
 
     //Interpolate flow patches
-    vector<Mat> dense_flowP(nr_elems);
+    vector<Mat> dense_flowP;
     Ptr<ximgproc::EdgeAwareInterpolator> gd = ximgproc::createEdgeAwareInterpolator();
     gd->setK(128);
     gd->setSigma(0.05f);
@@ -5579,12 +5588,74 @@ bool baseMatcher::interpolateDispFlow(const vector<cv::Point2f> &pts1,
     gd->setFGSSigma(1.5f);
     gd->setUsePostProcessing(false);
     for(size_t i = 0; i < nr_elems; ++i) {
+        dense_flowP.emplace_back(Mat::zeros(rois[i].size(), CV_32FC2));
+        if(pts1_tmp[i].empty()) continue;
+        if(pts1_tmp[i].size() < 10) continue;
+        if(rois[i].x + rois[i].width > imgs[0].cols || rois[i].y + rois[i].height > imgs[0].rows){
+            return false;
+        }
+        if(rois[i].x < 0 || rois[i].y < 0 || roisImg2[i].x < 0 || roisImg2[i].y < 0){
+            return false;
+        }
+        if(roisImg2[i].x + roisImg2[i].width > imgs[1].cols || roisImg2[i].y + roisImg2[i].height > imgs[1].rows){
+            return false;
+        }
+        if(pts1_tmp[i].size() != pts2_tmp[i].size()){
+            return false;
+        }
+//        dense_flowP[i].create(rois[i].size(), CV_32FC2);
+//        std::vector<Mat> tmp(2);
+//        tmp[0] = flow_ch[0](rois[i]).clone();
+//        tmp[1] = flow_ch[1](rois[i]).clone();
+//        cv::merge(tmp, dense_flowP[i]);
+//        for(auto &pt: pts1_tmp[i]){
+//            if(pt.x >= rois[i].width){
+//                cerr << "Initial point failure (x1 too large)" << endl;
+//                return false;
+//            }
+//            if(pt.y >= rois[i].height){
+//                cerr << "Initial point failure (y1 too large)" << endl;
+//                return false;
+//            }
+//            if(pt.x < 0){
+//                cerr << "Initial point failure (x1 negative)" << endl;
+//                return false;
+//            }
+//            if(pt.y < 0){
+//                cerr << "Initial point failure (x1 negative)" << endl;
+//                return false;
+//            }
+//        }
+//        for(auto &pt: pts2_tmp[i]){
+//            if(pt.x >= roisImg2[i].width){
+//                cerr << "Initial point failure (x2 too large)" << endl;
+//                return false;
+//            }
+//            if(pt.y >= roisImg2[i].height){
+//                cerr << "Initial point failure (y2 too large)" << endl;
+//                return false;
+//            }
+//            if(pt.x < 0){
+//                cerr << "Initial point failure (x2 negative)" << endl;
+//                return false;
+//            }
+//            if(pt.y < 0){
+//                cerr << "Initial point failure (y2 negative)" << endl;
+//                return false;
+//            }
+//        }
+//        Mat imgroi1 = (imgs[0](rois[i])).clone();
+//        Mat imgroi2 = (imgs[1](roisImg2[i])).clone();
+//        Mat dense_out;
         gd->interpolate(imgs[0](rois[i]), pts1_tmp[i], imgs[1](roisImg2[i]), pts2_tmp[i], dense_flowP[i]);
+//        dense_out.copyTo(dense_flowP[i]);
     }
 
     //Calculate flow values in original image
-    vector<Mat> dense_flowA(nr_elems, cv::Mat::ones(imgs[0].size(), CV_32FC2) * 99999.f);
+    vector<Mat> dense_flowA;
     for(size_t i = 0; i < nr_elems; ++i) {
+        dense_flowA.emplace_back(cv::Mat::ones(imgs[0].size(), CV_32FC2) * 99999.f);
+        if(pts1_tmp[i].empty()) continue;
         std::vector<Mat> flow_chI;
         cv::split(dense_flowP[i], flow_chI);
         const auto roiXdiff = static_cast<float>(roisImg2[i].x - rois[i].x);
@@ -5593,26 +5664,25 @@ bool baseMatcher::interpolateDispFlow(const vector<cv::Point2f> &pts1,
             const auto actY = rois[i].y + y;
             for (int x = 0; x < rois[i].width; ++x) {
                 const int actX = rois[i].x + x;
-                auto *ptrFx = dense_flowA[i].ptr<float>(actY, actX);
-                auto *ptrFy = ptrFx + 1;
-                *ptrFx = flow_chI[0].at<float>(y, x) + roiXdiff;
-                *ptrFy = flow_chI[1].at<float>(y, x) + roiYdiff;
+                dense_flowA[i].at<Point2f>(actY, actX) = Point2f(flow_chI[0].at<float>(y, x) + roiXdiff,
+                                                                 flow_chI[1].at<float>(y, x) + roiYdiff);
             }
         }
     }
 
     //Validate overlapping flow values
-    vector<Mat> dense_flowC(2, Mat::zeros(imgs[0].size(), CV_32FC1));
+    vector<Mat> dense_flowC;
+    dense_flowC.emplace_back(Mat::zeros(imgs[0].size(), CV_32FC1));
+    dense_flowC.emplace_back(Mat::zeros(imgs[0].size(), CV_32FC1));
     Mat mask1 = cv::Mat::zeros(imgs[0].size(), CV_8UC1);
     for (int y = 0; y < imgs[0].rows; ++y) {
         for (int x = 0; x < imgs[0].cols; ++x) {
             vector<float> valsX, valsY;
             for(size_t i = 0; i < nr_elems; ++i) {
-                auto *ptrFx = dense_flowA[i].ptr<float>(y, x);
-                if(*ptrFx > 99990.f) continue;
-                auto *ptrFy = ptrFx + 1;
-                valsX.push_back(*ptrFx);
-                valsY.push_back(*ptrFy);
+                Point2f fxy = dense_flowA[i].at<Point2f>(y, x);
+                if(fxy.x > 99990.f) continue;
+                valsX.push_back(fxy.x);
+                valsY.push_back(fxy.y);
             }
             const size_t nrFs = valsX.size();
             if(nrFs == 1){
@@ -5659,13 +5729,55 @@ bool baseMatcher::interpolateDispFlow(const vector<cv::Point2f> &pts1,
         }
     }
 
+    //Check consistency with original flow
+    for(size_t i = 0; i < pts1.size(); ++i){
+        Point2f origF = pts2[i] - pts1[i];
+        Point2f intF(dense_flowC[0].at<float>(static_cast<int>(pts1[i].y), static_cast<int>(pts1[i].x)),
+                     dense_flowC[1].at<float>(static_cast<int>(pts1[i].y), static_cast<int>(pts1[i].x)));
+        if(mask1.at<unsigned char>(static_cast<int>(pts1[i].y), static_cast<int>(pts1[i].x)) == 0){
+            continue;
+        }
+        const Point2f diff = intF - origF;
+        const float diff2 = diff.x * diff.x + diff.y * diff.y;
+        if(diff2 > 1.5f){
+            mask1.at<unsigned char>(static_cast<int>(pts1[i].y), static_cast<int>(pts1[i].x)) = 0;
+        }
+    }
+
+    //Refine disparity y-component
+    if(!is_flow) {
+        Mat flowX = dense_flowC[0].clone(), flowY = dense_flowC[1].clone();
+        Ptr<VariationalRefinement> variationalrefine = VariationalRefinement::create();
+        variationalrefine->setOmega(1.9f);
+        variationalrefine->calcUV(imgs[0], imgs[1], flowX, flowY);
+        flowY.copyTo(dense_flowC[1]);
+        if(verbose & SHOW_GTM_INTERPOL_FLOW) {
+            Mat normalizedFlow2;
+            cv::normalize(flowY, normalizedFlow2, 0.1, 1.0, cv::NORM_MINMAX, -1, dense_flowC[0] != 0);
+            namedWindow("Flow y-componentn refined", WINDOW_AUTOSIZE);// Create a window for display.
+            imshow("Flow y-componentn refined", normalizedFlow2);
+        }
+    }
+
+    //Set original flow values
+//    for(size_t i = 0; i < pts1.size(); ++i){
+//        Point2f origF = pts2[i] - pts1[i];
+//        dense_flowC[0].at<float>(static_cast<int>(pts1[i].y), static_cast<int>(pts1[i].x)) = origF.x;
+//        dense_flowC[1].at<float>(static_cast<int>(pts1[i].y), static_cast<int>(pts1[i].x)) = origF.y;
+//    }
+
     //Generate validity mask from initial flow
     Mat structElem = getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(15, 15));
     cv::morphologyEx(mask, mask, MORPH_CLOSE, structElem);
-    mask1 &= mask;
     if(verbose & SHOW_GTM_INTERPOL_FLOW) {
         namedWindow("Validity Mask from initial flow", WINDOW_AUTOSIZE);// Create a window for display.
         imshow("Validity Mask from initial flow", mask);
+        namedWindow("Validity Mask from interpolation", WINDOW_AUTOSIZE);// Create a window for display.
+        imshow("Validity Mask from interpolation", mask1);
+//        cv::waitKey(0);
+    }
+    mask1 &= mask;
+    if(verbose & SHOW_GTM_INTERPOL_FLOW) {
         namedWindow("Final Validity Mask", WINDOW_AUTOSIZE);// Create a window for display.
         imshow("Final Validity Mask", mask1);
 //        cv::waitKey(0);
@@ -5674,14 +5786,21 @@ bool baseMatcher::interpolateDispFlow(const vector<cv::Point2f> &pts1,
     validity &= mask1;
     validity.convertTo(validity, dense_flowC.back().type());
     for (auto &pos: pts1) {
-        validity.at<float>(static_cast<int>(pos.y), static_cast<int>(pos.x)) = 1.f;
+        const Point2i posi(static_cast<int>(pos.x), static_cast<int>(pos.y));
+        if(validity.at<float>(posi.y, posi.x) > 1.f) {
+            validity.at<float>(posi.y, posi.x) = 1.f;
+        }
     }
     dense_flowC.emplace_back(move(validity));
     if(verbose & SHOW_GTM_INTERPOL_FLOW) {
+        Mat normalizedFlow;
+        cv::normalize(dense_flowC[0], normalizedFlow, 0.1, 1.0, cv::NORM_MINMAX, -1, dense_flowC[0] != 0);
         namedWindow("Channel 1", WINDOW_AUTOSIZE);// Create a window for display.
-        imshow("Channel 1", dense_flowC[0]);
+        imshow("Channel 1", normalizedFlow);
+        normalizedFlow = Mat::zeros(dense_flowC[1].size(), normalizedFlow.type());
+        cv::normalize(dense_flowC[1], normalizedFlow, 0.1, 1.0, cv::NORM_MINMAX, -1, dense_flowC[1] != 0);
         namedWindow("Channel 2", WINDOW_AUTOSIZE);// Create a window for display.
-        imshow("Channel 2", dense_flowC[1]);
+        imshow("Channel 2", normalizedFlow);
         namedWindow("Channel 3", WINDOW_AUTOSIZE);// Create a window for display.
         imshow("Channel 3", dense_flowC[2]);
         cv::waitKey(0);
