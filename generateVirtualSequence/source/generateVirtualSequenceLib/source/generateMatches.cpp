@@ -80,6 +80,13 @@ void getTranslationStats(const std::vector<cv::Mat> &ts,
                          qualityParm &stats_tx,
                          qualityParm &stats_ty,
                          qualityParm &stats_tz);
+bool correctMatchIdx(const unordered_set<int> &idxs, const vector<int> &missingIdxs, int &queryTrainIdx);
+void correctMatchesIdx(vector<DMatch> &matches,
+                       bool isLeftKp,
+                       const unordered_set<int> &idxs,
+                       const vector<int> &missingIdxs,
+                       vector<int> &delKpIdx);
+void getNewFromOldIdx(const vector<int> &missingIdxs, int &oldIdx);
 
 /* -------------------------- Functions -------------------------- */
 
@@ -1179,61 +1186,65 @@ bool genMatchSequ::calcGTM(){
         return false;
     }
     gtmdata.matchesGTAllIdx.clear();
-    size_t nr_gtm = 0;
-    for(auto &i: gtmdata.matchesGTAll){
-        nr_gtm += i.size();
-    }
+    size_t nr_gtm = gtmdata.useNrTP;
+//    for(auto &i: gtmdata.matchesGTAll){
+//        nr_gtm += i.size();
+//    }
     gtmdata.matchesGTAllIdx.reserve(nr_gtm);
+    unsigned char sameIdx = 3;
+    size_t remTP = 0;
     for(size_t i = 0; i < gtmdata.matchesGTAll.size(); ++i){
-        for(size_t j = 0; j < gtmdata.matchesGTAll.size(); ++j){
+        int ii = static_cast<int>(i);
+        size_t nrToUse = 0;
+        if(ii >= gtmdata.vecIdxRng_Oxford.first && ii < gtmdata.vecIdxRng_Oxford.second){
+            if(sameIdx != 0){
+                remTP = gtmdata.minNrTP_Oxford;
+                sameIdx = 0;
+            }
+            if(remTP == 0) continue;
+            nrToUse = gtmdata.matchesGTAll[i].size();
+            if(nrToUse >= remTP){
+                nrToUse = remTP;
+                remTP = 0;
+            }else{
+                remTP -= nrToUse;
+            }
+        }else if(ii >= gtmdata.vecIdxRng_KITTI.first && ii < gtmdata.vecIdxRng_KITTI.second){
+            if(sameIdx != 1){
+                remTP = gtmdata.minNrTP_KITTI;
+                sameIdx = 1;
+            }
+            if(remTP == 0) continue;
+            nrToUse = gtmdata.matchesGTAll[i].size();
+            if(nrToUse >= remTP){
+                nrToUse = remTP;
+                remTP = 0;
+            }else{
+                remTP -= nrToUse;
+            }
+        }else if(ii >= gtmdata.vecIdxRng_MegaDepth.first && ii < gtmdata.vecIdxRng_MegaDepth.second){
+            if(sameIdx != 2){
+                remTP = gtmdata.minNrTP_MegaDepth;
+                sameIdx = 2;
+            }
+            if(remTP == 0) continue;
+            nrToUse = gtmdata.matchesGTAll[i].size();
+            if(nrToUse >= remTP){
+                nrToUse = remTP;
+                remTP = 0;
+            }else{
+                remTP -= nrToUse;
+            }
+        }
+        for(size_t j = 0; j < nrToUse; ++j){
             gtmdata.matchesGTAllIdx.emplace_back(i, j);
         }
     }
     vector<std::size_t> idx;
     shuffleVector(idx, nr_gtm);
     reOrderVector(gtmdata.matchesGTAllIdx, idx);
-    gtmdata.matchesTNAllIdx.clear();
-    nr_gtm = 0;
-    for(auto &i: gtmdata.matchesTNAll){
-        nr_gtm += i.size();
-    }
-    gtmdata.matchesTNAllIdx.reserve(nr_gtm);
-    for(size_t i = 0; i < gtmdata.matchesTNAll.size(); ++i){
-        for(size_t j = 0; j < gtmdata.matchesTNAll.size(); ++j){
-            gtmdata.matchesTNAllIdx.emplace_back(i, j);
-        }
-    }
-    idx.clear();
-    shuffleVector(idx, nr_gtm);
-    reOrderVector(gtmdata.matchesTNAllIdx, idx);
-    nrTNFullSequWarped = static_cast<size_t>(round(parsMtch.WarpedPortionTN * static_cast<double>(nrTNFullSequ)));
-    nrGrossTNFullSequGTM = static_cast<size_t>(round(parsMtch.portionGrossTN * static_cast<double>(nrTNFullSequ)));
-    if(nrGrossTNFullSequGTM >= gtmdata.sum_TN){
-        nrGrossTNFullSequWarped = nrGrossTNFullSequGTM - gtmdata.sum_TN;
-        if(nrGrossTNFullSequWarped > nrTNFullSequWarped){
-            if(verbose & PRINT_WARNING_MESSAGES) {
-                cout << "Number of gross TN from warped patches is larger than specified portion of TN from warped patches "
-                        "compared to GTM TN. Updating warped TN portion from " << parsMtch.WarpedPortionTN << " to " <<
-                        static_cast<double>(nrGrossTNFullSequWarped) / static_cast<double>(nrTNFullSequ) << endl;
-            }
-            nrTNFullSequWarped = nrGrossTNFullSequWarped;
-        }
-        nrGrossTNFullSequGTM = gtmdata.sum_TN;
-    }else{
-        nrGrossTNFullSequWarped = 0;
-        if(nrTNFullSequWarped > nrTNFullSequ - nrGrossTNFullSequGTM){
-            nrTNFullSequWarped = nrTNFullSequ - nrGrossTNFullSequGTM;
-            if(verbose & PRINT_WARNING_MESSAGES) {
-                cout << "Number of gross TN from GTM is larger than specified portion of TN from warped patches "
-                        "compared to GTM TN. Updating warped TN portion from " << parsMtch.WarpedPortionTN << " to " <<
-                     static_cast<double>(nrGrossTNFullSequWarped) / static_cast<double>(nrTNFullSequ) << endl;
-            }
-        }
-    }
-    nrCorrsFullSequWarped = nrCorrsFullSequ - gtmdata.useNrTP - nrGrossTNFullSequGTM;
-    nrTPFullSequWarped = nrTPFullSequ - gtmdata.useNrTP;
-    //Corresponds to nrCorrsExtractWarped = 2 * nrGrossTNFullSequWarped + (nrTNFullSequWarped - nrGrossTNFullSequWarped) + nrTPFullSequWarped;
-    nrCorrsExtractWarped = nrGrossTNFullSequWarped + nrTNFullSequWarped + nrTPFullSequWarped;
+    gtmdata.sum_TN = static_cast<size_t>(floor(0.75 * static_cast<double>(gtmdata.sum_TN)));
+    EstimateNrTPTN();
     return true;
 }
 
@@ -1247,6 +1258,7 @@ bool genMatchSequ::getGtmDescriptors(){
         Mat img1 = cv::imread(gtmdata.imgNamesAll[i].first, IMREAD_GRAYSCALE);
         Mat img2 = cv::imread(gtmdata.imgNamesAll[i].second, IMREAD_GRAYSCALE);
         size_t nr_before = gtmdata.keypLAll[i].size();
+        vector<KeyPoint> kp_tmp = gtmdata.keypLAll[i];
         if (matchinglib::getDescriptors(img1,
                                         gtmdata.keypLAll[i],
                                         parsMtch.descriptorType,
@@ -1255,9 +1267,10 @@ bool genMatchSequ::getGtmDescriptors(){
             return false;
         }
         if(nr_before != gtmdata.keypLAll[i].size()){
-            return false;
+            if(!recalcMatchIdxs(kp_tmp, i, true)) return false;
         }
         nr_before = gtmdata.keypRAll[i].size();
+        kp_tmp = gtmdata.keypRAll[i];
         if (matchinglib::getDescriptors(img2,
                                         gtmdata.keypRAll[i],
                                         parsMtch.descriptorType,
@@ -1266,10 +1279,148 @@ bool genMatchSequ::getGtmDescriptors(){
             return false;
         }
         if(nr_before != gtmdata.keypRAll[i].size()){
-            return false;
+            if(!recalcMatchIdxs(kp_tmp, i, false)) return false;
         }
     }
     return true;
+}
+
+//Recalculate match indices if the descriptor extraction removed keypoints
+bool genMatchSequ::recalcMatchIdxs(const std::vector<cv::KeyPoint> &kpsBefore, const size_t &idx, bool isLeftKp){
+    size_t nrdiff = 0;
+    std::vector<cv::KeyPoint> *kpsAfter, *kpsAfter2;
+    vector<bool> *inl, *inl2;
+    if(isLeftKp){
+        nrdiff = kpsBefore.size() - gtmdata.keypLAll[idx].size();
+        kpsAfter = &(gtmdata.keypLAll[idx]);
+        kpsAfter2 = &(gtmdata.keypRAll[idx]);
+        inl = &(gtmdata.leftInlierAll[idx]);
+        inl2 = &(gtmdata.rightInlierAll[idx]);
+    }else{
+        nrdiff = kpsBefore.size() - gtmdata.keypRAll[idx].size();
+        kpsAfter = &(gtmdata.keypRAll[idx]);
+        kpsAfter2 = &(gtmdata.keypLAll[idx]);
+        inl = &(gtmdata.rightInlierAll[idx]);
+        inl2 = &(gtmdata.leftInlierAll[idx]);
+    }
+    if(nrdiff == 0) return true;
+    KeypointSearch kpS(*kpsAfter);
+    vector<int> missingIdxs, delIdxs;
+    kpS.getMissingIdxs(kpsBefore, missingIdxs);
+    if(missingIdxs.empty()) return false;
+    unordered_set<int> idxs, idxs2;
+    for(auto &i: missingIdxs){
+        inl->erase(inl->begin() + i, inl->begin() + i + 1);
+        idxs.emplace(i);
+    }
+    vector<int> delKpIdx;
+    correctMatchesIdx(gtmdata.matchesGTAll[idx], isLeftKp, idxs, missingIdxs, delKpIdx);
+    size_t nrTPdel = delKpIdx.size();
+    gtmdata.sum_TP -= nrTPdel;
+//    correctMatchesIdx(gtmdata.matchesTNAll[idx], isLeftKp, idxs, missingIdxs, delKpIdx);
+//    size_t nrTNdel = delKpIdx.size() - nrTPdel;
+    size_t nrTNdel = 0;
+    if(nrTPdel == 0){
+        nrTNdel = nrdiff;
+    }
+    gtmdata.sum_TN -= nrTNdel;
+    const int idxI = static_cast<int>(idx);
+    if(idxI >= gtmdata.vecIdxRng_Oxford.first && idxI < gtmdata.vecIdxRng_Oxford.second){
+        gtmdata.sum_TP_Oxford -= nrTPdel;
+        gtmdata.sum_TN_Oxford -= nrTNdel;
+        if(gtmdata.minNrTP_Oxford >= gtmdata.sum_TP_Oxford){
+            gtmdata.minNrTP_Oxford -= nrTPdel;
+            gtmdata.useNrTP -= nrTPdel;
+        }
+    }else if(idxI >= gtmdata.vecIdxRng_KITTI.first && idxI < gtmdata.vecIdxRng_KITTI.second){
+        gtmdata.sum_TP_KITTI -= nrTPdel;
+        gtmdata.sum_TN_KITTI -= nrTNdel;
+        if(gtmdata.minNrTP_KITTI >= gtmdata.sum_TP_KITTI){
+            gtmdata.minNrTP_KITTI -= nrTPdel;
+            gtmdata.useNrTP -= nrTPdel;
+        }
+    }else if(idxI >= gtmdata.vecIdxRng_MegaDepth.first && idxI < gtmdata.vecIdxRng_MegaDepth.second){
+        gtmdata.sum_TP_MegaDepth -= nrTPdel;
+        gtmdata.sum_TN_MegaDepth -= nrTNdel;
+        if(gtmdata.minNrTP_MegaDepth >= gtmdata.sum_TP_MegaDepth){
+            gtmdata.minNrTP_MegaDepth -= nrTPdel;
+            gtmdata.useNrTP -= nrTPdel;
+        }
+    }else{
+        return false;
+    }
+    if(!delKpIdx.empty()) {
+        for (auto &i: delKpIdx) {
+            idxs2.emplace(i);
+        }
+        sort(delKpIdx.begin(), delKpIdx.end(), [](const int &first, const int &second) { return first > second; });
+        for (auto &i: delKpIdx) {
+            inl2->erase(inl2->begin() + i, inl2->begin() + i + 1);
+            kpsAfter2->erase(kpsAfter2->begin() + i, kpsAfter2->begin() + i + 1);
+        }
+        vector<int> delKpIdx2;
+        correctMatchesIdx(gtmdata.matchesGTAll[idx], !isLeftKp, idxs2, delKpIdx, delKpIdx2);
+//        correctMatchesIdx(gtmdata.matchesTNAll[idx], !isLeftKp, idxs2, delKpIdx, delKpIdx2);
+        if(!delKpIdx2.empty()) return false;
+    }
+    return true;
+}
+
+void correctMatchesIdx(vector<DMatch> &matches,
+        bool isLeftKp,
+        const unordered_set<int> &idxs,
+        const vector<int> &missingIdxs,
+        vector<int> &delKpIdx){
+    vector<int> delIdx;
+    int idxm = 0;
+    for(auto &mtch: matches){
+        if(isLeftKp){
+            if(correctMatchIdx(idxs, missingIdxs, mtch.queryIdx)){
+                delIdx.push_back(idxm);
+            }
+        }else{
+            if(correctMatchIdx(idxs, missingIdxs, mtch.trainIdx)){
+                delIdx.push_back(idxm);
+            }
+        }
+        idxm++;
+    }
+    if(!delIdx.empty()) {
+        sort(delIdx.begin(), delIdx.end(), [](const int &first, const int &second) { return first > second; });
+        for (auto &i: delIdx) {
+            if(isLeftKp){
+                delKpIdx.push_back(matches[i].trainIdx);
+            }else {
+                delKpIdx.push_back(matches[i].queryIdx);
+            }
+            matches.erase(matches.begin() + i,
+                          matches.begin() + i + 1);
+        }
+    }
+}
+
+bool correctMatchIdx(const unordered_set<int> &idxs, const vector<int> &missingIdxs, int &queryTrainIdx){
+    if(idxs.find(queryTrainIdx) != idxs.end()){
+        return true;
+    }
+    getNewFromOldIdx(missingIdxs, queryTrainIdx);
+    return false;
+}
+
+void getNewFromOldIdx(const vector<int> &missingIdxs, int &oldIdx){
+    bool corr = false;
+    const int mis = static_cast<int>(missingIdxs.size());
+    for (int i = 0; i < mis; ++i) {
+        if(oldIdx > missingIdxs[i]){
+            corr = true;
+            if(i == mis - 1){
+                oldIdx -= i + 1;
+            }
+        }else if(corr){
+            oldIdx -= i;
+            break;
+        }
+    }
 }
 
 //Resets all GTM related variables to only use warped patches
@@ -1291,15 +1442,18 @@ bool genMatchSequ::getFeatures() {
     size_t kpCnt = 0;
     keypoints1.clear();
     descriptors1.release();
-    if(gtmdata.isValid()){
-        nrImgs = gtmdata.getNumberImgs();
-    }
-    minNrFramesMatch = max(min(minNrFramesMatch, totalNrFrames / 2), static_cast<size_t>(1));
     if(nrCorrsExtractWarped > 0) {
         //Load image names
         if (!getImageList()) {
             return false;
         }
+    }
+    if(gtmdata.isValid()){
+        calcGTMimgIDs();
+        nrImgs = gtmdata.getNumberImgs();
+    }
+    minNrFramesMatch = max(min(minNrFramesMatch, totalNrFrames / 2), static_cast<size_t>(1));
+    if(nrCorrsExtractWarped > 0) {
         nrImgs += imageList.size();
 
         //Get random sequence of images
@@ -1685,40 +1839,12 @@ void genMatchSequ::buildCorrsIdx(){
     if(nrTNwarpSingle > 0){
         corrTypeIdx.insert(corrTypeIdx.end(), nrTNwarpSingle, 2);
     }
-    for (size_t j = 0; j < imageList.size(); ++j) {
-        uniqueImgIDToName.emplace(j, &imageList[j]);
-    }
-    size_t min_idx = 0;
     if(gtmdata.isValid()){
         //Generate IDs for images
-        min_idx = imageList.size();
-        size_t idx = min_idx;
-        gtmdata.imgIDToImgNamesAll.clear();
-        gtmdata.gtmIdxToImgID.clear();
-        gtmdata.ImgNamesToImgID.clear();
-        for(size_t i = 0; i < gtmdata.imgNamesAll.size(); ++i){
-            gtmdata.imgIDToImgNamesAll.emplace(idx, make_pair(i, false));
-            if(gtmdata.ImgNamesToImgID.find(gtmdata.imgNamesAll[i].first) == gtmdata.ImgNamesToImgID.end()){
-                gtmdata.ImgNamesToImgID.emplace(gtmdata.imgNamesAll[i].first, std::vector<size_t>(1, idx));
-                gtmdata.uniqueImgIDTo1ImgName.emplace(idx, &(gtmdata.imgNamesAll[i].first));
-            }else{
-                gtmdata.ImgNamesToImgID.at(gtmdata.imgNamesAll[i].first).push_back(idx);
-            }
-            gtmdata.gtmIdxToImgID.emplace(make_pair(i, false), idx++);
-            gtmdata.imgIDToImgNamesAll.emplace(idx, make_pair(i, true));
-            if(gtmdata.ImgNamesToImgID.find(gtmdata.imgNamesAll[i].second) == gtmdata.ImgNamesToImgID.end()){
-                gtmdata.ImgNamesToImgID.emplace(gtmdata.imgNamesAll[i].second, std::vector<size_t>(1, idx));
-                gtmdata.uniqueImgIDTo1ImgName.emplace(idx, &(gtmdata.imgNamesAll[i].second));
-            }else{
-                gtmdata.ImgNamesToImgID.at(gtmdata.imgNamesAll[i].second).push_back(idx);
-            }
-            gtmdata.gtmIdxToImgID.emplace(make_pair(i, true), idx++);
-        }
         corrTypeIdx.insert(corrTypeIdx.end(), gtmdata.useNrTP, 3);
         if(nrGrossTNFullSequGTM > 0){
             corrTypeIdx.insert(corrTypeIdx.end(), nrGrossTNFullSequGTM, 4);
         }
-        uniqueImgIDToName.insert(gtmdata.uniqueImgIDTo1ImgName.begin(), gtmdata.uniqueImgIDTo1ImgName.end());
     }
     vector<std::size_t> idx;
     shuffleVector(idx, corrTypeIdx.size());
@@ -1841,6 +1967,40 @@ void genMatchSequ::buildCorrsIdx(){
             }
             id_run++;
         }
+    }
+}
+
+void genMatchSequ::calcGTMimgIDs(){
+    for (size_t j = 0; j < imageList.size(); ++j) {
+        uniqueImgIDToName.emplace(j, &imageList[j]);
+    }
+    size_t min_idx = 0;
+    if(gtmdata.isValid()){
+        //Generate IDs for images
+        min_idx = imageList.size();
+        size_t idx = min_idx;
+        gtmdata.imgIDToImgNamesAll.clear();
+        gtmdata.gtmIdxToImgID.clear();
+        gtmdata.ImgNamesToImgID.clear();
+        for(size_t i = 0; i < gtmdata.imgNamesAll.size(); ++i){
+            gtmdata.imgIDToImgNamesAll.emplace(idx, make_pair(i, false));
+            if(gtmdata.ImgNamesToImgID.find(gtmdata.imgNamesAll[i].first) == gtmdata.ImgNamesToImgID.end()){
+                gtmdata.ImgNamesToImgID.emplace(gtmdata.imgNamesAll[i].first, std::vector<size_t>(1, idx));
+                gtmdata.uniqueImgIDTo1ImgName.emplace(idx, &(gtmdata.imgNamesAll[i].first));
+            }else{
+                gtmdata.ImgNamesToImgID.at(gtmdata.imgNamesAll[i].first).push_back(idx);
+            }
+            gtmdata.gtmIdxToImgID.emplace(make_pair(i, false), idx++);
+            gtmdata.imgIDToImgNamesAll.emplace(idx, make_pair(i, true));
+            if(gtmdata.ImgNamesToImgID.find(gtmdata.imgNamesAll[i].second) == gtmdata.ImgNamesToImgID.end()){
+                gtmdata.ImgNamesToImgID.emplace(gtmdata.imgNamesAll[i].second, std::vector<size_t>(1, idx));
+                gtmdata.uniqueImgIDTo1ImgName.emplace(idx, &(gtmdata.imgNamesAll[i].second));
+            }else{
+                gtmdata.ImgNamesToImgID.at(gtmdata.imgNamesAll[i].second).push_back(idx);
+            }
+            gtmdata.gtmIdxToImgID.emplace(make_pair(i, true), idx++);
+        }
+        uniqueImgIDToName.insert(gtmdata.uniqueImgIDTo1ImgName.begin(), gtmdata.uniqueImgIDTo1ImgName.end());
     }
 }
 
@@ -3608,6 +3768,7 @@ bool genMatchSequ::calcGoodBadDescriptorTH(){
         if(succ){
             dist_bad.insert(dist_bad.end(), make_move_iterator(descrDistsTN.begin()), make_move_iterator(descrDistsTN.end()));
             badDescrTH.minVal = *min_element(dist_bad.begin(), dist_bad.end());
+            maxComps = static_cast<int>(dist_bad.size());
         }
     }
 
@@ -3732,7 +3893,70 @@ bool genMatchSequ::getGTMDescrDistStat(std::vector<double> &descrDistsTN, const 
         }
         gtmdata.matchesTNAll.emplace_back(std::move(tnmatch));
     }
-    return !descrDistsTN.empty();
+
+    size_t nr_gtm = 0;
+    for(auto &i: gtmdata.matchesTNAll){
+        nr_gtm += i.size();
+    }
+    gtmdata.sum_TN = nr_gtm;
+    EstimateNrTPTN(true);
+
+    if(descrDistsTN.empty()){
+        return false;
+    }
+
+    gtmdata.matchesTNAllIdx.clear();
+    gtmdata.matchesTNAllIdx.reserve(nr_gtm);
+    for(size_t i = 0; i < gtmdata.matchesTNAll.size(); ++i){
+        for(size_t j = 0; j < gtmdata.matchesTNAll[i].size(); ++j){
+            gtmdata.matchesTNAllIdx.emplace_back(i, j);
+        }
+    }
+    vector<size_t> idx;
+    shuffleVector(idx, nr_gtm);
+    reOrderVector(gtmdata.matchesTNAllIdx, idx);
+
+    return true;
+}
+
+void genMatchSequ::EstimateNrTPTN(bool reestimate){
+    if(!reestimate) {
+        nrTNFullSequWarped = static_cast<size_t>(round(parsMtch.WarpedPortionTN * static_cast<double>(nrTNFullSequ)));
+        nrGrossTNFullSequGTM = static_cast<size_t>(round(parsMtch.portionGrossTN * static_cast<double>(nrTNFullSequ)));
+        if (nrGrossTNFullSequGTM >= gtmdata.sum_TN) {
+            nrGrossTNFullSequWarped = nrGrossTNFullSequGTM - gtmdata.sum_TN;
+            if (nrGrossTNFullSequWarped > nrTNFullSequWarped) {
+                if (verbose & PRINT_WARNING_MESSAGES) {
+                    cout
+                            << "Number of gross TN from warped patches is larger than specified portion of TN from warped patches "
+                               "compared to GTM TN. Updating warped TN portion from " << parsMtch.WarpedPortionTN
+                            << " to " <<
+                            static_cast<double>(nrGrossTNFullSequWarped) / static_cast<double>(nrTNFullSequ) << endl;
+                }
+                nrTNFullSequWarped = nrGrossTNFullSequWarped;
+            }
+            nrGrossTNFullSequGTM = gtmdata.sum_TN;
+        } else {
+            nrGrossTNFullSequWarped = 0;
+            if (nrTNFullSequWarped > nrTNFullSequ - nrGrossTNFullSequGTM) {
+                nrTNFullSequWarped = nrTNFullSequ - nrGrossTNFullSequGTM;
+                if (verbose & PRINT_WARNING_MESSAGES) {
+                    cout << "Number of gross TN from GTM is larger than specified portion of TN from warped patches "
+                            "compared to GTM TN. Updating warped TN portion from " << parsMtch.WarpedPortionTN << " to "
+                         <<
+                         static_cast<double>(nrGrossTNFullSequWarped) / static_cast<double>(nrTNFullSequ) << endl;
+                }
+            }
+        }
+        nrCorrsFullSequWarped = nrCorrsFullSequ - gtmdata.useNrTP - nrGrossTNFullSequGTM;
+        nrTPFullSequWarped = nrTPFullSequ - gtmdata.useNrTP;
+        //Corresponds to nrCorrsExtractWarped = 2 * nrGrossTNFullSequWarped + (nrTNFullSequWarped - nrGrossTNFullSequWarped) + nrTPFullSequWarped;
+        nrCorrsExtractWarped = nrGrossTNFullSequWarped + nrTNFullSequWarped + nrTPFullSequWarped;
+    }else{
+        if (nrGrossTNFullSequGTM > gtmdata.sum_TN) {
+            nrGrossTNFullSequGTM = gtmdata.sum_TN;
+        }
+    }
 }
 
 bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,

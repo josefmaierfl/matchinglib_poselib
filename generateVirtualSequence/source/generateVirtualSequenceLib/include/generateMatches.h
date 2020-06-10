@@ -29,6 +29,7 @@
 #include <opencv2/core/types.hpp>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include <tuple>
 #include "GTM/base_matcher.h"
 
@@ -485,6 +486,50 @@ private:
     std::mt19937 rand_obj;
 };
 
+class KeypointSearch{
+public:
+    explicit KeypointSearch(const std::vector<cv::KeyPoint> &keypoints){
+        for (auto &i: keypoints) {
+            kpMap.emplace(i.pt);
+        }
+    }
+
+    void getMissingIdxs(const std::vector<cv::KeyPoint> &keypoints, std::vector<int> &idxsMissing){
+        idxsMissing.clear();
+        int idx = 0;
+        for (auto &i: keypoints) {
+            if(kpMap.find(i.pt) == kpMap.end()){
+                idxsMissing.emplace_back(idx);
+            }
+            idx++;
+        }
+        if(idxsMissing.empty()) return;
+        std::sort(idxsMissing.begin(), idxsMissing.end(), [](const int &first, const int &second){return first > second;});
+    }
+
+
+private:
+    struct KeyHasher
+    {
+        std::size_t operator()(const cv::Point2f& pt) const
+        {
+            std::size_t seed = 0;
+            boost::hash_combine(seed, pt.x);
+            boost::hash_combine(seed, pt.y);
+            return seed;
+        }
+    };
+    struct EqualTo
+    {
+        bool operator()(const cv::Point2f& pt1, const cv::Point2f& pt2) const
+        {
+            return nearZero(static_cast<double>(pt1.x) - static_cast<double>(pt2.x)) &&
+                   nearZero(static_cast<double>(pt1.y) - static_cast<double>(pt2.y));
+        }
+    };
+    std::unordered_set<cv::Point2f, KeyHasher, EqualTo> kpMap;
+};
+
 class GENERATEVIRTUALSEQUENCELIB_API genMatchSequ : genStereoSequ {
 public:
     genMatchSequ(cv::Size &imgSize_,
@@ -533,6 +578,8 @@ private:
     void resetGTMuse();
     //Calculate GTM descriptors and update variables within gtmdata
     bool getGtmDescriptors();
+    //Recalculate match indices if the descriptor extraction removed keypoints
+    bool recalcMatchIdxs(const std::vector<cv::KeyPoint> &kpsBefore, const size_t &idx, bool isLeftKp);
     //Build index corrToIdxMap which holds information for and pointers to correspondence data (warped and GTM correspondences)
     void buildCorrsIdx();
     //Generates a hash value from the parameters used to generate a scene and 3D correspondences, respectively
@@ -667,6 +714,10 @@ private:
     bool calcGoodBadDescriptorTH();
     //Calculate statistics on descriptor distances for not matching descriptors of GTM if available
     bool getGTMDescrDistStat(std::vector<double> &descrDistsTN, const double &minDist = 0);
+    //Estimate number of warped TN+TP and number of GTM TN+TP
+    void EstimateNrTPTN(bool reestimate = false);
+    //Calculate image IDs for GTM
+    void calcGTMimgIDs();
     //Distorts the keypoint position
     void distortKeyPointPosition(cv::KeyPoint &kp2,
                                  const cv::Rect &roi,

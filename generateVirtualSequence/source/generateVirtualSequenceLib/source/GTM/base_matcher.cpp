@@ -5171,7 +5171,7 @@ bool baseMatcher::calcGTM_MegaDepth(size_t &min_nrTP){
         cerr << "No MegaDepth data found" << endl;
         return false;
     }
-    gtmdata.vecIdxRng_MegaDepth.first = gtmdata.matchesGTAll.size();
+    gtmdata.vecIdxRng_MegaDepth.first = static_cast<int>(gtmdata.matchesGTAll.size());
     for(auto &i: all_folders){
         const string md_sub_parentP = getParentPath(i.mdImgF);
         const string gtm_path = concatPath(md_sub_parentP, gtm_sub_folder);
@@ -5261,7 +5261,7 @@ bool baseMatcher::calcGTM_MegaDepth(size_t &min_nrTP){
             break;
         }
     }
-    gtmdata.vecIdxRng_MegaDepth.second = gtmdata.matchesGTAll.size();
+    gtmdata.vecIdxRng_MegaDepth.second = static_cast<int>(gtmdata.matchesGTAll.size());
     if(min_nrTP > gtmdata.sum_TP_MegaDepth){
         gtmdata.minNrTP_MegaDepth = gtmdata.sum_TP_MegaDepth;
     }else{
@@ -5319,7 +5319,7 @@ bool baseMatcher::calcGTM_KITTI(size_t &min_nrTP){
     gtmdata.sum_TP_KITTI = 0;
     gtmdata.sum_TN_KITTI = 0;
     flowGtIsUsed = true;
-    gtmdata.vecIdxRng_KITTI.first = gtmdata.matchesGTAll.size();
+    gtmdata.vecIdxRng_KITTI.first = static_cast<int>(gtmdata.matchesGTAll.size());
     for(auto &i: GetKITTISubDirs()){
         string img1_path = concatPath(path, i.img1.sub_folder);
         if(!checkPathExists(img1_path)){
@@ -5397,7 +5397,7 @@ bool baseMatcher::calcGTM_KITTI(size_t &min_nrTP){
             break;
         }
     }
-    gtmdata.vecIdxRng_KITTI.second = gtmdata.matchesGTAll.size();
+    gtmdata.vecIdxRng_KITTI.second = static_cast<int>(gtmdata.matchesGTAll.size());
     if(min_nrTP > gtmdata.sum_TP_KITTI){
         gtmdata.minNrTP_KITTI = gtmdata.sum_TP_KITTI;
     }else{
@@ -5890,7 +5890,7 @@ bool baseMatcher::calcGTM_Oxford(size_t &min_nrTP) {
 bool baseMatcher::getOxfordGTM(const std::string &path, size_t &min_nrTP){
     gtmdata.sum_TP_Oxford = 0;
     gtmdata.sum_TN_Oxford = 0;
-    gtmdata.vecIdxRng_Oxford.first = gtmdata.matchesGTAll.size();
+    gtmdata.vecIdxRng_Oxford.first = static_cast<int>(gtmdata.matchesGTAll.size());
     for(auto &sub: GetOxfordSubDirs()){
         const string sub_path = concatPath(path, sub);
         const string gtm_path = concatPath(sub_path, gtm_sub_folder);
@@ -5951,7 +5951,7 @@ bool baseMatcher::getOxfordGTM(const std::string &path, size_t &min_nrTP){
             break;
         }
     }
-    gtmdata.vecIdxRng_Oxford.second = gtmdata.matchesGTAll.size();
+    gtmdata.vecIdxRng_Oxford.second = static_cast<int>(gtmdata.matchesGTAll.size());
     if(min_nrTP > gtmdata.sum_TP_Oxford){
         gtmdata.minNrTP_Oxford = gtmdata.sum_TP_Oxford;
     }else{
