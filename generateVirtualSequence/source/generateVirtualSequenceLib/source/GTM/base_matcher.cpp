@@ -5490,6 +5490,9 @@ bool baseMatcher::interpolateDispFlow(const vector<cv::Point2f> &pts1,
     Mat mask = cv::abs(flow_ch[0]) + cv::abs(flow_ch[1]);
     cv::threshold(mask, mask, 0, 255.0, cv::THRESH_BINARY);
     mask.convertTo(mask, CV_8UC1);
+    Mat mask2;
+    Mat structElem = getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(15, 15));
+    cv::morphologyEx(mask, mask2, MORPH_CLOSE, structElem);
     bool retry = false;
     vector<cv::Rect2i> rois;
     do{
@@ -5578,6 +5581,25 @@ bool baseMatcher::interpolateDispFlow(const vector<cv::Point2f> &pts1,
         }
     }
 
+    //Check portion of initial flow in ROIs
+    vector<double> initFlowAreaPortion;
+    vector<double> initFlowPortion;
+    vector<bool> useInterpol;
+    for(size_t i = 0; i < nr_elems; ++i){
+        if(pts1_tmp[i].empty()){
+            initFlowAreaPortion.emplace_back(0);
+            initFlowPortion.emplace_back(0);
+            useInterpol.emplace_back(false);
+            continue;
+        }
+        const auto roiA = static_cast<double>(rois[i].area());
+        const auto flowA = static_cast<double>(countNonZero(mask2(rois[i])));
+        initFlowAreaPortion.emplace_back(flowA / roiA);
+        const auto flowNr = static_cast<double>(pts1_tmp[i].size());
+        initFlowPortion.emplace_back(flowNr / roiA);
+        useInterpol.emplace_back(!(initFlowAreaPortion.back() < 0.2 || initFlowPortion.back() > 0.8));
+    }
+
     //Interpolate flow patches
     vector<Mat> dense_flowP;
     Ptr<ximgproc::EdgeAwareInterpolator> gd = ximgproc::createEdgeAwareInterpolator();
@@ -5589,8 +5611,7 @@ bool baseMatcher::interpolateDispFlow(const vector<cv::Point2f> &pts1,
     gd->setUsePostProcessing(false);
     for(size_t i = 0; i < nr_elems; ++i) {
         dense_flowP.emplace_back(Mat::zeros(rois[i].size(), CV_32FC2));
-        if(pts1_tmp[i].empty()) continue;
-        if(pts1_tmp[i].size() < 10) continue;
+        if(!useInterpol[i]) continue;
         if(rois[i].x + rois[i].width > imgs[0].cols || rois[i].y + rois[i].height > imgs[0].rows){
             return false;
         }
@@ -5644,23 +5665,33 @@ bool baseMatcher::interpolateDispFlow(const vector<cv::Point2f> &pts1,
 //                return false;
 //            }
 //        }
-//        Mat imgroi1 = (imgs[0](rois[i])).clone();
-//        Mat imgroi2 = (imgs[1](roisImg2[i])).clone();
-//        Mat dense_out;
-        gd->interpolate(imgs[0](rois[i]), pts1_tmp[i], imgs[1](roisImg2[i]), pts2_tmp[i], dense_flowP[i]);
-//        dense_out.copyTo(dense_flowP[i]);
+        Mat imgroi1 = (imgs[0](rois[i])).clone();
+        Mat imgroi2 = (imgs[1](roisImg2[i])).clone();
+        Mat dense_out;
+        gd->interpolate(imgroi1, pts1_tmp[i], imgroi2, pts2_tmp[i], dense_out);
+        dense_out.copyTo(dense_flowP[i]);
     }
 
     //Calculate flow values in original image
     vector<Mat> dense_flowA;
     for(size_t i = 0; i < nr_elems; ++i) {
         dense_flowA.emplace_back(cv::Mat::ones(imgs[0].size(), CV_32FC2) * 99999.f);
-        if(pts1_tmp[i].empty()) continue;
-        if(pts1_tmp[i].size() < 10) continue;
-        std::vector<Mat> flow_chI;
-        cv::split(dense_flowP[i], flow_chI);
         const auto roiXdiff = static_cast<float>(roisImg2[i].x - rois[i].x);
         const auto roiYdiff = static_cast<float>(roisImg2[i].y - rois[i].y);
+        if(!useInterpol[i]){
+            if(initFlowAreaPortion[i] > 0 || initFlowPortion[i] > 0){
+                for (size_t j = 0; j < pts1_tmp[i].size(); ++j) {
+                    Point2f froi = pts2_tmp[i][j] - pts1_tmp[i][j];
+                    froi.x += roiXdiff;
+                    froi.y += roiYdiff;
+                    dense_flowA[i].at<Point2f>(rois[i].y + static_cast<int>(pts1_tmp[i][j].y),
+                                               rois[i].x + static_cast<int>(pts1_tmp[i][j].x)) = froi;
+                }
+            }
+            continue;
+        }
+        std::vector<Mat> flow_chI;
+        cv::split(dense_flowP[i], flow_chI);
         for (int y = 0; y < rois[i].height; ++y) {
             const auto actY = rois[i].y + y;
             for (int x = 0; x < rois[i].width; ++x) {
@@ -5768,16 +5799,14 @@ bool baseMatcher::interpolateDispFlow(const vector<cv::Point2f> &pts1,
 //    }
 
     //Generate validity mask from initial flow
-    Mat structElem = getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(15, 15));
-    cv::morphologyEx(mask, mask, MORPH_CLOSE, structElem);
     if(verbose & SHOW_GTM_INTERPOL_FLOW) {
         namedWindow("Validity Mask from initial flow", WINDOW_AUTOSIZE);// Create a window for display.
-        imshow("Validity Mask from initial flow", mask);
+        imshow("Validity Mask from initial flow", mask2);
         namedWindow("Validity Mask from interpolation", WINDOW_AUTOSIZE);// Create a window for display.
         imshow("Validity Mask from interpolation", mask1);
 //        cv::waitKey(0);
     }
-    mask1 &= mask;
+    mask1 &= mask2;
     if(verbose & SHOW_GTM_INTERPOL_FLOW) {
         namedWindow("Final Validity Mask", WINDOW_AUTOSIZE);// Create a window for display.
         imshow("Final Validity Mask", mask1);

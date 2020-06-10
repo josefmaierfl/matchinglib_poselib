@@ -1061,7 +1061,10 @@ bool writeKittiFlowFile(const std::string &filename, const cv::Mat &flow, float 
         return false;
     }
 
-    vector<Mat> channels, channelsInt(3, Mat::zeros(flow.size(), CV_16UC1));
+    vector<Mat> channels, channelsInt;
+    for (int i = 0; i < 3; ++i) {
+        channelsInt.emplace_back(Mat::zeros(flow.size(), CV_16UC1));
+    }
     cv::split(flow, channels);
     if(useBoolValidity)
     {

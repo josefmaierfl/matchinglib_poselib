@@ -1411,28 +1411,47 @@ void GenStereoPars::setCoordsForOpti()
 
 	if (horizontalCamAlign)
 	{
+        x_lb_max2.clear();
+        x_lb_min2.clear();
+        x_rt_max2.clear();
+        x_rt_min2.clear();
 		for (size_t i = 0; i < nrConditions; i++)
 		{
 			x_lb_max1[i] = (Mat_<double>(3, 1) << ((double)imgSize_.width + virtWidth[i]) / 2.0, (double)imgSize_.height / 2.0, 1.0);
 			x_lb_min1[i] = (Mat_<double>(3, 1) << ((double)imgSize_.width - virtWidth[i]) / 2.0, (double)imgSize_.height / 2.0, 1.0);
 			x_rt_max1[i] = (Mat_<double>(3, 1) << (double)imgSize_.width, (double)imgSize_.height / 2.0, 1.0);
 			x_rt_min1[i] = (Mat_<double>(3, 1) << 0, (double)imgSize_.height / 2.0, 1.0);
+
+            x_lb_max2.emplace_back((Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, (double)imgSize_.height, 1.0));
+            x_lb_min2.emplace_back((Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, 0, 1.0));
+            x_rt_max2.emplace_back((Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, (double)imgSize_.height, 1.0));
+            x_rt_min2.emplace_back((Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, 0, 1.0));
 		}
 
-		x_lb_max2 = std::vector<cv::Mat>(nrConditions,(Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, (double)imgSize_.height, 1.0));
-		x_lb_min2 = std::vector<cv::Mat>(nrConditions,(Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, 0, 1.0));
-		x_rt_max2 = std::vector<cv::Mat>(nrConditions,(Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, (double)imgSize_.height, 1.0));
-		x_rt_min2 = std::vector<cv::Mat>(nrConditions,(Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, 0, 1.0));
+//		x_lb_max2 = std::vector<cv::Mat>(nrConditions,(Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, (double)imgSize_.height, 1.0));
+//		x_lb_min2 = std::vector<cv::Mat>(nrConditions,(Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, 0, 1.0));
+//		x_rt_max2 = std::vector<cv::Mat>(nrConditions,(Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, (double)imgSize_.height, 1.0));
+//		x_rt_min2 = std::vector<cv::Mat>(nrConditions,(Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, 0, 1.0));
 	}
 	else
 	{
-		x_lb_max1 = std::vector<cv::Mat>(nrConditions, (Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, (double)imgSize_.height, 1.0));
-		x_lb_min1 = std::vector<cv::Mat>(nrConditions, (Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, 0, 1.0));
-		x_rt_max1 = std::vector<cv::Mat>(nrConditions, (Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, (double)imgSize_.height, 1.0));
-		x_rt_min1 = std::vector<cv::Mat>(nrConditions, (Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, 0, 1.0));
+        x_lb_max1.clear();
+        x_lb_min1.clear();
+        x_rt_max1.clear();
+        x_rt_min1.clear();
+
+//		x_lb_max1 = std::vector<cv::Mat>(nrConditions, (Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, (double)imgSize_.height, 1.0));
+//		x_lb_min1 = std::vector<cv::Mat>(nrConditions, (Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, 0, 1.0));
+//		x_rt_max1 = std::vector<cv::Mat>(nrConditions, (Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, (double)imgSize_.height, 1.0));
+//		x_rt_min1 = std::vector<cv::Mat>(nrConditions, (Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, 0, 1.0));
 
 		for (size_t i = 0; i < nrConditions; i++)
 		{
+            x_lb_max1.emplace_back((Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, (double)imgSize_.height, 1.0));
+            x_lb_min1.emplace_back((Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, 0, 1.0));
+            x_rt_max1.emplace_back((Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, (double)imgSize_.height, 1.0));
+            x_rt_min1.emplace_back((Mat_<double>(3, 1) << (double)imgSize_.width / 2.0, 0, 1.0));
+
 			x_lb_max2[i] = (Mat_<double>(3, 1) << ((double)imgSize_.width + virtWidth[i]) / 2.0, (double)imgSize_.height / 2.0, 1.0);
 			x_lb_min2[i] = (Mat_<double>(3, 1) << ((double)imgSize_.width - virtWidth[i]) / 2.0, (double)imgSize_.height / 2.0, 1.0);
 			x_rt_max2[i] = (Mat_<double>(3, 1) << (double)imgSize_.width, (double)imgSize_.height / 2.0, 1.0);
