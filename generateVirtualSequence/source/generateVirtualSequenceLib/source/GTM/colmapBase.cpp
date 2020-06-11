@@ -742,6 +742,7 @@ void colmapBase::filterInterestingImgs(){
     }
     min_num_points3D_Img_ = static_cast<point2D_t>(std::max(std::min(static_cast<int>(round(mean - sd)), th1), 32));
     vector<point2D_t> del_ids;
+    const auto nr3DPts = static_cast<point2D_t>(points3D_.size());
     for(auto &i: images_){
         if(i.second.NumPoints3D() < min_num_points3D_Img_){
             point2D_t idx1 = 0;
@@ -754,6 +755,7 @@ void colmapBase::filterInterestingImgs(){
             del_ids.push_back(i.first);
         }else{
             point2D_t idx1 = 0;
+            i.second.SetNumObservations(nr3DPts);
             for(auto &pt2d: i.second.Points2D()){
                 if(pt2d.HasPoint3D()){
                     i.second.IncrementCorrespondenceHasPoint3D(idx1);
@@ -774,11 +776,14 @@ void colmapBase::filterInterestingImgs(){
         scores.emplace_back(i.second.Point3DVisibilityScore());
     }
     size_t max_score = *max_element(scores.begin(), scores.end());
-    if(max_score <= min_score){
-        min_score = static_cast<size_t>(round((Mean(scores) + Median(scores)) / 2.));
+    if(static_cast<size_t>(round(0.6 * static_cast<double>(max_score))) <= min_score){
+        auto min_score1 = static_cast<size_t>(round((Mean(scores) + Median(scores)) / 2.2));
+        if(min_score1 < min_score){
+            min_score = min_score1;
+        }
     }
     for(auto &i: images_){
-        const std::size_t min_score = i.second.Point3DVisibilityScoreMax() / 3;
+//        const std::size_t min_score = i.second.Point3DVisibilityScoreMax() / 3;
         if(i.second.Point3DVisibilityScore() < min_score){
             point2D_t idx1 = 0;
             for(auto &pt2d: i.second.Points2D()){

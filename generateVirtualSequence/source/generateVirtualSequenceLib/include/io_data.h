@@ -64,6 +64,9 @@ bool GENERATEVIRTUALSEQUENCELIB_API deleteDirectory(const std::string &path);
 //Get all directoies within a folder
 std::vector<std::string> GENERATEVIRTUALSEQUENCELIB_API getDirs(const std::string &path);
 
+//Check if a given directory is empty
+bool dirIsEmpty(const std::string &path);
+
 //Count the number of files in the folder
 size_t GENERATEVIRTUALSEQUENCELIB_API getNumberFilesInFolder(const std::string &path);
 

@@ -5218,9 +5218,11 @@ bool baseMatcher::calcGTM_MegaDepth(size_t &min_nrTP){
         }
         if(calcGTM){
             bool save_it = true;
-            if(!createDirectory(gtm_path)){
-                cerr << "Unable to create GTM directory" << endl;
-                save_it = false;
+            if(!checkPathExists(gtm_path)) {
+                if (!createDirectory(gtm_path)) {
+                    cerr << "Unable to create GTM directory" << endl;
+                    save_it = false;
+                }
             }
             std::vector<megaDepthData> data;
             try {
@@ -6340,9 +6342,11 @@ std::vector<megaDepthFolders> baseMatcher::GetMegaDepthSubDirs(const std::string
         }
         string sub_dir = concatPath(mdfolder, i);
         std::vector<std::string> sub_dirs_tmp = getDirs(sub_dir);
+        const size_t lendIPart = mdFolders.depthImgPart.size();
         for(auto &j: sub_dirs_tmp){
             size_t pos = j.find(mdFolders.depthImgPart);
             if(pos != std::string::npos){
+                pos += lendIPart;
                 string nr = j.substr(pos);
                 if(!isdigits(nr)){
                     continue;

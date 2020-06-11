@@ -12,12 +12,16 @@ bool loadMegaDepthFlow(const std::string &imgPath, const std::string &flowPath, 
 
 bool convertMegaDepthData(const megaDepthFolders& folders, const std::string &flowSubFolder, std::vector<megaDepthData> &data){
     std::string flowPath = concatPath(getParentPath(folders.mdImgF), flowSubFolder);
-    if(checkPathExists(flowPath)){
-        return loadMegaDepthFlow(folders.mdImgF, flowPath, data);
+    if(checkPathExists(flowPath) && !dirIsEmpty(flowPath)){
+        if(loadMegaDepthFlow(folders.mdImgF, flowPath, data)){
+            return true;
+        }
     }
-    if(!createDirectory(flowPath)){
-        cerr << "Unable to create directory " << flowPath << endl;
-        return false;
+    if(!checkPathExists(flowPath)) {
+        if (!createDirectory(flowPath)) {
+            cerr << "Unable to create directory " << flowPath << endl;
+            return false;
+        }
     }
     colmapBase cb;
     try {

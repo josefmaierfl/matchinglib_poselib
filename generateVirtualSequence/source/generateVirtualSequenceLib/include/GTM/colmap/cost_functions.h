@@ -337,6 +337,36 @@ class RelativePoseCostFunction {
             dtr = depthMap2_(yti, xri);
             dbl = depthMap2_(ybi, xli);
             dbr = depthMap2_(ybi, xri);
+            vector<double*> depths;
+            vector<size_t> validD, nValid;
+            depths.push_back(&dtl);
+            depths.push_back(&dtr);
+            depths.push_back(&dbl);
+            depths.push_back(&dbr);
+            size_t idx = 0;
+            for(auto &d: depths){
+                if(*d < 1e-3){
+                    nValid.push_back(idx++);
+                }else{
+                    validD.push_back(idx++);
+                }
+            }
+            if(validD.empty()){
+                residuals[0] = T(0);
+                residuals[1] = T(0);
+                residuals[2] = T(0);
+                return true;
+            }
+            if(!nValid.empty()){
+                double meanD = 0;
+                for(auto &i: validD){
+                    meanD += *(depths[i]);
+                }
+                meanD /= static_cast<double>(validD.size());
+                for(auto &i: nValid){
+                    *(depths[i]) = meanD;
+                }
+            }
             T xdiff = xr - xl;
             T dt, db, d2;
             if(xdiff < T(1e-4)){

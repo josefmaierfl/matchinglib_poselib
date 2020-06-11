@@ -715,11 +715,17 @@ std::vector<std::string> getDirs(const std::string &path){
     }
     std::vector<std::string> dirs;
     for(auto& entry : boost::make_iterator_range(boost::filesystem::directory_iterator(p), {})){
-        if(!boost::filesystem::is_directory(entry)){
-            dirs.emplace_back(entry.path().string());
+        if(boost::filesystem::is_directory(entry)){
+            dirs.emplace_back(entry.path().filename().string());
         }
     }
     return dirs;
+}
+
+//Check if a given directory is empty
+bool dirIsEmpty(const std::string &path){
+    boost::filesystem::path p(path);
+    return boost::filesystem::is_empty(p);
 }
 
 //Returns the parent path

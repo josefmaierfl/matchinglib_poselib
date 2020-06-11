@@ -207,6 +207,33 @@ struct corrStats{
         dtr = depthMap2(yti, xri);
         dbl = depthMap2(ybi, xli);
         dbr = depthMap2(ybi, xri);
+        vector<double*> depths;
+        vector<size_t> validD, nValid;
+        depths.push_back(&dtl);
+        depths.push_back(&dtr);
+        depths.push_back(&dbl);
+        depths.push_back(&dbr);
+        size_t idx = 0;
+        for(auto &d: depths){
+            if(*d < 1e-3){
+                nValid.push_back(idx++);
+            }else{
+                validD.push_back(idx++);
+            }
+        }
+        if(validD.empty()){
+            return DBL_MAX;
+        }
+        if(!nValid.empty()){
+            double meanD = 0;
+            for(auto &i: validD){
+                meanD += *(depths[i]);
+            }
+            meanD /= static_cast<double>(validD.size());
+            for(auto &i: nValid){
+                *(depths[i]) = meanD;
+            }
+        }
         double xdiff = xr - xl;
         double dt, db, d2;
         if(xdiff < 1e-4){
