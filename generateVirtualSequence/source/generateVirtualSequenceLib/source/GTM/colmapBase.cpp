@@ -77,11 +77,12 @@ RigFixedDepthBundleAdjuster::RigFixedDepthBundleAdjuster(BundleAdjustmentOptions
 
 bool RigFixedDepthBundleAdjuster::Solve(corrStats* corrImgs) {
     problem_.reset(new ceres::Problem());
+    parameterized_qvec_data_.clear();
 
 //    ceres::LossFunction* loss_function = options_.CreateLossFunction();
     SetUp(corrImgs);
 
-    if (problem_->NumResiduals() == 0) {
+    if (problem_->NumResiduals() < 50) {
         return false;
     }
 
@@ -349,15 +350,15 @@ bool colmapBase::refineRelPoses(){
     if(!refineSfM) {
         return true;
     }
-    BundleAdjustmentOptions options;
-    options.loss_function_type = BundleAdjustmentOptions::LossFunctionType::CAUCHY;
-    options.loss_function_scale = 1.0;
-    options.solver_options.function_tolerance = 1e-6;
-    options.solver_options.gradient_tolerance = 1e-8;
-    options.solver_options.parameter_tolerance = 1e-8;
-    options.solver_options.minimizer_progress_to_stdout = true;
-    RigFixedDepthBundleAdjuster ba(options);
     for(auto &i: correspImgs_){
+        BundleAdjustmentOptions options;
+        options.loss_function_type = BundleAdjustmentOptions::LossFunctionType::CAUCHY;
+        options.loss_function_scale = 1.0;
+        options.solver_options.function_tolerance = 1e-6;
+        options.solver_options.gradient_tolerance = 1e-8;
+        options.solver_options.parameter_tolerance = 1e-8;
+        options.solver_options.minimizer_progress_to_stdout = true;
+        RigFixedDepthBundleAdjuster ba(options);
         if(!ba.Solve(&i.second)){
             delIdx.push_back(i.first);
         }
