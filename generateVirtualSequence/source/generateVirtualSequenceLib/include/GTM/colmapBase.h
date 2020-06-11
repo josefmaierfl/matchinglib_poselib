@@ -178,6 +178,10 @@ struct corrStats{
         quat_rel = RotationMatrixToQuaternion(R_rel);
     }
 
+    void QuaternionToRotMat(){
+        R_rel = QuaternionToRotationMatrix(quat_rel);
+    }
+
     double calcReprojectionError(const std::pair<Eigen::Vector2i, double> &pt1, Eigen::Vector2d *loc2 = nullptr) const{
         Eigen::Vector2d pt1d = pt1.first.cast<double>();
         Eigen::Vector2d kpw1 = undistortedCam1.ImageToWorld(pt1d);

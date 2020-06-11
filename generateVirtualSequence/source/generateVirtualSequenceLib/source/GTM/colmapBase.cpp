@@ -307,7 +307,7 @@ bool colmapBase::estimateFlow(cv::Mat &flow, const corrStats &data){
     for(int y = 0; y < depthMap1.rows; ++y){
         for(int x = 0; x < depthMap1.cols; ++x){
             const double dist2 = data.calcReprojectionError(std::make_pair(Eigen::Vector2i(x, y), depthMap1.at<double>(y, x)), &loc2);
-            if(dist2 > 2.){
+            if(dist2 > 4.){
                 continue;
             }
             cnt++;
@@ -316,7 +316,7 @@ bool colmapBase::estimateFlow(cv::Mat &flow, const corrStats &data){
             channels[2].at<float>(y, x) = 1.f;
         }
     }
-    if(cnt < static_cast<size_t>(depthMap1.rows) * static_cast<size_t>(depthMap1.cols) / 3){
+    if(cnt < static_cast<size_t>(depthMap1.rows) * static_cast<size_t>(depthMap1.cols) / 10){
         return false;
     }
     cv::merge(channels, flow);
@@ -361,6 +361,8 @@ bool colmapBase::refineRelPoses(){
         RigFixedDepthBundleAdjuster ba(options);
         if(!ba.Solve(&i.second)){
             delIdx.push_back(i.first);
+        }else{
+            i.second.QuaternionToRotMat();
         }
     }
     if(!delIdx.empty()){

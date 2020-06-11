@@ -328,10 +328,44 @@ class RelativePoseCostFunction {
             int yti = get_integer_part(yt);
             int ybi = get_integer_part(yb);
             if((xli < 0) || (xri >= depthMap2_.cols()) || (yti < 0) || (ybi >= depthMap2_.rows())){
-                residuals[0] = T(0);
-                residuals[1] = T(0);
-                residuals[2] = T(0);
-                return true;
+                bool skip = false;
+                if(xli == -1){
+                    xli = xri = 0;
+                }else if(xri == depthMap2_.cols()){
+                    xli = xri = depthMap2_.cols() - 1;
+                }else if((xli < 0) || (xri >= depthMap2_.cols())){
+                    skip = true;
+                }
+                if(yti == -1){
+                    yti = ybi = 0;
+                }else if(ybi == depthMap2_.rows()){
+                    yti = ybi = depthMap2_.rows() - 1;
+                }else if((yti < 0) || (ybi >= depthMap2_.rows())){
+                    skip = true;
+                }
+                if(skip) {
+                    T x2b, y2b, x2b1, y2b1;
+                    if(xli < 0){
+                        x2b = T(0);
+                    }else if(xri >= depthMap2_.cols()){
+                        x2b = T(depthMap2_.cols() - 1);
+                    }else{
+                        x2b = x2i;
+                    }
+                    if(yti < 0){
+                        y2b = T(0);
+                    }else if(ybi >= depthMap2_.rows()){
+                        y2b = T(depthMap2_.rows() - 1);
+                    }
+                    CameraModel::ImageToWorld(camera_params2, x2b, y2b,
+                                              &x2b1, &y2b1);
+                    Eigen::Matrix<T, 3, 1> p2(x2b1, y2b1, T(1.));
+                    p2 *= T(depth1_);
+                    residuals[0] -= p2(0);
+                    residuals[1] -= p2(1);
+                    residuals[2] -= p2(2);
+                    return true;
+                }
             }
             dtl = depthMap2_(yti, xli);
             dtr = depthMap2_(yti, xri);
@@ -352,9 +386,10 @@ class RelativePoseCostFunction {
                 }
             }
             if(validD.empty()){
-                residuals[0] = T(0);
-                residuals[1] = T(0);
-                residuals[2] = T(0);
+                p1 *= T(0.95 * depth1_);
+                residuals[0] -= p1(0);
+                residuals[1] -= p1(1);
+                residuals[2] -= p1(2);
                 return true;
             }
             if(!nValid.empty()){
