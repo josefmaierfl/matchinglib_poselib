@@ -240,6 +240,10 @@ struct PatchCInfo{
     bool succ;
     int i;
     bool takeImg2FallBack;
+    cv::Rect patchROIimg1;
+    cv::Rect patchROIimg2;
+    cv::Mat patch1;
+    cv::Mat patch2;
 
     PatchCInfo(const double &minDescrDistTP_,
                bool &useTN_,
@@ -250,7 +254,7 @@ struct PatchCInfo{
                double &ThTn_,
                double &ThTnNear_,
                bool visualize_ = false,
-               const int show_interval_ = 50):
+               const int show_interval_ = 5):
             show_cnt(0),
             show_interval(show_interval_),
             featureIdx_tmp(0),
@@ -424,6 +428,8 @@ public:
 
     size_t getGtmIdx() const{ return gtmIdx; }
 
+    bool isGTM() const{ return fromGTM; }
+
 private:
     const bool isGrossTN;//Specifies if correspondence uses 2 different image patches
     bool isTN;//Specifies if correspondence is a TN
@@ -489,8 +495,9 @@ private:
 class KeypointSearch{
 public:
     explicit KeypointSearch(const std::vector<cv::KeyPoint> &keypoints){
+        int idx = 0;
         for (auto &i: keypoints) {
-            kpMap.emplace(i.pt);
+            kpMap.emplace(i.pt, idx++);
         }
     }
 
@@ -507,6 +514,16 @@ public:
         std::sort(idxsMissing.begin(), idxsMissing.end(), [](const int &first, const int &second){return first > second;});
     }
 
+    void getNewToOldOrdering(const std::vector<cv::KeyPoint> &keypoints, std::vector<int> &idxsNew){
+        idxsNew.clear();
+        std::unordered_map<cv::Point2f, int, KeyHasher, EqualTo>::iterator got;
+        for (auto &i: keypoints) {
+            got = kpMap.find(i.pt);
+            if(got != kpMap.end()){
+                idxsNew.emplace_back(got->second);
+            }
+        }
+    }
 
 private:
     struct KeyHasher
@@ -527,7 +544,7 @@ private:
                    nearZero(static_cast<double>(pt1.y) - static_cast<double>(pt2.y));
         }
     };
-    std::unordered_set<cv::Point2f, KeyHasher, EqualTo> kpMap;
+    std::unordered_map<cv::Point2f, int, KeyHasher, EqualTo> kpMap;
 };
 
 class GENERATEVIRTUALSEQUENCELIB_API genMatchSequ : genStereoSequ {
@@ -736,6 +753,10 @@ private:
                            cv::KeyPoint &kp2);
     bool check3DToIdxConsisty(const cv::Mat &X, const int64_t &idx3D, const int64_t &idx3D2);
     bool check2D3DConsistency(const cv::Mat &x1, const cv::Mat &x2, const cv::Mat &X, const int64_t &idx3D, const int64_t &idx3D2);
+    //Calculate patch ROIs for displaying
+    cv::Rect getNormalPatchROI(const cv::Size &imgSi, const cv::KeyPoint &kp) const;
+    //Reorder keypoints, masks, and descriptors of one image based on different ordered keypoints
+    void reOrderMatches1Img(const std::vector<cv::KeyPoint> &kpsBefore, const size_t &idx, bool isLeftKp);
 
 public:
     GenMatchSequParameters parsMtch;

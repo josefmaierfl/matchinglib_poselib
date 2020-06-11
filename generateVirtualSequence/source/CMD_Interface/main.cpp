@@ -2478,7 +2478,10 @@ bool genTemplateFile(const std::string &filename){
     fs << "SHOW_PATCHES_WITH_NOISE" << 0;
     fs << "SHOW_GTM_KEYPOINTS" << 0;
     fs << "SHOW_GTM_GEN_PROCESS" << 0;
-    fs << "SHOW_GTM_INTERPOL_FLOW" << 0 << "}";
+    fs << "SHOW_GTM_INTERPOL_FLOW" << 0;
+    fs << "SHOW_CORRESP_PATCHES_WARPED" << 0;
+    fs << "SHOW_CORRESP_PATCHES_GTM" << 0;
+    fs << "SHOW_CORRESP_PATCHES_TN" << 0 << "}";
 
     fs.writeComment("Verbosity option for calculating the stereo camera configurations. "
                         "Prints the intermediate error values/results of the Levenberg Marquardt iterations. \n"
@@ -2583,7 +2586,8 @@ bool genTemplateFile(const std::string &filename){
     fs.writeComment("If multiple GT datasets (Oxford, KITTI, MegaDepth) are used, this portion (0 - 1.0) specifies "
                     "the overall ratio of used GT datasets compared to warped patch feature matches.");
     fs << "GTMportion" << 0;
-    fs.writeComment("Portion (0 - 1.0) of TN that should be drawn from warped image patches (and not from GTM).");
+    fs.writeComment("Portion (0 - 1.0) of TN that should be drawn from warped image patches (and not from GTM). "
+                    "This value only has an effect if parameter \'portionGrossTN\' is non-zero.");
     fs << "WarpedPortionTN" << 1.0;
     fs.writeComment("Portion (0 - 1.0) of TN that should be from GTM or from different image patches (first <-> second stereo camera).");
     fs << "portionGrossTN" << 0;
@@ -3000,6 +3004,21 @@ bool loadConfigFile(const std::string &filename,
     if(!n1.empty()){
         n1 >> tmp_bool;
         if(tmp_bool) addPars.verbose |= SHOW_GTM_INTERPOL_FLOW;
+    }
+    n1 = n["SHOW_CORRESP_PATCHES_WARPED"];
+    if(!n1.empty()){
+        n1 >> tmp_bool;
+        if(tmp_bool) addPars.verbose |= SHOW_CORRESP_PATCHES_WARPED;
+    }
+    n1 = n["SHOW_CORRESP_PATCHES_GTM"];
+    if(!n1.empty()){
+        n1 >> tmp_bool;
+        if(tmp_bool) addPars.verbose |= SHOW_CORRESP_PATCHES_GTM;
+    }
+    n1 = n["SHOW_CORRESP_PATCHES_TN"];
+    if(!n1.empty()){
+        n1 >> tmp_bool;
+        if(tmp_bool) addPars.verbose |= SHOW_CORRESP_PATCHES_TN;
     }
 
     fs["LMverbose"] >> addPars.LMverbose;

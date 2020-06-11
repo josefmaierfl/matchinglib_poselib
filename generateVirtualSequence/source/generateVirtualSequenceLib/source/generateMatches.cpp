@@ -47,8 +47,8 @@ bool checkOverwriteFiles(const std::string &filename, const std::string &errmsg,
 bool checkOverwriteDelFiles(const std::string &filename, const std::string &errmsg, bool &overwrite);
 template<typename T>
 void shuffleVector(std::vector<T> &idxs, size_t si);
-template<typename T>
-void reOrderVector(std::vector<T> &reOrderVec, std::vector<size_t> &idxs);
+template<typename T, typename T1>
+void reOrderVector(std::vector<T> &reOrderVec, std::vector<T1> &idxs);
 void reOrderSortMatches(std::vector<cv::DMatch> &matches,
                         cv::Mat &descriptor1,
                         cv::Mat &descriptor2,
@@ -87,6 +87,14 @@ void correctMatchesIdx(vector<DMatch> &matches,
                        const vector<int> &missingIdxs,
                        vector<int> &delKpIdx);
 void getNewFromOldIdx(const vector<int> &missingIdxs, int &oldIdx);
+void showCorrespPatches(const cv::Mat &patch1, const cv::Mat &patch2);
+void showMatchesGTMpart(const std::vector<cv::DMatch> &matchesGT,
+                        const std::vector<bool> &leftInlier,
+                        const std::vector<cv::KeyPoint> &keypL,
+                        const std::vector<cv::KeyPoint> &keypR,
+                        const cv::Mat &img1,
+                        const cv::Mat &img2);
+void reOrderDescriptors(cv::Mat &descriptors, const std::vector<int> &idxs);
 
 /* -------------------------- Functions -------------------------- */
 
@@ -203,8 +211,9 @@ size_t TNTPindexer::getNextTNID(const size_t &tn_repPatt_idx, const size_t &min_
     size_t tn_repPatt_idx_ = tn_repPatt_idx;
     if(tn_idx >= tn_ids.size()){
         idx = rand2() % tn_ids.size();
-        tn_repPatt_idx_ = tn_repPatt_idxs.rbegin()->first + 1;
-    }else if(tn_repPatt_idx_ == numeric_limits<size_t>::max()){
+//        tn_repPatt_idx_ = tn_repPatt_idxs.rbegin()->first + 1;
+    }
+    if(tn_repPatt_idx_ == numeric_limits<size_t>::max()){
         tn_repPatt_idx_ = tn_repPatt_idxs.rbegin()->first + 1;
     }
 //    tptn_ids.emplace(tp_idx + tn_idx, &tn_ids[idx]);
@@ -1266,8 +1275,12 @@ bool genMatchSequ::getGtmDescriptors(){
                                         parsMtch.keyPointType) != 0) {
             return false;
         }
+//        bool showMatches = false;
         if(nr_before != gtmdata.keypLAll[i].size()){
             if(!recalcMatchIdxs(kp_tmp, i, true)) return false;
+//            showMatches = true;
+        }else{
+            reOrderMatches1Img(kp_tmp, i, true);
         }
         nr_before = gtmdata.keypRAll[i].size();
         kp_tmp = gtmdata.keypRAll[i];
@@ -1280,9 +1293,99 @@ bool genMatchSequ::getGtmDescriptors(){
         }
         if(nr_before != gtmdata.keypRAll[i].size()){
             if(!recalcMatchIdxs(kp_tmp, i, false)) return false;
+//            showMatches = true;
+        }else{
+            reOrderMatches1Img(kp_tmp, i, false);
         }
+//        if(showMatches){
+//            showMatchesGTMpart(gtmdata.matchesGTAll[i],
+//                               gtmdata.leftInlierAll[i],
+//                               gtmdata.keypLAll[i],
+//                               gtmdata.keypRAll[i],
+//                               img1,
+//                               img2);
+//        }
     }
     return true;
+}
+
+void showMatchesGTMpart(const std::vector<cv::DMatch> &matchesGT,
+                        const std::vector<bool> &leftInlier,
+                        const std::vector<cv::KeyPoint> &keypL,
+                        const std::vector<cv::KeyPoint> &keypR,
+                        const cv::Mat &img1,
+                        const cv::Mat &img2){
+    Mat img_match;
+    std::vector<cv::KeyPoint> keypL_reduced;//Left keypoints
+    std::vector<cv::KeyPoint> keypR_reduced;//Right keypoints
+    std::vector<cv::DMatch> matches_reduced;
+    std::vector<cv::KeyPoint> keypL_reduced1;//Left keypoints
+    std::vector<cv::KeyPoint> keypR_reduced1;//Right keypoints
+    std::vector<cv::DMatch> matches_reduced1;
+    int j = 0;
+    size_t keepNMatches = 100;
+    size_t keepXthMatch = 1;
+    if(matchesGT.size() > keepNMatches)
+        keepXthMatch = matchesGT.size() / keepNMatches;
+    for (auto & i : matchesGT)
+    {
+        int idx = i.queryIdx;
+        if(leftInlier[idx])
+        {
+            keypL_reduced.push_back(keypL[idx]);
+            matches_reduced.push_back(i);
+            matches_reduced.back().queryIdx = j;
+            keypR_reduced.push_back(keypR[matches_reduced.back().trainIdx]);
+            matches_reduced.back().trainIdx = j;
+            j++;
+        }else{
+            cout << "Outlier in GTM" << endl;
+        }
+    }
+    j = 0;
+    for (unsigned int i = 0; i < matches_reduced.size(); i++)
+    {
+        if((i % (int)keepXthMatch) == 0)
+        {
+            keypL_reduced1.push_back(keypL_reduced[i]);
+            matches_reduced1.push_back(matches_reduced[i]);
+            matches_reduced1.back().queryIdx = j;
+            keypR_reduced1.push_back(keypR_reduced[i]);
+            matches_reduced1.back().trainIdx = j;
+            j++;
+        }
+    }
+    drawMatches(img1, keypL_reduced1, img2, keypR_reduced1, matches_reduced1, img_match);
+    imshow("Ground truth matches", img_match);
+    waitKey(0);
+    cv::destroyAllWindows();
+}
+
+void genMatchSequ::reOrderMatches1Img(const std::vector<cv::KeyPoint> &kpsBefore, const size_t &idx, bool isLeftKp){
+    std::vector<cv::KeyPoint> *kpsAfter;
+    Mat descriptors;
+    if(isLeftKp){
+        kpsAfter = &(gtmdata.keypLAll[idx]);
+        descriptors = gtmdata.leftDescriptorsAll[idx];
+    }else{
+        kpsAfter = &(gtmdata.keypRAll[idx]);
+        descriptors = gtmdata.rightDescriptorsAll[idx];
+    }
+    KeypointSearch kpS(*kpsAfter);
+    vector<int> newToOldIdxs;
+    kpS.getNewToOldOrdering(kpsBefore, newToOldIdxs);
+    reOrderVector(*kpsAfter, newToOldIdxs);
+    reOrderDescriptors(descriptors, newToOldIdxs);
+}
+
+void reOrderDescriptors(cv::Mat &descriptors, const std::vector<int> &idxs){
+    CV_Assert((size_t)descriptors.rows == idxs.size());
+    cv::Mat descriptor1_tmp;
+    descriptor1_tmp.reserve((size_t)descriptors.rows);
+    for(int idx : idxs){
+        descriptor1_tmp.push_back(descriptors.row(idx));
+    }
+    descriptor1_tmp.copyTo(descriptors);
 }
 
 //Recalculate match indices if the descriptor extraction removed keypoints
@@ -1290,27 +1393,33 @@ bool genMatchSequ::recalcMatchIdxs(const std::vector<cv::KeyPoint> &kpsBefore, c
     size_t nrdiff = 0;
     std::vector<cv::KeyPoint> *kpsAfter, *kpsAfter2;
     vector<bool> *inl, *inl2;
+    Mat descriptors;
     if(isLeftKp){
         nrdiff = kpsBefore.size() - gtmdata.keypLAll[idx].size();
         kpsAfter = &(gtmdata.keypLAll[idx]);
         kpsAfter2 = &(gtmdata.keypRAll[idx]);
         inl = &(gtmdata.leftInlierAll[idx]);
         inl2 = &(gtmdata.rightInlierAll[idx]);
+        descriptors = gtmdata.leftDescriptorsAll[idx];
     }else{
         nrdiff = kpsBefore.size() - gtmdata.keypRAll[idx].size();
         kpsAfter = &(gtmdata.keypRAll[idx]);
         kpsAfter2 = &(gtmdata.keypLAll[idx]);
         inl = &(gtmdata.rightInlierAll[idx]);
         inl2 = &(gtmdata.leftInlierAll[idx]);
+        descriptors = gtmdata.rightDescriptorsAll[idx];
     }
     if(nrdiff == 0) return true;
     KeypointSearch kpS(*kpsAfter);
-    vector<int> missingIdxs, delIdxs;
+    vector<int> missingIdxs, delIdxs, newToOldIdxs;
+    kpS.getNewToOldOrdering(kpsBefore, newToOldIdxs);
+    reOrderVector(*kpsAfter, newToOldIdxs);
+    reOrderDescriptors(descriptors, newToOldIdxs);
     kpS.getMissingIdxs(kpsBefore, missingIdxs);
     if(missingIdxs.empty()) return false;
     unordered_set<int> idxs, idxs2;
     for(auto &i: missingIdxs){
-        inl->erase(inl->begin() + i, inl->begin() + i + 1);
+        inl->erase(inl->begin() + i);
         idxs.emplace(i);
     }
     vector<int> delKpIdx;
@@ -1355,8 +1464,8 @@ bool genMatchSequ::recalcMatchIdxs(const std::vector<cv::KeyPoint> &kpsBefore, c
         }
         sort(delKpIdx.begin(), delKpIdx.end(), [](const int &first, const int &second) { return first > second; });
         for (auto &i: delKpIdx) {
-            inl2->erase(inl2->begin() + i, inl2->begin() + i + 1);
-            kpsAfter2->erase(kpsAfter2->begin() + i, kpsAfter2->begin() + i + 1);
+            inl2->erase(inl2->begin() + i);
+            kpsAfter2->erase(kpsAfter2->begin() + i);
         }
         vector<int> delKpIdx2;
         correctMatchesIdx(gtmdata.matchesGTAll[idx], !isLeftKp, idxs2, delKpIdx, delKpIdx2);
@@ -1393,8 +1502,7 @@ void correctMatchesIdx(vector<DMatch> &matches,
             }else {
                 delKpIdx.push_back(matches[i].queryIdx);
             }
-            matches.erase(matches.begin() + i,
-                          matches.begin() + i + 1);
+            matches.erase(matches.begin() + i);
         }
     }
 }
@@ -2103,6 +2211,24 @@ bool genMatchSequ::generateCorrespondingFeatures(){
                                       frameHomographies,
                                       srcImgPatchIdxAndKp,
                                       &frameHomographiesCam1);
+    if(frameDescriptors1.rows != frameDescriptors2.rows){
+        cerr << "Number of descriptors between images not matching" << endl;
+    }
+    if(frameDescriptors1.rows != combNrCorrsTP){
+        cerr << "Number of descriptors not matching with number of TP" << endl;
+    }
+    if(frameMatches.size() != (size_t)combNrCorrsTP){
+        cerr << "Number of matches not matching with number of TP" << endl;
+    }
+    if(frameHomographies.size() != (size_t)combNrCorrsTP){
+        cerr << "Number of homographies to img2 not matching with number of TP" << endl;
+    }
+    if(frameHomographiesCam1.size() != (size_t)combNrCorrsTP){
+        cerr << "Number of homographies of img1 not matching with number of TP" << endl;
+    }
+    if(srcImgPatchIdxAndKp.size() != (size_t)combNrCorrsTP){
+        cerr << "Number of keypoints and image indices not matching with number of TP" << endl;
+    }
     CV_Assert((frameDescriptors1.rows == frameDescriptors2.rows)
     && (frameDescriptors1.rows == combNrCorrsTP)
     && (frameMatches.size() == (size_t)combNrCorrsTP)
@@ -2382,8 +2508,8 @@ void reOrderSortMatches(std::vector<cv::DMatch> &matches,
          [](DMatch &first, DMatch &second){return first.distance < second.distance;});
 }
 
-template<typename T>
-void reOrderVector(std::vector<T> &reOrderVec, std::vector<size_t> &idxs){
+template<typename T, typename T1>
+void reOrderVector(std::vector<T> &reOrderVec, std::vector<T1> &idxs){
     CV_Assert(reOrderVec.size() == idxs.size());
 
     std::vector<T> reOrderVec_tmp;
@@ -2454,6 +2580,19 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
         patchInfos.distr = std::normal_distribution<double>(parsMtch.keypErrDistr.first, parsMtch.keypErrDistr.second);
     }
 
+    int gtmcnt = 0, warpcnt = 0;
+    int showIntervalWarp = INT_MAX;
+    int showIntervalGTM = INT_MAX;
+    if(useTN){
+        showIntervalWarp = max(static_cast<int>(round(static_cast<double>(nrTNFullSequWarped) *
+                                                      static_cast<double>(patchInfos.show_interval) /
+                                                      static_cast<double>(nrTNFullSequ))), 1);
+    }else{
+        showIntervalWarp = max(static_cast<int>(round(static_cast<double>(nrTPFullSequWarped) *
+                                                      static_cast<double>(patchInfos.show_interval) /
+                                                      static_cast<double>(nrTPFullSequ))), 1);
+    }
+    showIntervalGTM = patchInfos.show_interval - showIntervalWarp;
     for (int i = 0; i < nrcombCorrs; ++i) {
         patchInfos.featureIdx_tmp = featureIdx;
         patchInfos.i = i;
@@ -2607,10 +2746,61 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
                 }
                 kp2err = kp3.pt - kp2.pt;
             }
+            patchInfos.patchROIimg1 = getNormalPatchROI(img1.size(), kp1);
+            patchInfos.patchROIimg2 = getNormalPatchROI(img2.size(), kp3);
         }else {
             descr21 = calculateDescriptorWarped(img2, kp2, H, homo, patchInfos, kp3, kp2err,
                                                 descrDist, false, H1_dist, descr11);
         }
+
+//        if(kpinfo.has2Imgs()) {
+//            cout << kpinfo.getImgName1() << " --> " << kpinfo.getImgName2() << endl;
+//        }else{
+//            cout << kpinfo.getImgName1() << " --> " << kpinfo.getImgName1() << endl;
+//        }
+//        cout << *uniqueImgIDToName.at(uimgID1) << " --> " << *uniqueImgIDToName.at(uimgID2) << endl << endl;
+
+        bool showPatches[6];
+        showPatches[0] = (verbose & SHOW_CORRESP_PATCHES_GTM);
+        showPatches[1] = kpinfo.isGTM() && showPatches[0];
+        showPatches[2] = (verbose & SHOW_CORRESP_PATCHES_WARPED);
+        showPatches[3] = !kpinfo.isGTM() && showPatches[2];
+        showPatches[4] = (verbose & SHOW_CORRESP_PATCHES_TN);
+        showPatches[5] = useTN && showPatches[4];
+        bool showit = showPatches[5] && !showPatches[0] && !showPatches[2] &&
+                (((patchInfos.show_cnt - 1) % patchInfos.show_interval) == 0);
+        showit |= showPatches[5] && showPatches[1] && ((gtmcnt % showIntervalGTM) == 0);
+        showit |= showPatches[5] && showPatches[3] && ((warpcnt % showIntervalWarp) == 0);
+        showit |= !useTN && (!showit ^ showPatches[4]) && showPatches[1] && ((gtmcnt % showIntervalGTM) == 0);
+        showit |= !useTN && (!showit ^ showPatches[4]) && showPatches[3] && ((warpcnt % showIntervalWarp) == 0);
+        if(showit) {
+            bool show = true;
+            if(patchInfos.patch1.empty() || patchInfos.patch2.empty()){
+                if(patchInfos.patchROIimg1.x < 0 || patchInfos.patchROIimg1.y < 0 ||
+                   patchInfos.patchROIimg1.x + patchInfos.patchROIimg1.width > img1.cols ||
+                   patchInfos.patchROIimg1.y + patchInfos.patchROIimg1.height > img1.rows){
+                    show = false;
+                }
+                if(patchInfos.patchROIimg2.x < 0 || patchInfos.patchROIimg2.y < 0 ||
+                   patchInfos.patchROIimg2.x + patchInfos.patchROIimg2.width > img2.cols ||
+                   patchInfos.patchROIimg2.y + patchInfos.patchROIimg2.height > img2.rows){
+                    show = false;
+                }
+                if(show){
+                    img1(patchInfos.patchROIimg1).copyTo(patchInfos.patch1);
+                    img2(patchInfos.patchROIimg2).copyTo(patchInfos.patch2);
+                }
+            }
+            if(show) {
+                showCorrespPatches(patchInfos.patch1, patchInfos.patch2);
+            }
+        }
+        patchInfos.patch1.release();
+        patchInfos.patch2.release();
+        patchInfos.patchROIimg1.x = -1;
+        patchInfos.patchROIimg2.y = -1;
+        if(showPatches[0]){ gtmcnt++; }
+        if(showPatches[1]){ warpcnt++; }
 
         //Store the keypoints and descriptors
         if(useTN){
@@ -2650,10 +2840,34 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
             frameDescr1.push_back(kpinfo.getDescriptor1().clone());
         }
         frameDescr2.push_back(descr21.clone());
+        if(frameDescr1.rows != frameDescr2.rows){
+            cout << "Rows descriptor 1: " << frameDescr1.rows << " Rows descriptor 2: " << frameDescr2.rows << endl;
+            cout << "Is img1 distorted: " << c1_distort << endl;
+            cout << "Is warped descriptor 1 empty: " << descr11.empty() << endl;
+            cout << "Is descriptor 1 empty: " << kpinfo.getDescriptor1().empty() << endl;
+            cout << "Is descriptor 2 empty: " << descr21.empty() << endl;
+            cout << "Iteration number: " << i << endl;
+        }
         frameMatches.emplace_back(DMatch(i, i, (float)descrDist));
 
         featureIdx++;
     }
+}
+
+cv::Rect genMatchSequ::getNormalPatchROI(const cv::Size &imgSi, const cv::KeyPoint &kp) const{
+    Point mid(static_cast<int>(round(kp.pt.x)), static_cast<int>(round(kp.pt.y)));
+    const int halfSi = (minPatchSize2 - 1) / 2;
+    Point tl(mid.x - halfSi, mid.y - halfSi);
+    Size pSi(minPatchSize2, minPatchSize2);
+    if(tl.x + pSi.width > imgSi.width){
+        pSi.width = imgSi.width - tl.x;
+    }
+    if(tl.y + pSi.height > imgSi.height){
+        pSi.height = imgSi.height - tl.y;
+    }
+    if(tl.x < 0) tl.x = 0;
+    if(tl.y < 0) tl.y = 0;
+    return {tl, pSi};
 }
 
 cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
@@ -3376,7 +3590,8 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
             bool tp_again = !patchInfos.useTN &&
                             ((!patchInfos.takeImg2FallBack && (descrDist < patchInfos.minDescrDistTP)) ||
                              (parsMtch.checkDescriptorDist && ((!patchInfos.takeImg2FallBack && (descrDist > patchInfos.ThTp)) ||
-                                                               (patchInfos.takeImg2FallBack && (descrDist > 1.2 * patchInfos.ThTp)))));
+                                                               (patchInfos.takeImg2FallBack && (descrDist > 1.2 * patchInfos.ThTp)))) ||
+                             (descrDist < 0));
             bool tn_again = !patchInfos.takeImg2FallBack && patchInfos.useTN &&
                             ((((combDistTNtoReal[patchInfos.i] >= 10.0) && (descrDist < patchInfos.ThTn)) ||
                               (descrDist < patchInfos.ThTnNear))
@@ -3387,7 +3602,8 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
             bool tp_again = !patchInfos.useTN &&
                             ((!patchInfos.takeImg2FallBack && (descrDist < 0.75 * patchInfos.minDescrDistTP)) ||
                              (parsMtch.checkDescriptorDist && ((!patchInfos.takeImg2FallBack && (descrDist > 1.25 * patchInfos.ThTp)) ||
-                                                               (patchInfos.takeImg2FallBack && (descrDist > 1.5 * patchInfos.ThTp)))));
+                                                               (patchInfos.takeImg2FallBack && (descrDist > 1.5 * patchInfos.ThTp)))) ||
+                             (descrDist < 0));
             bool tn_again = !patchInfos.takeImg2FallBack && patchInfos.useTN &&
                             ((((combDistTNtoReal[patchInfos.i] >= 10.0) && (descrDist < 0.75 * patchInfos.ThTn)) ||
                               (descrDist < 0.75 * patchInfos.ThTnNear))
@@ -3468,10 +3684,61 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                 kp2err = Point2f(0, 0);
                 descrDist = 0;
             }
+        }else if(descr21.empty()){
+            if(!patchInfos.takeImg2FallBack){
+                cerr << "Empty descriptor found! Setting to original descriptor." << endl;
+            }
+            if(forCam1 || !patchInfos.takeImg2FallBack){
+                descr21 = corrToIdxMap.at(corrID).getDescriptor1().clone();
+            }else {
+                descr21 = corrToIdxMap.at(corrID).getDescriptor2().clone();
+            }
+            kp2 = kp;
+            kp2err = Point2f(0, 0);
+            descrDist = 0;
         }
     }
 
+    patchwn.copyTo(patchInfos.patch2);
+    img(patchROIimg1).copyTo(patchInfos.patch1);
+    patchInfos.patchROIimg1 = patchROIimg1;
+    patchInfos.patchROIimg2 = patchROIimg2;
+
     return descr21.clone();
+}
+
+void showCorrespPatches(const cv::Mat &patch1, const cv::Mat &patch2){
+    int border1x = 0, border1y = 0, border2x = 0, border2y = 0;
+    Size patchROIimg1 = patch1.size();
+    Size patchROIimg2 = patch2.size();
+    if(patchROIimg1.width > patchROIimg2.width){
+        border2x = patchROIimg1.width - patchROIimg2.width;
+    }else{
+        border1x =  patchROIimg2.width - patchROIimg1.width;
+    }
+    if(patchROIimg1.height > patchROIimg2.height){
+        border2y = patchROIimg1.height - patchROIimg2.height;
+    }else{
+        border1y =  patchROIimg2.height - patchROIimg1.height;
+    }
+    Mat patchwc, patchc;
+    if(border2x || border2y) {
+        cv::copyMakeBorder(patch2, patchwc, 0, border2y, 0, border2x, BORDER_CONSTANT, Scalar::all(0));
+    }else{
+        patchwc = patch2;
+    }
+    if(border1x || border1y) {
+        cv::copyMakeBorder(patch1, patchc, 0, border1y, 0, border1x, BORDER_CONSTANT, Scalar::all(0));
+    }else{
+        patchc = patch1;
+    }
+    Mat bothPathes;
+    cv::hconcat(patchc, patchwc, bothPathes);
+    namedWindow("Patches of first and second image", WINDOW_AUTOSIZE);
+    imshow("Patches of first and second image", bothPathes);
+
+    waitKey(0);
+    destroyWindow("Patches of first and second image");
 }
 
 void genMatchSequ::distortKeyPointPosition(cv::KeyPoint &kp2,
