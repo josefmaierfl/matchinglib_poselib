@@ -40,7 +40,7 @@ bool GENERATEVIRTUALSEQUENCELIB_API loadImageSequence(const std::string &filepat
 int GENERATEVIRTUALSEQUENCELIB_API loadStereoSequenceNew(std::string filepath, std::string fileprefl, std::string fileprefr,
 	std::vector<std::string> & filenamesl, std::vector<std::string> & filenamesr);
 //This function reads all images from a given directory and stores their names into a vector. Search patterns can be used.
-bool loadImageSequenceNew(std::string filepath, std::string fileprefl, std::vector<std::string> & filenamesl);
+bool loadImageSequenceNew(std::string filepath, std::string fileprefl, std::vector<std::string> & filenamesl, bool isNoImg = false);
 
 //Check for supported types of cv::imread
 bool IsImgTypeSupported(std::string const& type);

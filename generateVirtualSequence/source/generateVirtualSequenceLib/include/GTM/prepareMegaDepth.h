@@ -53,6 +53,10 @@ struct megaDepthData{
             img1_name(std::move(img1_name_)), img2_name(std::move(img2_name_)), flow(std::move(flow_)){};
 };
 
-bool convertMegaDepthData(const megaDepthFolders& folders, const std::string &flowSubFolder, std::vector<megaDepthData> &data);
+bool convertMegaDepthData(const megaDepthFolders& folders,
+                          const std::string &flowSubFolder,
+                          std::vector<megaDepthData> &data,
+                          uint32_t verbose_ = 0,
+                          int CeresCPUcnt_ = -1);
 
 #endif //GENERATEVIRTUALSEQUENCE_PREPAREMEGADEPTH_H

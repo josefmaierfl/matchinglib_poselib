@@ -145,7 +145,7 @@ struct corrStats{
         if(!readDepthMap(depthImg1, depthMap)){
             return false;
         }
-        cv::Ptr<cv::FeatureDetector> detector = cv::ORB::create(2000);
+        cv::Ptr<cv::FeatureDetector> detector = cv::ORB::create(4000);
         if(detector.empty()){
             cerr << "Cannot create keypoint detector!" << endl;
             return false; //Error creating feature detector
@@ -311,6 +311,8 @@ struct BundleAdjustmentOptions {
     // Whether to print a final summary.
     bool print_summary = true;
 
+    int CeresCPUcnt = -1;
+
     // Minimum number of residuals to enable multi-threading. Note that
     // single-threaded is typically better for small bundle adjustment problems
     // due to the overhead of threading.
@@ -380,8 +382,14 @@ class colmapBase{
 public:
     bool prepareColMapData(const megaDepthFolders& folders);
     bool getFileNames(const megaDepthFolders& folders);
-    explicit colmapBase(bool refineSfM_ = true, bool storeFlowFile_ = true):
-    num_added_points3D_(0), min_num_points3D_Img_(100), maxdepthImgSize(0), refineSfM(refineSfM_), storeFlowFile(storeFlowFile_){}
+    explicit colmapBase(bool refineSfM_ = true, bool storeFlowFile_ = true, uint32_t verbose_ = 0, int CeresCPUcnt_ = -1):
+    num_added_points3D_(0),
+    min_num_points3D_Img_(100),
+    maxdepthImgSize(0),
+    refineSfM(refineSfM_),
+    storeFlowFile(storeFlowFile_),
+    verbose(verbose_),
+    CeresCPUcnt(CeresCPUcnt_){}
     bool calculateFlow(const std::string &flowPath, std::vector<megaDepthData> &data);
 private:
     void getMaxDepthImgDim();
@@ -420,6 +428,8 @@ private:
     int maxdepthImgSize;
     bool refineSfM;
     bool storeFlowFile;
+    uint32_t verbose = 0;
+    int CeresCPUcnt;
 };
 
 //const colmap::Camera& colmapBase::Camera(const camera_t camera_id) const {

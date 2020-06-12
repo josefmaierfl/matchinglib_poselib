@@ -2481,7 +2481,9 @@ bool genTemplateFile(const std::string &filename){
     fs << "SHOW_GTM_INTERPOL_FLOW" << 0;
     fs << "SHOW_CORRESP_PATCHES_WARPED" << 0;
     fs << "SHOW_CORRESP_PATCHES_GTM" << 0;
-    fs << "SHOW_CORRESP_PATCHES_TN" << 0 << "}";
+    fs << "SHOW_CORRESP_PATCHES_TN" << 0;
+    fs << "PRINT_MEGADEPTH_CERES_PROGRESS" << 0;
+    fs << "PRINT_MEGADEPTH_CERES_RESULTS" << 0 << "}";
 
     fs.writeComment("Verbosity option for calculating the stereo camera configurations. "
                         "Prints the intermediate error values/results of the Levenberg Marquardt iterations. \n"
@@ -2591,6 +2593,9 @@ bool genTemplateFile(const std::string &filename){
     fs << "WarpedPortionTN" << 1.0;
     fs.writeComment("Portion (0 - 1.0) of TN that should be from GTM or from different image patches (first <-> second stereo camera).");
     fs << "portionGrossTN" << 0;
+    fs.writeComment("Number of CPUs used by CERES for relative pose refinement of MegaDepth data.\n"
+                    "A value of -1 indicates to use all available CPUs.");
+    fs << "CeresCPUcnt" << -1;
 
     fs.release();
 
@@ -3020,6 +3025,16 @@ bool loadConfigFile(const std::string &filename,
         n1 >> tmp_bool;
         if(tmp_bool) addPars.verbose |= SHOW_CORRESP_PATCHES_TN;
     }
+    n1 = n["PRINT_MEGADEPTH_CERES_PROGRESS"];
+    if(!n1.empty()){
+        n1 >> tmp_bool;
+        if(tmp_bool) addPars.verbose |= PRINT_MEGADEPTH_CERES_PROGRESS;
+    }
+    n1 = n["PRINT_MEGADEPTH_CERES_RESULTS"];
+    if(!n1.empty()){
+        n1 >> tmp_bool;
+        if(tmp_bool) addPars.verbose |= PRINT_MEGADEPTH_CERES_RESULTS;
+    }
 
     fs["LMverbose"] >> addPars.LMverbose;
     fs["acceptBadStereoPars"] >> addPars.acceptBadStereoPars;
@@ -3067,6 +3082,10 @@ bool loadConfigFile(const std::string &filename,
     n = fs["portionGrossTN"];
     if(!n.empty()){
         n >> matchPars.portionGrossTN;
+    }
+    n = fs["CeresCPUcnt"];
+    if(!n.empty()){
+        n >> matchPars.CeresCPUcnt;
     }
 
     fs.release();

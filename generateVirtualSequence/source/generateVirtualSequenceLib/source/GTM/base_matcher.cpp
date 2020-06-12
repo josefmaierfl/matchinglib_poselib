@@ -5156,7 +5156,7 @@ void findLocalMin(const Mat& patchL, const Mat& patchR, float quarterpatch, floa
 }
 
 //Prepare GTM from MegaDepth dataset
-bool baseMatcher::calcGTM_MegaDepth(size_t &min_nrTP){
+bool baseMatcher::calcGTM_MegaDepth(size_t &min_nrTP, int CeresCPUcnt){
     string path = concatPath(imgsPath, mdFolders.mainFolder);
     if(!checkPathExists(path)){
         cerr << "No folder named MegaDepth found in " << imgsPath << endl;
@@ -5179,7 +5179,7 @@ bool baseMatcher::calcGTM_MegaDepth(size_t &min_nrTP){
         std::vector<std::pair<std::string, std::string>> imgNames_tmp;
         if(checkPathExists(gtm_path)){
             std::vector<std::string> gtm_filenames;
-            if(!loadImageSequenceNew(gtm_path, "*" + gtm_ending, gtm_filenames)){
+            if(!loadImageSequenceNew(gtm_path, "*" + gtm_ending, gtm_filenames, true)){
                 calcGTM = true;
             }
             if(gtm_filenames.empty()){
@@ -5226,7 +5226,7 @@ bool baseMatcher::calcGTM_MegaDepth(size_t &min_nrTP){
             }
             std::vector<megaDepthData> data;
             try {
-                if (!convertMegaDepthData(i, mdFolders.flowSub, data)) {
+                if (!convertMegaDepthData(i, mdFolders.flowSub, data, verbose, CeresCPUcnt)) {
                     cerr << "Unable to calculate GTM for MegaDepth subset " << i.mdDepth << endl;
                     return false;
                 }
@@ -5276,21 +5276,22 @@ bool baseMatcher::calcGTM_MegaDepth(size_t &min_nrTP){
 bool baseMatcher::getImgNamesFromGTM(const std::string &file, const std::vector<std::string> &imgNames,
                                      std::string &imgName1, std::string &imgName2){
     string base = getGTMbasename();
-    size_t pos = file.find(base);
+    string filen = getFilenameFromPath(file);
+    size_t pos = filen.find(base);
     if(pos == string::npos){
         return false;
     }
     size_t bl = base.length();
-    size_t pos1 = file.find('-', bl);
+    size_t pos1 = filen.find('-', pos + bl);
     if(pos1 == string::npos){
         return false;
     }
-    size_t pos2 = file.find(gtm_ending);
+    size_t pos2 = filen.find(gtm_ending);
     if(pos2 == string::npos){
         return false;
     }
-    string img1n = file.substr(bl, pos1 - bl);
-    string img2n = file.substr(pos1 + 1, pos2 - pos1 - 1);
+    string img1n = filen.substr(bl, pos1 - bl);
+    string img2n = filen.substr(pos1 + 1, pos2 - pos1 - 1);
     bool nfound[2] = {true, true};
     for(auto &i: imgNames){
         if(nfound[0] && (i.find(img1n) != string::npos)){

@@ -10,7 +10,11 @@ using namespace std;
 
 bool loadMegaDepthFlow(const std::string &imgPath, const std::string &flowPath, std::vector<megaDepthData> &data);
 
-bool convertMegaDepthData(const megaDepthFolders& folders, const std::string &flowSubFolder, std::vector<megaDepthData> &data){
+bool convertMegaDepthData(const megaDepthFolders& folders,
+                          const std::string &flowSubFolder,
+                          std::vector<megaDepthData> &data,
+                          uint32_t verbose_,
+                          int CeresCPUcnt_){
     std::string flowPath = concatPath(getParentPath(folders.mdImgF), flowSubFolder);
     if(checkPathExists(flowPath) && !dirIsEmpty(flowPath)){
         if(loadMegaDepthFlow(folders.mdImgF, flowPath, data)){
@@ -23,7 +27,7 @@ bool convertMegaDepthData(const megaDepthFolders& folders, const std::string &fl
             return false;
         }
     }
-    colmapBase cb;
+    colmapBase cb(true, true, verbose_, CeresCPUcnt_);
     try {
         if (!cb.prepareColMapData(folders)) {
             return false;

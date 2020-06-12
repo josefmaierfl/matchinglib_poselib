@@ -1179,7 +1179,7 @@ bool genMatchSequ::calcGTM(){
     }
     if(use_3dPrtyGT & GT_DATASETS::MEGADEPTH){
         auto min_nrTP = static_cast<size_t>(round(parsMtch.megadepthGTMportion * static_cast<double>(nrTPFullSequ)));
-        if(!bm.calcGTM_MegaDepth(min_nrTP)){
+        if(!bm.calcGTM_MegaDepth(min_nrTP, parsMtch.CeresCPUcnt)){
             cerr << "Unable to use GTM from the MegaDepth dataset." << endl;
         }else{
             data_av |= true;

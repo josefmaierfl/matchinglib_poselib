@@ -362,7 +362,7 @@ public:
     //Prepare GTM from KITTI dataset
     bool calcGTM_KITTI(size_t &min_nrTP);
     //Prepare GTM from MegaDepth dataset
-    bool calcGTM_MegaDepth(size_t &min_nrTP);
+    bool calcGTM_MegaDepth(size_t &min_nrTP, int CeresCPUcnt = -1);
 
 private:
     const std::string base_url_oxford = "http://www.robots.ox.ac.uk/~vgg/research/affine/det_eval_files/";

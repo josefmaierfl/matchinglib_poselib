@@ -386,7 +386,7 @@ class RelativePoseCostFunction {
                 }
             }
             if(validD.empty()){
-                p1 *= T(0.95 * depth1_);
+                p1 *= T(0.8 * depth1_);
                 residuals[0] -= p1(0);
                 residuals[1] -= p1(1);
                 residuals[2] -= p1(2);

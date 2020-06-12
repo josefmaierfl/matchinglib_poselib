@@ -57,6 +57,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
     double GTMportion;//Portion of GT matches (GTM) compared to warped patch correspondences if multiple datasets are used as source (Oxford, KITTI, MegaDepth)
     double WarpedPortionTN;//Portion of TN that should be drawn from warped image patches (and not from GTM).
     double portionGrossTN;//Portion of TN that should be from GTM or from different image patches (first <-> second stereo camera).
+    int CeresCPUcnt;//Number of CPUs used by CERES for relative pose refinement of MegaDepth data. A value of -1 indicates to use all available CPUs.
     bool parsValid;//Specifies, if the stored values within this struct are valid
 
     GenMatchSequParameters(std::string mainStorePath_,
@@ -81,7 +82,8 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
                            double megadepthGTMportion_ = 0,
                            double GTMportion_ = 0,
                            double WarpedPortionTN_ = 1.0,
-                           double portionGrossTN_ = 0):
+                           double portionGrossTN_ = 0,
+                           int CeresCPUcnt_ = -1):
             mainStorePath(std::move(mainStorePath_)),
             imgPath(std::move(imgPath_)),
             imgPrePostFix(std::move(imgPrePostFix_)),
@@ -105,6 +107,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             GTMportion(GTMportion_),
             WarpedPortionTN(WarpedPortionTN_),
             portionGrossTN(portionGrossTN_),
+            CeresCPUcnt(CeresCPUcnt_),
             parsValid(true){
         keypErrDistr.first = abs(keypErrDistr.first);
         keypErrDistr.second = abs(keypErrDistr.second);
@@ -141,6 +144,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             GTMportion(0),
             WarpedPortionTN(1.0),
             portionGrossTN(0),
+            CeresCPUcnt(-1),
             parsValid(false){}
 
     bool checkParameters(){
@@ -254,7 +258,7 @@ struct PatchCInfo{
                double &ThTn_,
                double &ThTnNear_,
                bool visualize_ = false,
-               const int show_interval_ = 5):
+               const int show_interval_ = 40):
             show_cnt(0),
             show_interval(show_interval_),
             featureIdx_tmp(0),

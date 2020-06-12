@@ -453,7 +453,7 @@ int makeFrameIdConsistent1(std::vector<std::string> & filenamesl, std::vector<st
 *								-1:		  Could not open directory
 *								-2:		  No images available
 */
-bool loadImageSequenceNew(std::string filepath, std::string fileprefl, std::vector<std::string> & filenamesl)
+bool loadImageSequenceNew(std::string filepath, std::string fileprefl, std::vector<std::string> & filenamesl, bool isNoImg)
 {
 	DIR *dir;
 	struct dirent *ent;
@@ -498,7 +498,7 @@ bool loadImageSequenceNew(std::string filepath, std::string fileprefl, std::vect
 				|| (bCmpFuzzy && fileprefl_use.empty() && !filepostfx.empty()
 					&& (filename.size() >= filepostfx.size()) && filename.find(filepostfx) != std::string::npos)
 				|| (!fileprefl_use.empty() && filename.compare(0, fileprefl_use.size(), fileprefl_use) == 0)) {
-				if(IsImgTypeSupported(filename)) {
+				if(isNoImg || IsImgTypeSupported(filename)) {
 					filenamesl.push_back(filedir_use + "/" + filename);
 				}
 			}

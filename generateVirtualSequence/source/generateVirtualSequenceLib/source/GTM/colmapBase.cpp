@@ -82,16 +82,24 @@ bool RigFixedDepthBundleAdjuster::Solve(corrStats* corrImgs) {
 //    ceres::LossFunction* loss_function = options_.CreateLossFunction();
     SetUp(corrImgs);
 
-    if (problem_->NumResiduals() < 50) {
+    if (problem_->NumResiduals() < 300) {
         return false;
     }
 
     ceres::Solver::Options solver_options = options_.solver_options;
     solver_options.linear_solver_type = ceres::DENSE_SCHUR;
 
-    solver_options.num_threads = GetEffectiveNumThreads(solver_options.num_threads);
+    int num_threads = GetEffectiveNumThreads(solver_options.num_threads);
+    if((options_.CeresCPUcnt > 0) && (num_threads > options_.CeresCPUcnt)){
+        num_threads = options_.CeresCPUcnt;
+    }
+    solver_options.num_threads = num_threads;
 #if CERES_VERSION_MAJOR < 2
-    solver_options.num_linear_solver_threads = GetEffectiveNumThreads(solver_options.num_linear_solver_threads);
+    num_threads = GetEffectiveNumThreads(solver_options.num_linear_solver_threads);
+    if((options_.CeresCPUcnt > 0) && (num_threads > options_.CeresCPUcnt)){
+        num_threads = options_.CeresCPUcnt;
+    }
+    solver_options.num_linear_solver_threads = num_threads;
 #endif  // CERES_VERSION_MAJOR
 
     std::string solver_error;
@@ -316,7 +324,14 @@ bool colmapBase::estimateFlow(cv::Mat &flow, const corrStats &data){
             channels[2].at<float>(y, x) = 1.f;
         }
     }
-    if(cnt < static_cast<size_t>(depthMap1.rows) * static_cast<size_t>(depthMap1.cols) / 10){
+    cv::Mat mask;
+    cv::threshold(channels[2], mask, 0, 255.0, cv::THRESH_BINARY);
+    mask.convertTo(mask, CV_8UC1);
+    cv::Mat structElem = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(15, 15));
+    cv::morphologyEx(mask, mask, cv::MORPH_CLOSE, structElem);
+    size_t nr_pix = static_cast<size_t>(depthMap1.rows) * static_cast<size_t>(depthMap1.cols);
+    double usedA = static_cast<double>(cv::countNonZero(mask)) / static_cast<double>(nr_pix);
+    if(((cnt < nr_pix / 10) && !(usedA < 0.3)) || (usedA < 0.25)){
         return false;
     }
     cv::merge(channels, flow);
@@ -357,7 +372,9 @@ bool colmapBase::refineRelPoses(){
         options.solver_options.function_tolerance = 1e-6;
         options.solver_options.gradient_tolerance = 1e-8;
         options.solver_options.parameter_tolerance = 1e-8;
-        options.solver_options.minimizer_progress_to_stdout = true;
+        options.solver_options.minimizer_progress_to_stdout = (verbose & PRINT_MEGADEPTH_CERES_PROGRESS) != 0;
+        options.print_summary = (verbose & PRINT_MEGADEPTH_CERES_RESULTS) != 0;
+        options.CeresCPUcnt = CeresCPUcnt;
         RigFixedDepthBundleAdjuster ba(options);
         if(!ba.Solve(&i.second)){
             delIdx.push_back(i.first);
