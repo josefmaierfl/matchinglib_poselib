@@ -5836,6 +5836,10 @@ bool baseMatcher::interpolateDispFlow(const vector<cv::Point2f> &pts1,
         imshow("Channel 2", normalizedFlow);
         namedWindow("Channel 3", WINDOW_AUTOSIZE);// Create a window for display.
         imshow("Channel 3", dense_flowC[2]);
+        namedWindow("Image 1", WINDOW_AUTOSIZE);// Create a window for display.
+        imshow("Image 1", imgs[0]);
+        namedWindow("Image 2", WINDOW_AUTOSIZE);// Create a window for display.
+        imshow("Image 2", imgs[1]);
         cv::waitKey(0);
         cv::destroyAllWindows();
     }

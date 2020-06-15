@@ -280,8 +280,8 @@ double getViewAngleRelativeCams(const cv::Mat& R, const cv::Mat& t,
  */
 void getRelativeFromAbsPoses(const cv::Mat& R0, const cv::Mat& t0, const cv::Mat& R1, const cv::Mat& t1,
                              cv::Mat& R, cv::Mat& t){
-    R = R1.t() * R0;
-    t = R1.t() * (t0 - t1);
+    R = R1 * R0.t();
+    t = t1 - R * t0;
 }
 
 /*
@@ -289,8 +289,8 @@ void getRelativeFromAbsPoses(const cv::Mat& R0, const cv::Mat& t0, const cv::Mat
  */
 void getRelativeFromAbsPoses(const Eigen::Matrix3d& R0, const Eigen::Vector3d& t0, const Eigen::Matrix3d& R1, const Eigen::Vector3d& t1,
                              Eigen::Matrix3d& R, Eigen::Vector3d& t){
-    R = R1.transpose() * R0;
-    t = R1.transpose() * (t0 - t1);
+    R = R1 * R0.transpose();
+    t = t1 - R * t0;
 }
 
 /*

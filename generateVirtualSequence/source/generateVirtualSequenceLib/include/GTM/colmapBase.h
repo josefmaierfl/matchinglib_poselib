@@ -60,9 +60,11 @@ struct corrStats{
     size_t nrCorresp3D;//Number of 3D coordinates found equal by SfM for both images
     double viewAngle;//View angle in radians between the 2 images
     double tvecNorm;//Length of relative translation vector between images
+    double focalDiff;//Relative difference between camera field of views
     double weight;//(nrCorresp3D / 10)^2 * viewAngle * tvecNorm
-    double scale;//Scale between image used within SfM and image with corresponding dense depth maps
-    Eigen::Vector2d shift;//Shift between image used within SfM and image with corresponding dense depth maps
+    double scale0;//Scale between depth from SfM and depth map for img1
+    double scale1;//Scale between depth from SfM and depth map for img2
+//    Eigen::Vector2d shift;//Shift between image used within SfM and image with corresponding dense depth maps
     string depthImg1;//Path and name of the depth map of img1
     string depthImg2;//Path and name of the depth map of img2
     string imgOrig1;//Original first image used in SfM
@@ -78,37 +80,51 @@ struct corrStats{
     Eigen::Vector3d t_rel;//Relative translation vector between images
     Eigen::MatrixXd depthMap2;//Depth map of the second image
     std::vector<std::pair<Eigen::Vector2i, double>> keypDepth1;//Keypoints and corresponding depth values in the first image
+    std::vector<std::tuple<Point3D, Point2D, Point2D>> origCorrs;//Original (from Colmap) correspondences and 3D point
+    std::vector<std::tuple<Point3D, Eigen::Vector2d, Eigen::Vector2d>> undistCorrs;//Undistorted correspondences and 3D point
 
     corrStats(){
         imgID = 0;
         nrCorresp3D = 0;
-        scale = 1.;
-        shift = Eigen::Vector2d(0, 0);
+        scale0 = 1.;
+        scale1 = 1.;
+//        shift = Eigen::Vector2d(0, 0);
         viewAngle = 0;
         tvecNorm = 0;
+        focalDiff = 0;
         weight = 0;
     }
 
-    corrStats(image_t &imgID_, size_t nrCorresp3D_, double &viewAngle_, double &tvecNorm_, Eigen::Matrix3d R_rel_, Eigen::Vector3d t_rel_):
+    corrStats(image_t &imgID_,
+              size_t nrCorresp3D_,
+              double &viewAngle_,
+              double &tvecNorm_,
+              double &focalDiff_,
+              Eigen::Matrix3d R_rel_,
+              Eigen::Vector3d t_rel_):
             imgID(imgID_),
             nrCorresp3D(nrCorresp3D_),
             viewAngle(viewAngle_),
             tvecNorm(tvecNorm_),
+            focalDiff(focalDiff_),
             weight(0),
-            scale(1.),
-            shift(0,0),
+            scale0(1.),
+            scale1(1.),
+//            shift(0,0),
             R_rel(move(R_rel_)),
             t_rel(move(t_rel_)){}
 
-    corrStats(image_t &imgID_, size_t &nrCorresp3D_, double &viewAngle_, double &tvecNorm_,
+    corrStats(image_t &imgID_, size_t &nrCorresp3D_, double &viewAngle_, double &tvecNorm_, double &focalDiff_,
             double &weight_, Eigen::Matrix3d R_rel_, Eigen::Vector3d t_rel_):
             imgID(imgID_),
             nrCorresp3D(nrCorresp3D_),
             viewAngle(viewAngle_),
             tvecNorm(tvecNorm_),
+            focalDiff(focalDiff_),
             weight(weight_),
-            scale(1.),
-            shift(0,0),
+            scale0(1.),
+            scale1(1.),
+//            shift(0,0),
             R_rel(move(R_rel_)),
             t_rel(move(t_rel_)){}
 
@@ -145,6 +161,9 @@ struct corrStats{
         if(!readDepthMap(depthImg1, depthMap)){
             return false;
         }
+        if(!getScaleToDepthMap1(depthMap)){
+            return false;
+        }
         cv::Ptr<cv::FeatureDetector> detector = cv::ORB::create(4000);
         if(detector.empty()){
             cerr << "Cannot create keypoint detector!" << endl;
@@ -174,6 +193,89 @@ struct corrStats{
         return keypDepth1.size() > 100;
     }
 
+    bool getScaleToDepthMap1(const cv::Mat &depthMap){
+//        std::vector<double> scales;
+//        for(auto &j: undistCorrs) {
+//            Point3D &pt3d = std::get<0>(j);
+//            const double dsfm = pt3d.Z();
+//            Eigen::Vector2d &pt1 = std::get<1>(j);
+//            const double d = depthMap.at<double>(static_cast<int>(round(pt1(1))), static_cast<int>(round(pt1(0))));
+//            if (d < 1e-3) continue;
+//            scales.emplace_back(dsfm / d);
+//        }
+//        if(scales.size() < 10){
+//            return false;
+//        }
+//        const double meanScale = Mean(scales);
+//        scale0 = Median(scales);
+//        if(abs(meanScale - scale0) / abs(scale0) > 0.1){
+//            return false;
+//        }
+//        cout << "Scale Depth1: " << scale0 << endl;
+        scale0 = 1.;
+        size_t inl = 0;
+        for(auto &j: undistCorrs) {
+            Eigen::Vector2d &pt1 = std::get<1>(j);
+            Eigen::Vector2d &pt2 = std::get<2>(j);
+            const double d = depthMap.at<double>(static_cast<int>(round(pt1(1))), static_cast<int>(round(pt1(0))));
+            if (d < 1e-3) continue;
+            Eigen::Vector2d pt1w = undistortedCam1.ImageToWorld(pt1);
+            Eigen::Vector3d ptw(pt1w(0), pt1w(1), 1.);
+            ptw *= d * scale0;
+            Eigen::Vector3d ptw2 = R_rel * ptw + t_rel;
+            ptw2 /= ptw2(2);
+            Eigen::Vector2d pt2l = undistortedCam2.WorldToImage(Eigen::Vector2d(ptw2(0), ptw2(1)));
+            const double diff = (pt2l - pt2).squaredNorm();
+            if(diff > 3.) continue;
+            inl++;
+        }
+        const double inlr = static_cast<double>(inl) / static_cast<double>(undistCorrs.size());
+//        cout << "Inlier ratio Depth1: " << inlr << endl;
+        return inlr > 0.55;
+    }
+
+    bool getScaleToDepthMap2(){
+//        std::vector<double> scales;
+//        for(auto &j: undistCorrs) {
+//            Point3D &pt3d = std::get<0>(j);
+//            Eigen::Vector2d &pt2 = std::get<2>(j);
+//            const double dsfm = pt3d.Z();
+//            const double d = depthMap2(static_cast<int>(round(pt2(1))), static_cast<int>(round(pt2(0))));
+//            if (d < 1e-3) continue;
+//            scales.emplace_back(dsfm / d);
+//        }
+//        if(scales.size() < 10){
+//            return false;
+//        }
+//        const double meanScale = Mean(scales);
+//        scale1 = Median(scales);
+//        if(abs(meanScale - scale1) / abs(scale1) > 0.1){
+//            return false;
+//        }
+//        cout << "Scale Depth2: " << scale1 << endl;
+        scale1 = 1.;
+        size_t inl = 0;
+        Eigen::Matrix3d R_rel_t = R_rel.transpose();
+        for(auto &j: undistCorrs) {
+            Eigen::Vector2d &pt1 = std::get<1>(j);
+            Eigen::Vector2d &pt2 = std::get<2>(j);
+            const double d = depthMap2(static_cast<int>(round(pt2(1))), static_cast<int>(round(pt2(0))));
+            if (d < 1e-3) continue;
+            Eigen::Vector2d pt2w = undistortedCam2.ImageToWorld(pt2);
+            Eigen::Vector3d ptw(pt2w(0), pt2w(1), 1.);
+            ptw *= d * scale1;
+            Eigen::Vector3d ptw1 = R_rel_t * (ptw - t_rel);
+            ptw1 /= ptw1(2);
+            Eigen::Vector2d pt1l = undistortedCam1.WorldToImage(Eigen::Vector2d(ptw1(0), ptw1(1)));
+            const double diff = (pt1l - pt1).squaredNorm();
+            if(diff > 3.) continue;
+            inl++;
+        }
+        const double inlr = static_cast<double>(inl) / static_cast<double>(undistCorrs.size());
+//        cout << "Inlier ratio Depth2: " << inlr << endl;
+        return inlr > 0.55;
+    }
+
     void getRelQuaternions(){
         quat_rel = RotationMatrixToQuaternion(R_rel);
     }
@@ -186,7 +288,7 @@ struct corrStats{
         Eigen::Vector2d pt1d = pt1.first.cast<double>();
         Eigen::Vector2d kpw1 = undistortedCam1.ImageToWorld(pt1d);
         Eigen::Vector3d p1(kpw1(0), kpw1(1), 1.);
-        p1 *= pt1.second;
+        p1 *= pt1.second * scale0;
         p1 = R_rel * p1 + t_rel;
         p1 /= p1(2);
         kpw1 = undistortedCam2.WorldToImage(Eigen::Vector2d(p1(0), p1(1)));
@@ -256,7 +358,7 @@ struct corrStats{
             d2 = ((dt * (yb - kpw1(1)) + db * (kpw1(1) - yt))) / ydiff;
         }
 
-        p1 *= d2;
+        p1 *= d2 * scale1;
         p1 -= t_rel;
         p1 = R_rel.transpose() * p1;
         p1 /= p1(2);
@@ -360,7 +462,7 @@ private:
 
     void ParameterizeCameraRigs();
 
-    const double max_reproj_error = 50.0;
+    const double max_reproj_error = 10.0;
 
     const BundleAdjustmentOptions options_;
     std::unique_ptr<ceres::Problem> problem_;
@@ -404,6 +506,11 @@ private:
     Camera UndistortCamera(const UndistortCameraOptions& options,
                            const Camera& camera);
     bool refineRelPoses();
+    void showCorrsImgs(const std::string &imgName);
+    static void showCorrsImg(const corrStats &info, const std::string &imgName);
+    bool checkReprErrorDistorted();
+    bool checkReprErrorUnDistorted();
+//    bool getDepthMapScales();
     bool checkCorrectDimensions();
     bool getCorrectDims();
     static bool checkScale(const size_t &dimWsrc, const int &dimWdest, const size_t &dimHsrc, const int &dimHdest);
@@ -429,6 +536,7 @@ private:
     bool refineSfM;
     bool storeFlowFile;
     uint32_t verbose = 0;
+    const size_t showImgsInterval = 20;
     int CeresCPUcnt;
 };
 

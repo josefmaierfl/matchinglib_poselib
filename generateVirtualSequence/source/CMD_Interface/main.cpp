@@ -2483,7 +2483,10 @@ bool genTemplateFile(const std::string &filename){
     fs << "SHOW_CORRESP_PATCHES_GTM" << 0;
     fs << "SHOW_CORRESP_PATCHES_TN" << 0;
     fs << "PRINT_MEGADEPTH_CERES_PROGRESS" << 0;
-    fs << "PRINT_MEGADEPTH_CERES_RESULTS" << 0 << "}";
+    fs << "PRINT_MEGADEPTH_CERES_RESULTS" << 0;
+    fs << "SHOW_MEGADEPTH_MATCHES_DISTORTED" << 0;
+    fs << "SHOW_MEGADEPTH_MATCHES_UNDISTORTED" << 0;
+    fs << "SHOW_MEGADEPTH_MATCHES_REFINED" << 0 << "}";
 
     fs.writeComment("Verbosity option for calculating the stereo camera configurations. "
                         "Prints the intermediate error values/results of the Levenberg Marquardt iterations. \n"
@@ -3034,6 +3037,21 @@ bool loadConfigFile(const std::string &filename,
     if(!n1.empty()){
         n1 >> tmp_bool;
         if(tmp_bool) addPars.verbose |= PRINT_MEGADEPTH_CERES_RESULTS;
+    }
+    n1 = n["SHOW_MEGADEPTH_MATCHES_DISTORTED"];
+    if(!n1.empty()){
+        n1 >> tmp_bool;
+        if(tmp_bool) addPars.verbose |= SHOW_MEGADEPTH_MATCHES_DISTORTED;
+    }
+    n1 = n["SHOW_MEGADEPTH_MATCHES_UNDISTORTED"];
+    if(!n1.empty()){
+        n1 >> tmp_bool;
+        if(tmp_bool) addPars.verbose |= SHOW_MEGADEPTH_MATCHES_UNDISTORTED;
+    }
+    n1 = n["SHOW_MEGADEPTH_MATCHES_REFINED"];
+    if(!n1.empty()){
+        n1 >> tmp_bool;
+        if(tmp_bool) addPars.verbose |= SHOW_MEGADEPTH_MATCHES_REFINED;
     }
 
     fs["LMverbose"] >> addPars.LMverbose;

@@ -37,6 +37,13 @@
 using namespace colmap;
 using namespace std;
 
+void showMatches(const std::vector<cv::DMatch> &matches,
+                 const std::vector<cv::KeyPoint> &keypL,
+                 const std::vector<cv::KeyPoint> &keypR,
+                 const cv::Mat &img1,
+                 const cv::Mat &img2,
+                 const std::string &imgName);
+
 ceres::LossFunction* BundleAdjustmentOptions::CreateLossFunction() const {
     ceres::LossFunction* loss_function = nullptr;
     switch (loss_function_type) {
@@ -281,6 +288,9 @@ bool colmapBase::calculateFlow(const std::string &flowPath, std::vector<megaDept
     if(!getCorrectDims()){
         return false;
     }
+    if(!checkReprErrorUnDistorted()){
+        return false;
+    }
     if(!refineRelPoses()){
         return false;
     }
@@ -315,7 +325,7 @@ bool colmapBase::estimateFlow(cv::Mat &flow, const corrStats &data){
     for(int y = 0; y < depthMap1.rows; ++y){
         for(int x = 0; x < depthMap1.cols; ++x){
             const double dist2 = data.calcReprojectionError(std::make_pair(Eigen::Vector2i(x, y), depthMap1.at<double>(y, x)), &loc2);
-            if(dist2 > 4.){
+            if(dist2 > 3.){
                 continue;
             }
             cnt++;
@@ -331,7 +341,7 @@ bool colmapBase::estimateFlow(cv::Mat &flow, const corrStats &data){
     cv::morphologyEx(mask, mask, cv::MORPH_CLOSE, structElem);
     size_t nr_pix = static_cast<size_t>(depthMap1.rows) * static_cast<size_t>(depthMap1.cols);
     double usedA = static_cast<double>(cv::countNonZero(mask)) / static_cast<double>(nr_pix);
-    if(((cnt < nr_pix / 10) && !(usedA < 0.3)) || (usedA < 0.25)){
+    if(((cnt < nr_pix / 10) && usedA < 0.3) || (usedA < 0.25)){
         return false;
     }
     cv::merge(channels, flow);
@@ -352,6 +362,10 @@ bool colmapBase::refineRelPoses(){
             delIdx.push_back(i.first);
             continue;
         }
+        if(!i.second.getScaleToDepthMap2()){
+            delIdx.push_back(i.first);
+            continue;
+        }
     }
     if(!delIdx.empty()){
         for(auto &i: delIdx){
@@ -359,6 +373,12 @@ bool colmapBase::refineRelPoses(){
         }
         delIdx.clear();
     }
+
+    //Show correspondences
+    if(verbose & SHOW_MEGADEPTH_MATCHES_UNDISTORTED) {
+        showCorrsImgs("Matches of generated keypoints before refinement");
+    }
+
     if(correspImgs_.empty()){
         return false;
     }
@@ -388,7 +408,60 @@ bool colmapBase::refineRelPoses(){
         }
         delIdx.clear();
     }
-    return !correspImgs_.empty();
+
+    if(correspImgs_.empty()){
+        return false;
+    }
+
+    //Show correspondences
+    if(verbose & SHOW_MEGADEPTH_MATCHES_REFINED) {
+        showCorrsImgs("Matches of generated keypoints after refinement");
+    }
+    return true;
+}
+
+void colmapBase::showCorrsImgs(const std::string &imgName){
+    size_t show_cnt = 0;
+    for(auto &i: correspImgs_){
+        if(show_cnt++ % showImgsInterval == 0) {
+            showCorrsImg(i.second, imgName);
+        }
+    }
+}
+
+void colmapBase::showCorrsImg(const corrStats &info, const std::string &imgName){
+        std::vector<cv::DMatch> matches;
+        std::vector<cv::KeyPoint> kp1, kp2;
+        kp1.reserve(info.keypDepth1.size());
+        kp2.reserve(info.keypDepth1.size());
+        Eigen::Vector3d t = info.t_rel;
+        int idx = 0;
+        for(auto &j: info.keypDepth1){
+            kp1.emplace_back(cv::KeyPoint(static_cast<float>(j.first(0)), static_cast<float>(j.first(1)), 10.f));
+            Eigen::Vector2d p1(static_cast<double>(j.first(0)), static_cast<double>(j.first(1)));
+            Eigen::Vector2d pl1 = info.undistortedCam1.ImageToWorld(p1);
+            Eigen::Vector3d pl21(pl1(0), pl1(1), 1.);
+            pl21 *= j.second * info.scale0;
+            pl21 = info.R_rel * pl21 + t;
+            pl21 /= pl21(2);
+            Eigen::Vector2d pl2(pl21(0), pl21(1));
+            pl2 = info.undistortedCam2.WorldToImage(pl2);
+            if(pl2(0) < 0 || pl2(0) > static_cast<double>(info.undistortedCam1.Width() - 1) ||
+                    pl2(1) < 0 || pl2(1) > static_cast<double>(info.undistortedCam1.Height() - 1)){
+                kp1.pop_back();
+                continue;
+            }
+            kp2.emplace_back(cv::KeyPoint(static_cast<float>(pl2(0)), static_cast<float>(pl2(1)), 10.f));
+            matches.emplace_back(cv::DMatch(idx, idx, 0));
+            idx++;
+        }
+        if(matches.empty()){
+            cout << "No correspondences" << endl;
+            return;
+        }
+        cv::Mat img1 = cv::imread(info.img1, cv::IMREAD_UNCHANGED);
+        cv::Mat img2 = cv::imread(info.img2, cv::IMREAD_UNCHANGED);
+        showMatches(matches, kp1, kp2, img1, img2, imgName);
 }
 
 void colmapBase::getMaxDepthImgDim(){
@@ -413,6 +486,308 @@ void colmapBase::getUndistortedScaledDims(){
         i.second.undistortedCam2 = UndistortCamera(options, getCamera(getImage(i.second.imgID).CameraId()));
     }
 }
+
+bool colmapBase::checkReprErrorDistorted(){
+    vector<image_t> delIdx;
+    size_t show_cnt = 0;
+    for(auto &i: correspImgs_) {
+        Image &i1 = getImage(i.first);
+        Image &i2 = getImage(i.second.imgID);
+        Camera &c1 = getCamera(i1.CameraId());
+        Camera &c2 = getCamera(i2.CameraId());
+        size_t nr_correp = 0, nr_found = 0;
+        vector<double> diffs;
+        vector<cv::KeyPoint> kp1, kp2;
+        std::vector<cv::DMatch> matches;
+        int idx = 0;
+        for(auto &pt2d: i1.Points2D()){
+            if(pt2d.HasPoint3D()){
+                Point3D &pt3d = points3D_[pt2d.Point3DId()];
+                for(auto &pt2d2: pt3d.Track().Elements()){
+                    if(pt2d2.image_id == i2.ImageId()){
+                        Point2D &pt2 = i2.Point2D(pt2d2.point2D_idx);
+                        Eigen::Vector3d pt1w3 = pt3d.XYZ();
+                        Eigen::Vector3d pt1w = i1.RotationMatrix() * pt1w3;
+                        Eigen::Vector3d pt2w = i2.RotationMatrix() * pt1w3;
+                        pt1w += i1.Tvec();
+                        pt2w += i2.Tvec();
+                        pt1w /= pt1w(2);
+                        Eigen::Vector2d pt1 = c1.WorldToImage(Eigen::Vector2d(pt1w(0), pt1w(1)));
+                        pt1 -= pt2d.XY();
+                        double diff = pt1.norm();
+                        bool valid = true;
+                        if(diff > 2.5){
+                            valid = false;
+                        }
+                        pt2w /= pt2w(2);
+                        Eigen::Vector2d pt21 = c2.WorldToImage(Eigen::Vector2d(pt2w(0), pt2w(1)));
+                        pt21 -= pt2.XY();
+                        double diff1 = pt21.norm();
+                        if(diff1 > 2.5){
+                            valid = false;
+                        }
+                        diff += diff1;
+                        diff /= 2.;
+                        diffs.emplace_back(diff);
+                        nr_found++;
+                        if(valid){
+                            nr_correp++;
+                            i.second.origCorrs.emplace_back(pt3d, pt2d, pt2);
+                        }
+
+                        kp1.emplace_back(cv::KeyPoint(static_cast<float>(pt2d.X()), static_cast<float>(pt2d.Y()), 5.f));
+                        kp2.emplace_back(cv::KeyPoint(static_cast<float>(pt2.X()), static_cast<float>(pt2.Y()), 5.f));
+                        matches.emplace_back(idx, idx, 1.f);
+                        idx++;
+                        break;
+                    }
+                }
+            }
+        }
+        if(!matches.empty() && (verbose & SHOW_MEGADEPTH_MATCHES_DISTORTED) && (show_cnt++ % showImgsInterval) == 0){
+            cv::Mat img1 = cv::imread(i.second.imgOrig1, cv::IMREAD_GRAYSCALE);
+            cv::Mat img2 = cv::imread(i.second.imgOrig2, cv::IMREAD_GRAYSCALE);
+            showMatches(matches, kp1, kp2, img1, img2, "Original matches on distorted images");
+        }
+        double mean = Mean(diffs);
+        double inlrat = static_cast<double>(nr_correp) / static_cast<double>(nr_found);
+        if(inlrat < 0.5 || mean > 2.){
+//            cout << "Inlier ratio: " << inlrat << endl;
+//            cout << "Mean repro err: " << mean << endl;
+            delIdx.push_back(i.first);
+        }
+    }
+
+    if(!delIdx.empty()){
+        for(auto &i: delIdx){
+            correspImgs_.erase(i);
+        }
+        delIdx.clear();
+    }
+    return !correspImgs_.empty();
+}
+
+bool colmapBase::checkReprErrorUnDistorted(){
+    vector<image_t> delIdx;
+    size_t show_cnt = 0;
+    for(auto &i: correspImgs_) {
+        bool storeCorrs = i.second.undistCorrs.empty();
+        Image &i1 = getImage(i.first);
+        Image &i2 = getImage(i.second.imgID);
+        Camera &c1d = getCamera(i1.CameraId());
+        Camera &c2d = getCamera(i2.CameraId());
+        Camera &c1 = i.second.undistortedCam1;
+        Camera &c2 = i.second.undistortedCam2;
+        size_t nr_correp = 0, nr_found = 0;
+        vector<double> diffs, rel_diffs;
+        vector<cv::KeyPoint> kp1, kp2;
+        std::vector<cv::DMatch> matches;
+        int idx = 0;
+        for(auto &j: i.second.origCorrs){
+            Point3D &pt3d = std::get<0>(j);
+            Point2D &pt2d = std::get<1>(j);
+            Point2D &pt2 = std::get<2>(j);
+            Eigen::Vector3d pt1w3 = pt3d.XYZ();
+            Eigen::Vector3d pt1w = i1.RotationMatrix() * pt1w3;
+            Eigen::Vector3d pt2w = i2.RotationMatrix() * pt1w3;
+            pt1w += i1.Tvec();
+            pt2w += i2.Tvec();
+            Eigen::Vector3d test = i.second.R_rel * pt1w + i.second.t_rel;
+            test /= test(2);
+            pt1w /= pt1w(2);
+            Eigen::Vector2d pt1 = c1.WorldToImage(Eigen::Vector2d(pt1w(0), pt1w(1)));
+            Eigen::Vector2d pt1d = c1.WorldToImage(c1d.ImageToWorld(pt2d.XY()));
+            pt1d -= pt1;
+            double diff = pt1d.norm();
+            bool valid = true;
+            if(diff > 2.){
+                valid = false;
+            }
+            pt2w /= pt2w(2);
+            test -= pt2w;
+            const double rel_diff = test(0) * test(0) + test(1) * test(1);
+            rel_diffs.emplace_back(rel_diff);
+            Eigen::Vector2d pt21 = c2.WorldToImage(Eigen::Vector2d(pt2w(0), pt2w(1)));
+            Eigen::Vector2d pt21d = c2.WorldToImage(c2d.ImageToWorld(pt2.XY()));
+            pt21d -= pt21;
+            double diff1 = pt21d.norm();
+            if(diff1 > 2.){
+                valid = false;
+            }
+            diff += diff1;
+            diff /= 2.;
+            diffs.emplace_back(diff);
+            nr_found++;
+            if(valid){
+                nr_correp++;
+                if(storeCorrs){
+                    i.second.undistCorrs.emplace_back(pt3d, pt1, pt21);
+                }
+            }
+
+            kp1.emplace_back(cv::KeyPoint(static_cast<float>(pt1(0)), static_cast<float>(pt1(1)), 5.f));
+            kp2.emplace_back(cv::KeyPoint(static_cast<float>(pt21(0)), static_cast<float>(pt21(1)), 5.f));
+            matches.emplace_back(idx, idx, 1.f);
+            idx++;
+        }
+//        for(auto &pt2d: i1.Points2D()){
+//            if(pt2d.HasPoint3D()){
+//                Point3D &pt3d = points3D_[pt2d.Point3DId()];
+//                for(auto &pt2d2: pt3d.Track().Elements()){
+//                    if(pt2d2.image_id == i2.ImageId()){
+//                        Point2D &pt2 = i2.Point2D(pt2d2.point2D_idx);
+//                        Eigen::Vector3d pt1w3 = pt3d.XYZ();
+//                        Eigen::Vector3d pt1w = i1.RotationMatrix() * pt1w3;
+//                        Eigen::Vector3d pt2w = i2.RotationMatrix() * pt1w3;
+//                        pt1w += i1.Tvec();
+//                        pt2w += i2.Tvec();
+//                        pt1w /= pt1w(2);
+//                        Eigen::Vector2d pt1 = c1.WorldToImage(Eigen::Vector2d(pt1w(0), pt1w(1)));
+//                        Eigen::Vector2d pt1d = c1.WorldToImage(c1d.ImageToWorld(pt2d.XY()));
+//                        pt1d -= pt1;
+//                        double diff = pt1d.norm();
+//                        bool valid = true;
+//                        if(diff > 2.5){
+//                            valid = false;
+//                        }
+//                        pt2w /= pt2w(2);
+//                        Eigen::Vector2d pt21 = c2.WorldToImage(Eigen::Vector2d(pt2w(0), pt2w(1)));
+//                        Eigen::Vector2d pt21d = c2.WorldToImage(c2d.ImageToWorld(pt2.XY()));
+//                        pt21d -= pt21;
+//                        double diff1 = pt21d.norm();
+//                        if(diff1 > 2.5){
+//                            valid = false;
+//                        }
+//                        diff += diff1;
+//                        diff /= 2.;
+//                        diffs.emplace_back(diff);
+//                        nr_found++;
+//                        if(valid) nr_correp++;
+//
+//                        kp1.emplace_back(cv::KeyPoint(static_cast<float>(pt1(0)), static_cast<float>(pt1(1)), 5.f));
+//                        kp2.emplace_back(cv::KeyPoint(static_cast<float>(pt21(0)), static_cast<float>(pt21(1)), 5.f));
+//                        matches.emplace_back(idx, idx, 1.f);
+//                        idx++;
+//                        break;
+//                    }
+//                }
+//            }
+//        }
+        if(!matches.empty() && (verbose & SHOW_MEGADEPTH_MATCHES_UNDISTORTED) && (show_cnt++ % showImgsInterval) == 0){
+            cv::Mat img1 = cv::imread(i.second.img1, cv::IMREAD_GRAYSCALE);
+            cv::Mat img2 = cv::imread(i.second.img2, cv::IMREAD_GRAYSCALE);
+            showMatches(matches, kp1, kp2, img1, img2, "Original matches on undistorted images");
+        }
+        double mean = Mean(diffs);
+        double inlrat = static_cast<double>(nr_correp) / static_cast<double>(nr_found);
+        if(inlrat < 0.75 || mean > 1.5){
+//            cout << "Inlier ratio: " << inlrat << endl;
+//            cout << "Mean repro err: " << mean << endl;
+            delIdx.push_back(i.first);
+        }
+        double meand_rel = Mean(rel_diffs);
+        if(meand_rel > 0.15){
+            cerr << "Wrong relative pose" << endl;
+        }
+    }
+
+    if(!delIdx.empty()){
+        for(auto &i: delIdx){
+            correspImgs_.erase(i);
+        }
+        delIdx.clear();
+    }
+    return !correspImgs_.empty();
+}
+
+//bool colmapBase::getDepthMapScales(){
+//    vector<image_t> delIdx;
+//    size_t show_cnt = 0;
+//    for(auto &i: correspImgs_) {
+//        Image &i1 = getImage(i.first);
+//        Image &i2 = getImage(i.second.imgID);
+//        Camera &c1d = getCamera(i1.CameraId());
+//        Camera &c2d = getCamera(i2.CameraId());
+//        Camera &c1 = i.second.undistortedCam1;
+//        Camera &c2 = i.second.undistortedCam2;
+//        size_t nr_correp = 0, nr_found = 0;
+//        Eigen::Vector3d trel;
+//        Eigen::Matrix3d Rrel;
+//        getRelativeFromAbsPoses(i1.RotationMatrix(), i1.Tvec(), i2.RotationMatrix(), i2.Tvec(),
+//                                Rrel, trel);
+//        vector<double> diffs;
+//        vector<cv::KeyPoint> kp1, kp2;
+//        std::vector<cv::DMatch> matches;
+//        int idx = 0;
+//        for(auto &pt2d: i1.Points2D()){
+//            if(pt2d.HasPoint3D()){
+//                Point3D &pt3d = points3D_[pt2d.Point3DId()];
+//                for(auto &pt2d2: pt3d.Track().Elements()){
+//                    if(pt2d2.image_id == i2.ImageId()){
+//                        Point2D &pt2 = i2.Point2D(pt2d2.point2D_idx);
+//                        Eigen::Vector3d pt1w3 = pt3d.XYZ();
+//                        Eigen::Vector3d pt1w = i1.RotationMatrix() * pt1w3;
+//                        Eigen::Vector3d pt2w = i2.RotationMatrix() * pt1w3;
+//                        pt1w += i1.Tvec();
+//                        pt2w += i2.Tvec();
+////                        Eigen::Vector3d tmp = Rrel * pt1w - pt2w + i2.Tvec();
+////                        Eigen::Vector3d tmp1 = Rrel * i1.Tvec();
+////                        Eigen::Vector3d scale = tmp.array() / tmp1.array();
+////                        scales.emplace_back(scale.mean());
+//                        pt1w /= pt1w(2);
+//                        Eigen::Vector2d pt1 = c1.WorldToImage(Eigen::Vector2d(pt1w(0), pt1w(1)));
+//                        double d1 = i.second.depthMap1(static_cast<int>(round(pt1(1))),
+//                                                       static_cast<int>(round(pt1(0))));
+//                        if(d1 < 1e-3) nr_correp++;
+//                        pt2w /= pt2w(2);
+//                        Eigen::Vector2d pt21 = c2.WorldToImage(Eigen::Vector2d(pt2w(0), pt2w(1)));
+//                        double d2 = i.second.depthMap2(static_cast<int>(round(pt1(1))),
+//                                                       static_cast<int>(round(pt1(0))));
+//                        pt21d -= pt21;
+//                        double diff1 = pt21d.norm();
+//                        if(diff1 > 2.5){
+//                            valid = false;
+//                        }
+//                        diff += diff1;
+//                        diff /= 2.;
+//                        diffs.emplace_back(diff);
+//                        nr_found++;
+//                        if(valid) nr_correp++;
+//
+//                        kp1.emplace_back(cv::KeyPoint(static_cast<float>(pt1(0)), static_cast<float>(pt1(1)), 5.f));
+//                        kp2.emplace_back(cv::KeyPoint(static_cast<float>(pt21(0)), static_cast<float>(pt21(1)), 5.f));
+//                        matches.emplace_back(idx, idx, 1.f);
+//                        idx++;
+//                        break;
+//                    }
+//                }
+//            }
+//        }
+//        if(!matches.empty() && (verbose & SHOW_MEGADEPTH_MATCHES_UNDISTORTED) && (show_cnt++ % showImgsInterval) == 0){
+//            cv::Mat img1 = cv::imread(i.second.img1, cv::IMREAD_GRAYSCALE);
+//            cv::Mat img2 = cv::imread(i.second.img2, cv::IMREAD_GRAYSCALE);
+//            showMatches(matches, kp1, kp2, img1, img2, "Original matches on undistorted images");
+//        }
+////        double meanScale = Mean(scales);
+////        cout << "Mean scale: " << meanScale << endl;
+////        i.second.scaleDistorted1 = meanScale;
+//        double mean = Mean(diffs);
+//        double inlrat = static_cast<double>(nr_correp) / static_cast<double>(nr_found);
+//        if(inlrat < 0.75 || mean > 2.){
+//            cout << "Inlier ratio: " << inlrat << endl;
+//            cout << "Mean repro err: " << mean << endl;
+//            delIdx.push_back(i.first);
+//        }
+//    }
+//
+//    if(!delIdx.empty()){
+//        for(auto &i: delIdx){
+//            correspImgs_.erase(i);
+//        }
+//        delIdx.clear();
+//    }
+//    return !correspImgs_.empty();
+//}
 
 bool colmapBase::checkCorrectDimensions(){
     vector<image_t> delIdx;
@@ -690,13 +1065,23 @@ bool colmapBase::getFileNames(const megaDepthFolders& folders){
             correspImgs_.erase(id);
         }
     }
-    return !correspImgs_.empty();
+    if(correspImgs_.empty()){
+        return false;
+    }
+    return checkReprErrorDistorted();
 }
 
 bool colmapBase::getCorrespondingImgs(){
     for(auto &i: images_){
         EIGEN_STL_UMAP(image_t, struct corrStats) corresp;
         EIGEN_STL_UMAP(image_t, struct corrStats)::iterator it, it1;
+        const double meanf1 = cameras_.at(i.second.CameraId()).MeanFocalLength();
+        double wi1 = static_cast<double>(cameras_.at(i.second.CameraId()).Width());
+        wi1 *= wi1;
+        double hi1 = static_cast<double>(cameras_.at(i.second.CameraId()).Height());
+        hi1 *= hi1;
+        const double c0 = 0.5 * sqrt(wi1 + hi1);
+        const double ang1 = 1. + std::tan(c0 / meanf1) / M_PI;
         image_t bestId = kInvalidImageId;
         size_t maxCnt = 0;
         double maxWeight = 0;
@@ -709,9 +1094,9 @@ bool colmapBase::getCorrespondingImgs(){
                     it = corresp.find(img.image_id);
                     if(it != corresp.end()){
                         it->second.nrCorresp3D++;
-                        double nrCorresp3Dw = static_cast<double>(it->second.nrCorresp3D) / 10.;
+                        double nrCorresp3Dw = 1.5 * (5. + static_cast<double>(it->second.nrCorresp3D) / 10.);
                         nrCorresp3Dw *= nrCorresp3Dw;
-                        it->second.weight = nrCorresp3Dw * it->second.viewAngle * it->second.tvecNorm;
+                        it->second.weight = nrCorresp3Dw * it->second.viewAngle * it->second.tvecNorm * it->second.focalDiff;
                         if(it->second.weight > maxWeight){
                             it1 = correspImgs_.find(img.image_id);
                             if(it1 == correspImgs_.end()) {
@@ -732,7 +1117,15 @@ bool colmapBase::getCorrespondingImgs(){
                         double angle = getViewAngleAbsoluteCams(R0, t0, K1, R1, t1, false);
                         getRelativeFromAbsPoses(R0, t0, R1, t1, Rrel, trel);
                         double tvec_norm = trel.norm();
-                        corresp.emplace(img.image_id, corrStats(img.image_id, 1, angle, tvec_norm, Rrel, trel));
+                        double meanf2 = cameras_.at(img2.CameraId()).MeanFocalLength();
+                        double wi2 = static_cast<double>(cameras_.at(img2.CameraId()).Width());
+                        wi2 *= wi2;
+                        double hi2 = static_cast<double>(cameras_.at(img2.CameraId()).Height());
+                        hi2 *= hi2;
+                        const double c1 = 0.5 * sqrt(wi2 + hi2);
+                        const double ang2 = 1. + std::tan(c1 / meanf2) / M_PI;
+                        double fDiff = 1. + 2. * abs(ang1 - ang2) / (ang1 + ang2);
+                        corresp.emplace(img.image_id, corrStats(img.image_id, 1, angle, tvec_norm, fDiff, Rrel, trel));
                     }
                 }
             }
@@ -1062,4 +1455,38 @@ void colmapBase::ReadPoints3DText(const std::string& path) {
 
         points3D_.emplace(point3D_id, point3D);
     }
+}
+
+void showMatches(const std::vector<cv::DMatch> &matches,
+                 const std::vector<cv::KeyPoint> &keypL,
+                 const std::vector<cv::KeyPoint> &keypR,
+                 const cv::Mat &img1,
+                 const cv::Mat &img2,
+                 const std::string &imgName){
+    cv::Mat img_match;
+    std::vector<cv::KeyPoint> keypL_reduced;//Left keypoints
+    std::vector<cv::KeyPoint> keypR_reduced;//Right keypoints
+    std::vector<cv::DMatch> matches_reduced;
+    const size_t keepNMatches = 100;
+    size_t keepXthMatch = 1;
+    if(matches.size() > keepNMatches)
+        keepXthMatch = matches.size() / keepNMatches;
+    int j = 0;
+    for (unsigned int i = 0; i < matches.size(); i++)
+    {
+        if((i % (int)keepXthMatch) == 0)
+        {
+            keypL_reduced.push_back(keypL[i]);
+            matches_reduced.push_back(matches[i]);
+            matches_reduced.back().queryIdx = j;
+            keypR_reduced.push_back(keypR[i]);
+            matches_reduced.back().trainIdx = j;
+            j++;
+        }
+    }
+    cv::drawMatches(img1, keypL_reduced, img2, keypR_reduced, matches_reduced, img_match);
+    cv::namedWindow(imgName, cv::WINDOW_AUTOSIZE);
+    cv::imshow(imgName, img_match);
+    cv::waitKey(0);
+    cv::destroyAllWindows();
 }
