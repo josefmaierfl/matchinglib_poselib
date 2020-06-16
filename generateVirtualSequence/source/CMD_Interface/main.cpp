@@ -357,6 +357,8 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
     cmd.defineOption("writeIntermRes", "<Optional path for writing intermediate results "
                                        "like images of generated random object labels, depths... "
                                        "The type of intermediate results written to disk can be controlled by the configuration file (option conf_file) .>", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("execPath", "<Optional path of this executable to find the Python script for "
+                                 "downloading images from ImageNet>", ArgvParser::OptionRequiresValue);
 
 	
 	/// finally parse and handle return codes (display help etc...)
@@ -414,6 +416,18 @@ int startEvaluation(ArgvParser& cmd)
 		img_path = cmd.optionValue("img_path");
 		img_pref = cmd.optionValue("img_pref");
 		store_path = cmd.optionValue("store_path");
+        std::string execPath;
+		if(cmd.foundOption("execPath")){
+            execPath = cmd.optionValue("execPath");
+            if(!checkPathExists(execPath)){
+                cerr << "Given path: " << execPath << " does not exist!" << endl;
+                if(!getCurrentExecPath(execPath)){
+                    execPath = "";
+                }
+            }
+		}else if(!getCurrentExecPath(execPath)){
+		    execPath = "";
+		}
         StereoSequParameters sequPars;
         GenMatchSequParameters matchPars;
         stereoExtrPars stereoPars;
@@ -428,6 +442,9 @@ int startEvaluation(ArgvParser& cmd)
         if(!loadConfigFile(conf_file, sequPars, matchPars, stereoPars, addPars)){
             cerr << "Unable to load configuration file." << endl;
             return -1;
+        }
+        if(!execPath.empty()) {
+            matchPars.execPath = execPath;
         }
 		if(cmd.foundOption("load_folder")){
 			/*if(!cmd.foundOption("load_type")){
@@ -2599,6 +2616,26 @@ bool genTemplateFile(const std::string &filename){
     fs.writeComment("Number of CPUs used by CERES for relative pose refinement of MegaDepth data.\n"
                     "A value of -1 indicates to use all available CPUs.");
     fs << "CeresCPUcnt" << -1;
+    std::vector<string> imageNetIDs(2);
+    imageNetIDs[0] = "n02958343";
+    imageNetIDs[1] = "n00451370";
+    fs.writeComment("List of ImageNet IDs (WNIDs) to use images from");
+    fs << "imageNetIDs" << "[";
+    for (auto &i : imageNetIDs) {
+        fs << i;
+    }
+    fs << "]";
+    std::vector<string> imageNetBuzzWrds(2);
+    imageNetBuzzWrds[0] = "train";
+    imageNetBuzzWrds[1] = "sign";
+    fs.writeComment("List of buzzwords to search for on ImageNet. Can be provided in addition to \'imageNetIDs\'.");
+    fs << "imageNetBuzzWrds" << "[";
+    for (auto &i : imageNetBuzzWrds) {
+        fs << i;
+    }
+    fs << "]";
+    fs.writeComment("Number of images that should be downloaded and used from ImageNet.");
+    fs << "nrImgsFromImageNet" << 0;
 
     fs.release();
 
@@ -3104,6 +3141,42 @@ bool loadConfigFile(const std::string &filename,
     n = fs["CeresCPUcnt"];
     if(!n.empty()){
         n >> matchPars.CeresCPUcnt;
+    }
+    n = fs["imageNetIDs"];
+    if(!n.empty()){
+        if (n.type() != FileNode::SEQ) {
+            cerr << "imageNetIDs is not a sequence! FAIL" << endl;
+            return false;
+        }
+        matchPars.imageNetIDs.clear();
+        it = n.begin(), it_end = n.end();
+        while (it != it_end) {
+            std::string str_tmp;
+            it >> str_tmp;
+            if(!str_tmp.empty()) {
+                matchPars.imageNetIDs.emplace_back(move(str_tmp));
+            }
+        }
+    }
+    n = fs["imageNetBuzzWrds"];
+    if(!n.empty()){
+        if (n.type() != FileNode::SEQ) {
+            cerr << "imageNetBuzzWrds is not a sequence! FAIL" << endl;
+            return false;
+        }
+        matchPars.imageNetBuzzWrds.clear();
+        it = n.begin(), it_end = n.end();
+        while (it != it_end) {
+            std::string str_tmp;
+            it >> str_tmp;
+            if(!str_tmp.empty()) {
+                matchPars.imageNetBuzzWrds.emplace_back(move(str_tmp));
+            }
+        }
+    }
+    n = fs["nrImgsFromImageNet"];
+    if(!n.empty()){
+        n >> matchPars.nrImgsFromImageNet;
     }
 
     fs.release();

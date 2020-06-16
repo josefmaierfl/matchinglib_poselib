@@ -44,6 +44,7 @@
 #include <boost/range/iterator_range.hpp>
 #include <boost/filesystem.hpp>
 //#undef BOOST_NO_CXX11_SCOPED_ENUMS
+#include <boost/dll/runtime_symbol_info.hpp>
 #include "alphanum.hpp"
 
 //#include "PfeImgFileIO.h"
@@ -603,6 +604,22 @@ std::string remFileExt(const std::string &name){
         fname_new = name.substr(0, lastindex);
     }
     return fname_new;
+}
+
+//Return execution path without filename of the current executable
+bool getCurrentExecPath(std::string &path){
+    boost::filesystem::path p;
+    try {
+       p = boost::dll::program_location();
+    } catch (...) {
+        return false;
+    }
+
+    if(p.empty() || !boost::filesystem::exists(p)){
+        return false;
+    }
+    path = p.parent_path().string();
+    return true;
 }
 
 std::string concatPath(const std::string &mainPath, const std::string &subPath){

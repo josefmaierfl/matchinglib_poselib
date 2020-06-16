@@ -58,6 +58,10 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
     double WarpedPortionTN;//Portion of TN that should be drawn from warped image patches (and not from GTM).
     double portionGrossTN;//Portion of TN that should be from GTM or from different image patches (first <-> second stereo camera).
     int CeresCPUcnt;//Number of CPUs used by CERES for relative pose refinement of MegaDepth data. A value of -1 indicates to use all available CPUs.
+    std::string execPath;//Path of this executable (main)
+    std::vector<std::string> imageNetIDs;//List of WNIDs from ImageNet to use for download
+    std::vector<std::string> imageNetBuzzWrds;//List of buzzwords to search for on ImageNet
+    int nrImgsFromImageNet;//Number of images that should be downloaded from ImageNet
     bool parsValid;//Specifies, if the stored values within this struct are valid
 
     GenMatchSequParameters(std::string mainStorePath_,
@@ -83,7 +87,11 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
                            double GTMportion_ = 0,
                            double WarpedPortionTN_ = 1.0,
                            double portionGrossTN_ = 0,
-                           int CeresCPUcnt_ = -1):
+                           int CeresCPUcnt_ = -1,
+                           std::string execPath_ = "",
+                           std::vector<std::string> imageNetIDs_ = std::vector<std::string>(),
+                           std::vector<std::string> imageNetBuzzWrds_ = std::vector<std::string>(),
+                           int nrImgsFromImageNet_ = 0):
             mainStorePath(std::move(mainStorePath_)),
             imgPath(std::move(imgPath_)),
             imgPrePostFix(std::move(imgPrePostFix_)),
@@ -108,6 +116,10 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             WarpedPortionTN(WarpedPortionTN_),
             portionGrossTN(portionGrossTN_),
             CeresCPUcnt(CeresCPUcnt_),
+            execPath(std::move(execPath_)),
+            imageNetIDs(std::move(imageNetIDs_)),
+            imageNetBuzzWrds(std::move(imageNetBuzzWrds_)),
+            nrImgsFromImageNet(nrImgsFromImageNet_),
             parsValid(true){
         keypErrDistr.first = abs(keypErrDistr.first);
         keypErrDistr.second = abs(keypErrDistr.second);
@@ -145,6 +157,10 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             WarpedPortionTN(1.0),
             portionGrossTN(0),
             CeresCPUcnt(-1),
+            execPath(""),
+            imageNetIDs(std::vector<std::string>()),
+            imageNetBuzzWrds(std::vector<std::string>()),
+            nrImgsFromImageNet(0),
             parsValid(false){}
 
     bool checkParameters(){
@@ -591,6 +607,8 @@ public:
 private:
     //Loads the image names (including folders) of all specified images (used to generate matches) within a given folder
     bool getImageList();
+    //Download and load image names from ImageNet
+    bool getImageNetImgs(std::vector<std::string> &filenames);
     //Check if feature matches should be used from a 3rd party GT dataset
     bool check_3rdPty_GT();
     //Generate GTM from 3rd party datasets

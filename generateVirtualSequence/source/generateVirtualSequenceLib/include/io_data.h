@@ -82,6 +82,9 @@ std::string GENERATEVIRTUALSEQUENCELIB_API getParentPath(const std::string &path
 //Remove extension from filename
 std::string GENERATEVIRTUALSEQUENCELIB_API remFileExt(const std::string &name);
 
+//Return execution path without filename of the current executable
+bool GENERATEVIRTUALSEQUENCELIB_API getCurrentExecPath(std::string &path);
+
 //Reads all homography file names (Oxford dataset: www.robots.ox.ac.uk/~vgg/research/affine/) from a given directory and stores their names into a vector.
 bool GENERATEVIRTUALSEQUENCELIB_API readHomographyFiles(const std::string& filepath, const std::string& fileprefl, std::vector<std::string> & filenamesl);
 

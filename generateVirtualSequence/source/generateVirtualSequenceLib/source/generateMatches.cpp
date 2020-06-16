@@ -1097,8 +1097,81 @@ cv::Mat genMatchSequ::rotateAboutLine(const cv::Mat &a, const double &angle, con
 
 //Load the images in the given folder with a given image pre- and/or postfix (supports wildcards)
 bool genMatchSequ::getImageList() {
-    return loadImageSequenceNew(parsMtch.imgPath,
-                                parsMtch.imgPrePostFix, imageList);
+    std::vector<std::string> filenames;
+    bool err = loadImageSequenceNew(parsMtch.imgPath,
+                                    parsMtch.imgPrePostFix, imageList);
+    bool err1 = getImageNetImgs(filenames);
+    if(err1){
+        imageList.insert(imageList.end(), filenames.begin(), filenames.end());
+    }
+    return err || err1;
+}
+
+//Download and load image names from ImageNet
+bool genMatchSequ::getImageNetImgs(std::vector<std::string> &filenames){
+    if(parsMtch.nrImgsFromImageNet <= 0){
+        return false;
+    }
+    if(parsMtch.execPath.empty()){
+        cout << "Please provide path of this executable to use images from ImageNet." << endl;
+        return false;
+    }
+    string par_path = getParentPath(parsMtch.execPath);
+    string py_file = concatPath(par_path, "downloadImageNet.py");
+    if(!checkFileExists(py_file)){
+        cerr << "Cannot find Python file " << py_file << endl;
+        return false;
+    }
+    string imgNetP = concatPath(parsMtch.imgPath, "ImageNet");
+    if(!checkPathExists(imgNetP)){
+        if(!createDirectory(imgNetP)){
+            cerr << "Cannot create directory " << imgNetP << endl;
+            return false;
+        }
+    }
+    string command = "python3 " + py_file;
+    command += " --path_store ";
+    command += imgNetP;
+    if(!parsMtch.imageNetIDs.empty()){
+        command += " --wnids";
+        string ids;
+        for(auto &i: parsMtch.imageNetIDs){
+            ids += " " + i;
+        }
+        command += ids;
+    }
+    if(!parsMtch.imageNetBuzzWrds.empty()){
+        command += " --keywords";
+        string wrds;
+        for(auto &i: parsMtch.imageNetBuzzWrds){
+            wrds += " " + i;
+        }
+        command += wrds;
+    }
+    command += " --nr_imgs " + std::to_string(parsMtch.nrImgsFromImageNet);
+
+    int ret = system(command.c_str());
+    if(ret){
+        cerr << "Unable to download images from imagenet using command " << command << endl;
+        return false;
+    }
+
+    vector<string> imgnetdirs = getDirs(imgNetP);
+    if(imgnetdirs.empty()){
+        return false;
+    }
+    for(auto &i: imgnetdirs){
+        string full_dir = concatPath(imgNetP, i);
+        if(i == "xml_files") continue;
+        vector<string> filenames1;
+        if(!loadImageSequenceNew(full_dir, "/", filenames1)){
+            continue;
+        }
+        if(!filenames1.empty()){
+            filenames.insert(filenames.end(), filenames1.begin(), filenames1.end());
+        }
+    }
+    return !filenames.empty();
 }
 
 //Calculate number of TP and TN correspondences of the whole sequence
