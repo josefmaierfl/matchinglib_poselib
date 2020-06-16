@@ -197,7 +197,7 @@ struct corrStats{
 //        std::vector<double> scales;
 //        for(auto &j: undistCorrs) {
 //            Point3D &pt3d = std::get<0>(j);
-//            const double dsfm = pt3d.Z();
+//            const double dsfm = pt3d.Z();//TODO: Must be converted to local camera coordinate system before using depth value
 //            Eigen::Vector2d &pt1 = std::get<1>(j);
 //            const double d = depthMap.at<double>(static_cast<int>(round(pt1(1))), static_cast<int>(round(pt1(0))));
 //            if (d < 1e-3) continue;
@@ -239,7 +239,7 @@ struct corrStats{
 //        for(auto &j: undistCorrs) {
 //            Point3D &pt3d = std::get<0>(j);
 //            Eigen::Vector2d &pt2 = std::get<2>(j);
-//            const double dsfm = pt3d.Z();
+//            const double dsfm = pt3d.Z();//TODO: Must be converted to local camera coordinate system before using depth value
 //            const double d = depthMap2(static_cast<int>(round(pt2(1))), static_cast<int>(round(pt2(0))));
 //            if (d < 1e-3) continue;
 //            scales.emplace_back(dsfm / d);

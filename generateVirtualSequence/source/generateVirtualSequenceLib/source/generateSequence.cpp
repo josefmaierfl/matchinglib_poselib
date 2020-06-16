@@ -9121,7 +9121,7 @@ void genStereoSequ::combineWorldCoordinateIndices(){
             const auto idxMO = static_cast<int64_t>(i + 1);
             const auto idx2 = static_cast<size_t>(movObjFromLastSi) + i;
             const int64_t idxMOAll = idxMO + idxMOAllFrames;
-            get<1>(movObjFrameEmerge[i]) = i;
+            get<1>(movObjFrameEmerge[idx2]) = idx2;//i;
             const auto idx_frCnt = static_cast<int64_t>(actFrameCnt) << 8;
             for (auto& j : actCorrsOnMovObj_IdxWorld[i]) {
                 auto idxPts = static_cast<int64_t>(j);

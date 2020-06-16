@@ -44,7 +44,7 @@ bool convertMegaDepthData(const megaDepthFolders& folders,
 
 bool loadMegaDepthFlow(const std::string &imgPath, const std::string &flowPath, std::vector<megaDepthData> &data){
     std::vector<std::string> flowFiles;
-    if(loadImageSequenceNew(flowPath, "*.png", flowFiles) != 0){
+    if(!loadImageSequenceNew(flowPath, "*.png", flowFiles)){
         return false;
     }
     if(flowFiles.empty()){
@@ -66,7 +66,7 @@ bool loadMegaDepthFlow(const std::string &imgPath, const std::string &flowPath, 
         if(strpos1 == std::string::npos){
             continue;
         }
-        string imgName2 = flowName.substr(strpos + 1, strpos1);
+        string imgName2 = flowName.substr(strpos + 1, strpos1 - strpos - 1);
         imgName2 += ".jpg";
         imgName2 = concatPath(imgPath, imgName2);
         if(!checkFileExists(imgName2)){

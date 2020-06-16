@@ -2640,7 +2640,7 @@ bool baseMatcher::writeGTMatchesDisk(const std::string &filenameGT, bool writeQu
             fs << "id" << quality.id;
         }
         if(!quality.autoManualAnnot.empty()) {
-            fs.writeComment("Distances of the annotated positions to an estimated model (Homography or Fundamental matrix) from the annotated positions");
+            fs.writeComment("Holds a 'M' for a manual, an 'A' for an automatic annotated match, and 'U' for matches without refinement");
             fs << "autoManualAnnot" << "[";
             for (auto &i : quality.autoManualAnnot) {
                 fs << string(1, i);
