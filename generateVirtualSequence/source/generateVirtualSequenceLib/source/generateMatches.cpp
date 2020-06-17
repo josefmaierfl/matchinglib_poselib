@@ -4766,6 +4766,17 @@ size_t genMatchSequ::hashFromMtchPars() {
     ss << parsMtch.GTMportion;
     ss << parsMtch.WarpedPortionTN;
     ss << parsMtch.portionGrossTN;
+    if(!parsMtch.imageNetIDs.empty()){
+        for(auto &i: parsMtch.imageNetIDs){
+            ss << i;
+        }
+    }
+    if(!parsMtch.imageNetBuzzWrds.empty()){
+        for(auto &i: parsMtch.imageNetBuzzWrds){
+            ss << i;
+        }
+    }
+    ss << parsMtch.nrImgsFromImageNet;
 
     strFromPars = ss.str();
 
