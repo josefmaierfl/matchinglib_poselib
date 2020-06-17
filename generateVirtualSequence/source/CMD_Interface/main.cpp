@@ -2810,34 +2810,36 @@ bool loadConfigFile(const std::string &filename,
         cerr << "depthsPerRegion is not a sequence! FAIL" << endl;
         return false;
     }
-    sequPars.depthsPerRegion = vector<vector<depthPortion>>(3, vector<depthPortion>(3));
     it = n.begin(), it_end = n.end();
     size_t idx = 0, x = 0, y = 0;
-    for (; it != it_end; ++it) {
-        y = idx / 3;
-        x = idx % 3;
+    if(it != it_end) {
+        sequPars.depthsPerRegion = vector<vector<depthPortion>>(3, vector<depthPortion>(3));
+        for (; it != it_end; ++it) {
+            y = idx / 3;
+            x = idx % 3;
 
-        FileNode n1 = *it;
-        n1["near"] >> sequPars.depthsPerRegion[y][x].near;
-        if(sequPars.depthsPerRegion[y][x].near < 0){
-            cerr << "Invalid parameter depthsPerRegion (near)." << endl;
-            return false;
+            FileNode n1 = *it;
+            n1["near"] >> sequPars.depthsPerRegion[y][x].near;
+            if (sequPars.depthsPerRegion[y][x].near < 0) {
+                cerr << "Invalid parameter depthsPerRegion (near)." << endl;
+                return false;
+            }
+            n1["mid"] >> sequPars.depthsPerRegion[y][x].mid;
+            if (sequPars.depthsPerRegion[y][x].mid < 0) {
+                cerr << "Invalid parameter depthsPerRegion (mid)." << endl;
+                return false;
+            }
+            n1["far"] >> sequPars.depthsPerRegion[y][x].far;
+            if (sequPars.depthsPerRegion[y][x].far < 0) {
+                cerr << "Invalid parameter depthsPerRegion (far)." << endl;
+                return false;
+            }
+            if (idx > 8) {
+                cerr << "Incorrect # of entries in depthsPerRegion." << endl;
+                return false;
+            }
+            idx++;
         }
-        n1["mid"] >> sequPars.depthsPerRegion[y][x].mid;
-        if(sequPars.depthsPerRegion[y][x].mid < 0){
-            cerr << "Invalid parameter depthsPerRegion (mid)." << endl;
-            return false;
-        }
-        n1["far"] >> sequPars.depthsPerRegion[y][x].far;
-        if(sequPars.depthsPerRegion[y][x].far < 0){
-            cerr << "Invalid parameter depthsPerRegion (far)." << endl;
-            return false;
-        }
-        if(idx > 8){
-            cerr << "Incorrect # of entries in depthsPerRegion." << endl;
-            return false;
-        }
-        idx++;
     }
 
     n = fs["nrDepthAreasPReg"];
@@ -2845,27 +2847,29 @@ bool loadConfigFile(const std::string &filename,
         cerr << "nrDepthAreasPReg is not a sequence! FAIL" << endl;
         return false;
     }
-    sequPars.nrDepthAreasPReg = vector<vector<pair<size_t, size_t>>>(3, vector<pair<size_t, size_t>>(3));
     int first_int = 0, second_int = 0;
     it = n.begin(), it_end = n.end();
-    idx = 0;
-    for (; it != it_end; ++it) {
-        y = idx / 3;
-        x = idx % 3;
+    if(it != it_end) {
+        sequPars.nrDepthAreasPReg = vector<vector<pair<size_t, size_t>>>(3, vector<pair<size_t, size_t>>(3));
+        idx = 0;
+        for (; it != it_end; ++it) {
+            y = idx / 3;
+            x = idx % 3;
 
-        FileNode n1 = *it;
-        n1["first"] >> first_int;
-        n1["second"] >> second_int;
-        if((first_int < 1) || ((second_int < 1))){
-            cerr << "Invalid parameter nrDepthAreasPReg." << endl;
-            return false;
+            FileNode n1 = *it;
+            n1["first"] >> first_int;
+            n1["second"] >> second_int;
+            if ((first_int < 1) || ((second_int < 1))) {
+                cerr << "Invalid parameter nrDepthAreasPReg." << endl;
+                return false;
+            }
+            sequPars.nrDepthAreasPReg[y][x] = make_pair((size_t) first_int, (size_t) second_int);
+            if (idx > 8) {
+                cerr << "Incorrect # of entries in nrDepthAreasPReg." << endl;
+                return false;
+            }
+            idx++;
         }
-        sequPars.nrDepthAreasPReg[y][x] = make_pair((size_t) first_int, (size_t) second_int);
-        if(idx > 8){
-            cerr << "Incorrect # of entries in nrDepthAreasPReg." << endl;
-            return false;
-        }
-        idx++;
     }
 
     n = fs["camTrack"];
