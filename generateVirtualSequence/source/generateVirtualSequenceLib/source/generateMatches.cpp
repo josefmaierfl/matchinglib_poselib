@@ -6223,7 +6223,7 @@ bool genMatchSequ::readPointClouds(const std::string &path, const std::string &b
         for (size_t i = 0; i < nrMovObjAllFrames; ++i) {
             string fname = filename + "_movObj3DPts_" + std::to_string(i) + ".pcd";
             if (pcl::io::loadPCDFile(fname, movObj3DPtsWorldAllFrames[i]) == -1) {
-                cerr << "Could not read PCL point cloud " << staticWorld3DPtsFileName << endl;
+                cerr << "Could not read PCL point cloud " << fname << endl;
                 return false;
             }
         }
