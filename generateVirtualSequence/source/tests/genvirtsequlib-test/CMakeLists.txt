@@ -7,6 +7,20 @@
 set(target generateVirtualSequenceLib-test)
 message(STATUS "Test ${target}")
 
+find_package(Boost 1.71.0 REQUIRED COMPONENTS
+		thread
+		filesystem
+		regex
+		system)
+
+find_package(VTK 7.2 QUIET NO_MODULE)
+if(NOT VTK_FOUND)
+	find_package(VTK 8.2.0 REQUIRED NO_MODULE)
+endif()
+message(STATUS "VTK Version: ${VTK_VERSION}")
+message(STATUS "VTK Lib location: ${VTK_LIBRARIES}")
+
+find_package(Ceres REQUIRED)
 
 #
 # Sources
@@ -50,6 +64,9 @@ target_include_directories(${target}
     PRIVATE
     ${DEFAULT_INCLUDE_DIRECTORIES}
     ${PROJECT_BINARY_DIR}/source/include
+	${Boost_INCLUDE_DIRS}
+	${VTK_USE_FILE}
+	${CERES_INCLUDE_DIRS}
 )
 
 
@@ -62,6 +79,9 @@ target_link_libraries(${target}
     ${DEFAULT_LIBRARIES}
     ${META_PROJECT_NAME}::generateVirtualSequenceLib
     gmock-dev
+	${Boost_LIBRARIES}
+	${VTK_LIBRARIES}
+	${CERES_LIBRARIES}
 )
 
 
