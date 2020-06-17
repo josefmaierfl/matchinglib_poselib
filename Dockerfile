@@ -3,17 +3,49 @@ FROM conanio/gcc8
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 
 USER root
-RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y wget libtbb-dev libglew-dev qt5-default libxkbcommon-dev libflann-dev libpng-dev libgtkglext1-dev && apt clean
-RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y libvtk7-dev && apt clean
-RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y libboost-all-dev && apt clean
-RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y libgoogle-glog-dev libatlas-base-dev && apt clean
-RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y libsuitesparse-dev && apt clean
-RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y texlive-latex-base texlive-fonts-recommended texlive-fonts-extra texlive-latex-extra && apt clean
-RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y software-properties-common && apt clean
+#RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libvtk7-dev && apt-get clean
+#RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libboost-all-dev && apt-get clean
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y software-properties-common apt-utils && apt-get clean
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && add-apt-repository -y 'deb http://security.ubuntu.com/ubuntu xenial-security main'
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y build-essential cmake pkg-config && apt-get clean
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y wget \
+  libtbb2 \
+	libtbb-dev \
+	libglew-dev \
+	qt5-default \
+	libxkbcommon-dev \
+	libflann-dev \
+	libpng-dev \
+	libgtk-3-dev \
+	libgtkglext1 \
+	libgtkglext1-dev \
+	libtiff-dev \
+	libtiff5-dev \
+	libtiffxx5 \
+	libjpeg-dev \
+	libjasper1 \
+	libjasper-dev \
+	libavcodec-dev \
+	libavformat-dev \
+	libswscale-dev \
+	libv4l-dev \
+	libxvidcore-dev \
+	libx264-dev \
+	libdc1394-22-dev \
+	openexr \
+	libatlas-base-dev \
+	gfortran && apt-get clean
 RUN export DEBIAN_FRONTEND=noninteractive && add-apt-repository -y ppa:deadsnakes/ppa
-RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y python3.7 && apt clean
-RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y nano && apt clean
-RUN export DEBIAN_FRONTEND=noninteractive && apt update && apt install -y libhdf5-dev libhdf5-serial-dev && apt clean
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y python3.6 && apt-get clean
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libglu1-mesa-dev mesa-common-dev mesa-utils freeglut3-dev && apt-get clean
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y qt5-default && apt-get clean
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libgoogle-glog-dev libatlas-base-dev && apt-get clean
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libsuitesparse-dev && apt-get clean
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y texlive-latex-base texlive-fonts-recommended texlive-fonts-extra texlive-latex-extra && apt-get clean
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y nano && apt-get clean
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libomp-dev ccache && apt-get clean
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libhdf5-dev libhdf5-serial-dev ccache && apt-get clean
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y curl && apt-get clean
 
 ADD ci /ci
 RUN cd /ci && ./build_thirdparty.sh

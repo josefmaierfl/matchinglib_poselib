@@ -13,6 +13,9 @@ cd linux
 rm ./CMakeCache.txt
 cmake ../../ -DCMAKE_BUILD_TYPE=Release
 make -j "$(nproc)"
+if [ $? -ne 0 ]; then
+    exit 1
+fi
 popd
 
 mkdir -p "../../lib/linux64gcc${GCC_VER}"
@@ -26,6 +29,9 @@ cd linux_debug
 rm ./CMakeCache.txt
 cmake ../../ -DCMAKE_BUILD_TYPE=Debug
 make -j "$(nproc)"
+if [ $? -ne 0 ]; then
+    exit 1
+fi
 popd
 
 

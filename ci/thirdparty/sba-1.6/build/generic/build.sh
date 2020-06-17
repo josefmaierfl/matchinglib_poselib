@@ -12,6 +12,9 @@ cd linux
 rm ./CMakeCache.txt
 cmake ../../ -DCMAKE_BUILD_TYPE=Release
 make -j "$(nproc)"
+if [ $? -ne 0 ]; then
+    exit 1
+fi
 popd
 
 cd ../
@@ -20,3 +23,6 @@ cd linux_debug
 rm ./CMakeCache.txt
 cmake ../../ -DCMAKE_BUILD_TYPE=Debug -DLAPACKBLAS_DIR="${BLAS_P}"
 make -j "$(nproc)"
+if [ $? -ne 0 ]; then
+    exit 1
+fi

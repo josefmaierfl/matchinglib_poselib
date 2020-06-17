@@ -9,6 +9,9 @@ mkdir ${build_dir}
 cd ${build_dir}
 cmake ../ -DCMAKE_BUILD_TYPE=Release
 make -j "$(nproc)"
+if [ $? -ne 0 ]; then
+    exit 1
+fi
 
 copy_dir=${root_dir}/tmp/matchinglib_poselib/build
 mkdir -p ${copy_dir}
