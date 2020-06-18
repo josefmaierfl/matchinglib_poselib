@@ -28,6 +28,9 @@ find_package(PythonLibs REQUIRED)
 message("Include dirs of Python: " ${PYTHON_INCLUDE_DIRS} )
 message("Libs of Python: " ${PYTHON_LIBRARIES} )
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules (deps REQUIRED IMPORTED_TARGET glib-2.0>=2.2.5)
+
 #SET( Nanoflann_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/source/poselib/thirdparty/nanoflann-1.3.0/include")
 
 #
@@ -85,6 +88,7 @@ target_link_libraries(${target}
     ${CLAPACK_LIBRARIES}
 	${Boost_LIBRARIES}
 	${PYTHON_LIBRARIES}
+	PkgConfig::deps
 #    blas
 )
 

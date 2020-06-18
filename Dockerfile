@@ -7,7 +7,9 @@ USER root
 #RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libboost-all-dev && apt-get clean
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y software-properties-common apt-utils && apt-get clean
 #RUN export DEBIAN_FRONTEND=noninteractive && curl https://pyenv.run | bash
-RUN export DEBIAN_FRONTEND=noninteractive && pyenv install -v 3.6.10 && pyenv global 3.6.10
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libreadline-dev && apt-get clean
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libglib2.0-dev && apt-get clean
+RUN export DEBIAN_FRONTEND=noninteractive && env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install -v 3.6.10 && pyenv global 3.6.10
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && add-apt-repository -y 'deb http://security.ubuntu.com/ubuntu xenial-security main'
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y build-essential cmake pkg-config && apt-get clean
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y wget \
@@ -60,6 +62,7 @@ COPY generateVirtualSequence /ci/tmp/generateVirtualSequence/
 COPY build_generateVirtualSequence.sh /ci/tmp/
 RUN cd /ci/tmp && ./build_generateVirtualSequence.sh
 
+#RUN pip install glibc
 COPY matchinglib_poselib /ci/tmp/matchinglib_poselib/
 COPY build_matchinglib_poselib.sh /ci/tmp/
 RUN cd /ci/tmp && ./build_matchinglib_poselib.sh
