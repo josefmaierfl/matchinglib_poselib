@@ -6,6 +6,8 @@ USER root
 #RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libvtk7-dev && apt-get clean
 #RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libboost-all-dev && apt-get clean
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y software-properties-common apt-utils && apt-get clean
+#RUN export DEBIAN_FRONTEND=noninteractive && curl https://pyenv.run | bash
+RUN export DEBIAN_FRONTEND=noninteractive && pyenv install -v 3.6.10 && pyenv global 3.6.10
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && add-apt-repository -y 'deb http://security.ubuntu.com/ubuntu xenial-security main'
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y build-essential cmake pkg-config && apt-get clean
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y wget \
@@ -35,8 +37,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -
 	openexr \
 	libatlas-base-dev \
 	gfortran && apt-get clean
-RUN export DEBIAN_FRONTEND=noninteractive && add-apt-repository -y ppa:deadsnakes/ppa
-RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y python3.6 && apt-get clean
+#RUN export DEBIAN_FRONTEND=noninteractive && add-apt-repository -y ppa:deadsnakes/ppa
+#RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y python3.6 && apt-get clean
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libglu1-mesa-dev mesa-common-dev mesa-utils freeglut3-dev && apt-get clean
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y qt5-default && apt-get clean
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libgoogle-glog-dev libatlas-base-dev && apt-get clean
@@ -45,7 +47,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y nano && apt-get clean
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libomp-dev ccache && apt-get clean
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libhdf5-dev libhdf5-serial-dev ccache && apt-get clean
-RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y curl && apt-get clean
 
 ADD ci /ci
 RUN cd /ci && ./build_thirdparty.sh
@@ -72,5 +73,5 @@ COPY start_testing.sh /app/
 RUN chown -R conan /app
 
 USER conan
-RUN echo 'alias python=python3' >> ~/.bashrc
+#RUN echo 'alias python=python3' >> ~/.bashrc
 CMD [ "/bin/bash" ]

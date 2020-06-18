@@ -2126,7 +2126,7 @@ bool genTemplateFile(const std::string &filename){
                         "stereo image for every frame");
     fs << "minKeypDist" << 4.0;
     fs.writeComment("Portion of correspondences at depth regions (near, mid, and far). "
-                        "The values are double precision and the values must not sum to 1.0. \n"
+                        "The values are double precision and the values do not have to sum to 1.0. \n"
                         "This is performed internally.");
     fs << "corrsPerDepth";
     fs << "{" << "near" << 0.3;
@@ -2135,7 +2135,7 @@ bool genTemplateFile(const std::string &filename){
     fs.writeComment("List of portions of image correspondences at regions "
                         "(Matrices must be 3x3 as the image is divided into 9 regions with similar size). \n"
                         "Maybe this values do not hold: Also depends on back-projected 3D-points "
-                        "from prior frames. \nThe values are double precision and the values must not sum to 1.0. "
+                        "from prior frames. \nThe values are double precision and the values do not have to sum to 1.0. "
                         "This is performed internally. "
                         "\nIf more than one matrix is provided, corrsPerRegRepRate specifies the number of "
                         "subsequent frames for which a matrix is valid. \n"
@@ -2173,7 +2173,7 @@ bool genTemplateFile(const std::string &filename){
                         "Far depth end f_e = 20 * f_b; Near depth beginning n_b corresponds to the depth where "
                         "the views of the 2 stereo cameras start to overlap; \n"
                         "Mid depth beginning and near depth end are caluclated by m_b = (f_b + n_b) / 2; \n"
-                        "The values entered here are double precision and they must not sum to 1.0. This is performed "
+                        "The values entered here are double precision and they do not have to sum to 1.0. This is performed "
                         "internally. \nIf the overall depth definition (corrsPerDepth) is not met, this tensor "
                         "is adapted. If this list is left empty ([]), it is initialized randomly. \n"
                         "Maybe this values do not hold: Also depends on back-projected 3D-points "
