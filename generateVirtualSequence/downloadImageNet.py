@@ -78,7 +78,7 @@ def getSynSets(path_store, wnids, keywords):
                     for i in tmp1:
                         wnids_found.append(i.get('wnid'))
             if keywords:
-                kwds = r'(?:^|\s)' + r'(?:$|\s)|(?:^|\s)'.join(keywords) + r'(?:$|\s)'
+                kwds = r'(?:^|\s)' + r'(?:$|\s|,)|(?:^|\s)'.join(keywords) + r'(?:$|\s|,)'
                 tmp1 = tmp.find_all(words=re.compile(kwds))
                 if tmp1:
                     for i in tmp1:
@@ -98,7 +98,26 @@ def getSynSets(path_store, wnids, keywords):
             if len(wnids_found) == 0:
                 print('Given WNIDs and/or keywords not found on imagenet', sys.stderr)
                 sys.exit(1)
-    return wnids_found
+        #Check for empty wnid URL files
+        wnids_new = []
+        getChildsIfParetEmpty(path_store, wnids_found, tmp, wnids_new)
+    return wnids_new
+
+
+def getChildsIfParetEmpty(path_store, wnids, xmlstruct, wnids_new):
+    for wnid in wnids:
+        urls = getImageXMLs(path_store, [wnid])
+        if urls:
+            wnids_new.append(wnid)
+        else:
+            if hasattr(xmlstruct, 'contents'):
+                tmp = xmlstruct.find(wnid=wnid)
+                if hasattr(tmp, 'contents'):
+                    child_ids = []
+                    for elem in tmp.contents:
+                        if hasattr(elem, 'attrs'):
+                            child_ids.append(elem.get('wnid'))
+                    getChildsIfParetEmpty(path_store, child_ids, tmp, wnids_new)
 
 
 def getImageXMLs(path_store, wnids):
@@ -284,7 +303,7 @@ def main():
 
     rel_v = obtainServerMetaData(xmlfileFolder)
     # args.wnids = ['n09478210', 'n09227839', 'abcf']
-    # args.keywords = ['blackbody', 'bar']
+    # args.keywords = ['plant']
     wnids_found = getSynSets(xmlfileFolder, args.wnids, args.keywords)
     linklist = getImageXMLs(xmlfileFolder, wnids_found)
     ret = downloadImgs(args.path_store, linklist, args.nr_imgs)
