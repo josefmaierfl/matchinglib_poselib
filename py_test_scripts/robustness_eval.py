@@ -93,12 +93,171 @@ def get_rt_change_type(**keywords):
             cnt = float(np.count_nonzero(hlp.to_numpy()))
             frac = cnt / float(tmp1.shape[0])
             if frac > 0.5:
-                rxc = tmp1['R_GT_n_diff_roll_deg'].fillna(0).abs().sum() > 1e-3
-                ryc = tmp1['R_GT_n_diff_pitch_deg'].fillna(0).abs().sum() > 1e-3
-                rzc = tmp1['R_GT_n_diff_yaw_deg'].fillna(0).abs().sum() > 1e-3
-                txc = tmp1['t_GT_n_elemDiff_tx'].fillna(0).abs().sum() > 1e-4
-                tyc = tmp1['t_GT_n_elemDiff_ty'].fillna(0).abs().sum() > 1e-4
-                tzc = tmp1['t_GT_n_elemDiff_tz'].fillna(0).abs().sum() > 1e-4
+                rxcc = tmp1['R_GT_n_diff_roll_deg'].fillna(0).abs()
+                rycc = tmp1['R_GT_n_diff_pitch_deg'].fillna(0).abs()
+                rzcc = tmp1['R_GT_n_diff_yaw_deg'].fillna(0).abs()
+                rxc = rxcc.round(decimals=4).sum() > 1e-3
+                ryc = rycc.round(decimals=4).sum() > 1e-3
+                rzc = rzcc.round(decimals=4).sum() > 1e-3
+                check_r_later = False
+                if (rxc and ryc) or (rxc and rzc) or (ryc and rzc):
+                    rxc_max = rxcc.max()
+                    ryc_max = rycc.max()
+                    rzc_max = rzcc.max()
+                    rxyz_max = max(rxc_max, ryc_max, rzc_max)
+                    th = rxyz_max / 3
+                    if rxc_max < th:
+                        rxc = False
+                    if ryc_max < th:
+                        ryc = False
+                    if rzc_max < th:
+                        rzc = False
+                    if (rxc and ryc and not rzc) or (rxc and rzc and not ryc) or (ryc and rzc and not rxc):
+                        check_r_later = True
+                txcc = tmp1['t_GT_n_elemDiff_tx'].fillna(0).abs()
+                tycc = tmp1['t_GT_n_elemDiff_ty'].fillna(0).abs()
+                tzcc = tmp1['t_GT_n_elemDiff_tz'].fillna(0).abs()
+                txc = txcc.round(decimals=4).sum() > 1e-4
+                tyc = tycc.round(decimals=4).sum() > 1e-4
+                tzc = tzcc.round(decimals=4).sum() > 1e-4
+                again = True
+                cnt = 0
+                while again and cnt < 3:
+                    cnt += 1
+                    if (txc and tyc) or (txc and tzc) or (tyc and tzc):
+                        check_t_later = True
+                        again = False
+                        if (txc and tyc and not tzc) or (txc and tzc and not tyc) or (tyc and tzc and not txc):
+                            if check_r_later:
+                                rxc = True
+                                ryc = True
+                                rzc = True
+                                txc = True
+                                tyc = True
+                                tzc = True
+                                check_t_later = False
+                            elif rxc or ryc or rzc:
+                                if not (rxc and ryc and rzc):
+                                    txc = False
+                                    tyc = False
+                                    tzc = False
+                                    check_t_later = False
+                        elif not check_r_later and not (rxc and ryc and rzc) and (rxc or ryc or rzc):
+                            txc = False
+                            tyc = False
+                            tzc = False
+                            check_t_later = False
+                        if check_t_later:
+                            txc_max = txcc.max()
+                            tyc_max = tycc.max()
+                            tzc_max = tzcc.max()
+                            txyz_max = max(txc_max, tyc_max, tzc_max)
+                            th = txyz_max / 3
+                            if txc_max < th:
+                                txc = False
+                            if tyc_max < th:
+                                tyc = False
+                            if tzc_max < th:
+                                tzc = False
+                            if (txc and tyc and not tzc) or (txc and tzc and not tyc) or (tyc and tzc and not txc):
+                                if check_r_later:
+                                    rxc = True
+                                    ryc = True
+                                    rzc = True
+                                    txc = True
+                                    tyc = True
+                                    tzc = True
+                                elif not (rxc or ryc or rzc):
+                                    if np.isclose(txc_max, txyz_max):
+                                        txc = True
+                                        tyc = False
+                                        tzc = False
+                                    elif np.isclose(tyc_max, txyz_max):
+                                        txc = False
+                                        tyc = True
+                                        tzc = False
+                                    else:
+                                        txc = False
+                                        tyc = False
+                                        tzc = True
+                                else:
+                                    txc = False
+                                    tyc = False
+                                    tzc = False
+                            elif txc and tyc and tzc and (rxc or ryc or rzc) and not (rxc and ryc and rzc):
+                                txc_max = txcc.round(decimals=4).max()
+                                tyc_max = tycc.round(decimals=4).max()
+                                tzc_max = tzcc.round(decimals=4).max()
+                                txyz_max = max(txc_max, tyc_max, tzc_max)
+                                th = txyz_max / 5
+                                if txc_max < th:
+                                    txc = False
+                                if tyc_max < th:
+                                    tyc = False
+                                if tzc_max < th:
+                                    tzc = False
+                                if not (txc and tyc and tzc):
+                                    txc = False
+                                    tyc = False
+                                    tzc = False
+                                else:
+                                    rxc = False
+                                    ryc = False
+                                    rzc = False
+                            elif (txc or tyc or tzc) and rxc and ryc and rzc:
+                                txc = False
+                                tyc = False
+                                tzc = False
+                    elif (rxc or ryc or rzc) and (txc or tyc or tzc):
+                        if rxc and ryc and rzc and txc and tyc and tzc:
+                            again = False
+                        elif cnt < 2:
+                            rxc_max = rxcc.max()
+                            ryc_max = rycc.max()
+                            rzc_max = rzcc.max()
+                            rxyz_max = max(rxc_max, ryc_max, rzc_max)
+                            th = rxyz_max / 3
+                            if rxc_max < th:
+                                rxc = False
+                            if ryc_max < th:
+                                ryc = False
+                            if rzc_max < th:
+                                rzc = False
+                            if (rxc and ryc and not rzc) or (rxc and rzc and not ryc) or (ryc and rzc and not rxc):
+                                check_r_later = True
+                            txc_max = txcc.max()
+                            tyc_max = tycc.max()
+                            tzc_max = tzcc.max()
+                            txyz_max = max(txc_max, tyc_max, tzc_max)
+                            th = txyz_max / 3
+                            if txc_max < th:
+                                txc = False
+                            if tyc_max < th:
+                                tyc = False
+                            if tzc_max < th:
+                                tzc = False
+                        elif cnt >= 2:
+                            again = False
+                            rxc_max = rxcc.max()
+                            ryc_max = rycc.max()
+                            rzc_max = rzcc.max()
+                            rxyz_max = max(rxc_max, ryc_max, rzc_max)
+                            rrat = (rxyz_max - min(rxc_max, ryc_max, rzc_max)) / rxyz_max
+                            txc_max = txcc.max()
+                            tyc_max = tycc.max()
+                            tzc_max = tzcc.max()
+                            txyz_max = max(txc_max, tyc_max, tzc_max)
+                            trat = (txyz_max - min(txc_max, tyc_max, tzc_max)) / txyz_max
+                            if rrat > trat:
+                                txc = False
+                                tyc = False
+                                tzc = False
+                            else:
+                                rxc = False
+                                ryc = False
+                                rzc = False
+                    else:
+                        again = False
                 if rxc and ryc and rzc and txc and tyc and tzc:
                     tmp1['rt_change_type'] = ['crt'] * int(tmp1.shape[0])
                 elif rxc and ryc and rzc:
@@ -121,12 +280,171 @@ def get_rt_change_type(**keywords):
                     tmp1['rt_change_type'] = ['nv'] * int(tmp1.shape[0])# no variation
                 tmp1['rt_change_pos'] = [0] * int(tmp1.shape[0])
             else:
-                rxc = tmp1['R_GT_n_diff_roll_deg'].fillna(0).abs().sum() > 1e-3
-                ryc = tmp1['R_GT_n_diff_pitch_deg'].fillna(0).abs().sum() > 1e-3
-                rzc = tmp1['R_GT_n_diff_yaw_deg'].fillna(0).abs().sum() > 1e-3
-                txc = tmp1['t_GT_n_elemDiff_tx'].fillna(0).abs().sum() > 1e-4
-                tyc = tmp1['t_GT_n_elemDiff_ty'].fillna(0).abs().sum() > 1e-4
-                tzc = tmp1['t_GT_n_elemDiff_tz'].fillna(0).abs().sum() > 1e-4
+                rxcc = tmp1['R_GT_n_diff_roll_deg'].fillna(0).abs()
+                rycc = tmp1['R_GT_n_diff_pitch_deg'].fillna(0).abs()
+                rzcc = tmp1['R_GT_n_diff_yaw_deg'].fillna(0).abs()
+                rxc = rxcc.round(decimals=4).sum() > 1e-3
+                ryc = rycc.round(decimals=4).sum() > 1e-3
+                rzc = rzcc.round(decimals=4).sum() > 1e-3
+                check_r_later = False
+                if (rxc and ryc) or (rxc and rzc) or (ryc and rzc):
+                    rxc_max = rxcc.max()
+                    ryc_max = rycc.max()
+                    rzc_max = rzcc.max()
+                    rxyz_max = max(rxc_max, ryc_max, rzc_max)
+                    th = rxyz_max / 3
+                    if rxc_max < th:
+                        rxc = False
+                    if ryc_max < th:
+                        ryc = False
+                    if rzc_max < th:
+                        rzc = False
+                    if (rxc and ryc and not rzc) or (rxc and rzc and not ryc) or (ryc and rzc and not rxc):
+                        check_r_later = True
+                txcc = tmp1['t_GT_n_elemDiff_tx'].fillna(0).abs()
+                tycc = tmp1['t_GT_n_elemDiff_ty'].fillna(0).abs()
+                tzcc = tmp1['t_GT_n_elemDiff_tz'].fillna(0).abs()
+                txc = txcc.round(decimals=4).sum() > 1e-4
+                tyc = tycc.round(decimals=4).sum() > 1e-4
+                tzc = tzcc.round(decimals=4).sum() > 1e-4
+                again = True
+                cnt = 0
+                while again and cnt < 3:
+                    cnt += 1
+                    if (txc and tyc) or (txc and tzc) or (tyc and tzc):
+                        check_t_later = True
+                        again = False
+                        if (txc and tyc and not tzc) or (txc and tzc and not tyc) or (tyc and tzc and not txc):
+                            if check_r_later:
+                                rxc = True
+                                ryc = True
+                                rzc = True
+                                txc = True
+                                tyc = True
+                                tzc = True
+                                check_t_later = False
+                            elif rxc or ryc or rzc:
+                                if not (rxc and ryc and rzc):
+                                    txc = False
+                                    tyc = False
+                                    tzc = False
+                                    check_t_later = False
+                        elif not check_r_later and not (rxc and ryc and rzc) and (rxc or ryc or rzc):
+                            txc = False
+                            tyc = False
+                            tzc = False
+                            check_t_later = False
+                        if check_t_later:
+                            txc_max = txcc.max()
+                            tyc_max = tycc.max()
+                            tzc_max = tzcc.max()
+                            txyz_max = max(txc_max, tyc_max, tzc_max)
+                            th = txyz_max / 3
+                            if txc_max < th:
+                                txc = False
+                            if tyc_max < th:
+                                tyc = False
+                            if tzc_max < th:
+                                tzc = False
+                            if (txc and tyc and not tzc) or (txc and tzc and not tyc) or (tyc and tzc and not txc):
+                                if check_r_later:
+                                    rxc = True
+                                    ryc = True
+                                    rzc = True
+                                    txc = True
+                                    tyc = True
+                                    tzc = True
+                                elif not (rxc or ryc or rzc):
+                                    if np.isclose(txc_max, txyz_max):
+                                        txc = True
+                                        tyc = False
+                                        tzc = False
+                                    elif np.isclose(tyc_max, txyz_max):
+                                        txc = False
+                                        tyc = True
+                                        tzc = False
+                                    else:
+                                        txc = False
+                                        tyc = False
+                                        tzc = True
+                                else:
+                                    txc = False
+                                    tyc = False
+                                    tzc = False
+                            elif txc and tyc and tzc and (rxc or ryc or rzc) and not (rxc and ryc and rzc):
+                                txc_max = txcc.round(decimals=4).max()
+                                tyc_max = tycc.round(decimals=4).max()
+                                tzc_max = tzcc.round(decimals=4).max()
+                                txyz_max = max(txc_max, tyc_max, tzc_max)
+                                th = txyz_max / 5
+                                if txc_max < th:
+                                    txc = False
+                                if tyc_max < th:
+                                    tyc = False
+                                if tzc_max < th:
+                                    tzc = False
+                                if not (txc and tyc and tzc):
+                                    txc = False
+                                    tyc = False
+                                    tzc = False
+                                else:
+                                    rxc = False
+                                    ryc = False
+                                    rzc = False
+                            elif (txc or tyc or tzc) and rxc and ryc and rzc:
+                                txc = False
+                                tyc = False
+                                tzc = False
+                    elif (rxc or ryc or rzc) and (txc or tyc or tzc):
+                        if rxc and ryc and rzc and txc and tyc and tzc:
+                            again = False
+                        elif cnt < 2:
+                            rxc_max = rxcc.max()
+                            ryc_max = rycc.max()
+                            rzc_max = rzcc.max()
+                            rxyz_max = max(rxc_max, ryc_max, rzc_max)
+                            th = rxyz_max / 3
+                            if rxc_max < th:
+                                rxc = False
+                            if ryc_max < th:
+                                ryc = False
+                            if rzc_max < th:
+                                rzc = False
+                            if (rxc and ryc and not rzc) or (rxc and rzc and not ryc) or (ryc and rzc and not rxc):
+                                check_r_later = True
+                            txc_max = txcc.max()
+                            tyc_max = tycc.max()
+                            tzc_max = tzcc.max()
+                            txyz_max = max(txc_max, tyc_max, tzc_max)
+                            th = txyz_max / 3
+                            if txc_max < th:
+                                txc = False
+                            if tyc_max < th:
+                                tyc = False
+                            if tzc_max < th:
+                                tzc = False
+                        elif cnt >= 2:
+                            again = False
+                            rxc_max = rxcc.max()
+                            ryc_max = rycc.max()
+                            rzc_max = rzcc.max()
+                            rxyz_max = max(rxc_max, ryc_max, rzc_max)
+                            rrat = (rxyz_max - min(rxc_max, ryc_max, rzc_max)) / rxyz_max
+                            txc_max = txcc.max()
+                            tyc_max = tycc.max()
+                            tzc_max = tzcc.max()
+                            txyz_max = max(txc_max, tyc_max, tzc_max)
+                            trat = (txyz_max - min(txc_max, tyc_max, tzc_max)) / txyz_max
+                            if rrat > trat:
+                                txc = False
+                                tyc = False
+                                tzc = False
+                            else:
+                                rxc = False
+                                ryc = False
+                                rzc = False
+                    else:
+                        again = False
                 change_positions = []
                 if rxc and ryc and rzc and txc and tyc and tzc:
                     tmp1['rt_change_type'] = ['jrt'] * int(tmp1.shape[0])
@@ -3276,7 +3594,7 @@ def calc_calib_delay_noPar(**keywords):
         tmp1 = tmp.loc[tmp['Nr'] < keywords['change_Nr']]
         min_val = tmp1[keywords['eval_on'][0]].min()
         max_val = tmp1[keywords['eval_on'][0]].max()
-        rng80 = 0.8 * (max_val - min_val) + min_val
+        rng80 = 0.9 * (max_val - min_val) + min_val
         p1_stats = tmp1.loc[tmp1[keywords['eval_on'][0]] < rng80, keywords['eval_on']].describe()
         th = p1_stats[keywords['eval_on'][0]]['mean'] + 2.576 * p1_stats[keywords['eval_on'][0]]['std']
         test_rise = tmp.loc[((tmp[keywords['eval_on'][0]] > th) &
@@ -3293,6 +3611,9 @@ def calc_calib_delay_noPar(**keywords):
                 fd = fpos - keywords['change_Nr']
             elif tmp2.shape[0] == 1:
                 fpos = tmp2['Nr'].iloc[0]
+                fd = fpos - keywords['change_Nr']
+            elif tmp2.empty:
+                fpos = tmp['Nr'].max()
                 fd = fpos - keywords['change_Nr']
             else:
                 tmp2.set_index('Nr', inplace=True)
