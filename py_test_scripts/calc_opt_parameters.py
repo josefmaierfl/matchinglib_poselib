@@ -650,7 +650,7 @@ def get_robustness_5_par(eval_path):
     cnt_01 = [0, 0]
     for i in cnt_opts:
         for j in i.keys():
-            if int(j):
+            if j == 'enabled':
                 cnt_01[1] += i[j]
             else:
                 cnt_01[0] += i[j]
