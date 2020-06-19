@@ -3120,10 +3120,10 @@ def get_best_robust_pool_pars(**keywords):
                 raise ValueError('Nr of refine algorithms does not match')
             alg_w = {}
             for i, val in enumerate(keywords['it_parameters']):
-                alg_w[val] = int(alg_comb_bestl[i])
+                alg_w[val] = int(alg_comb_bestl[i]) if is_number(alg_comb_bestl[i]) else alg_comb_bestl[i]
             alg_counts = {}
             for idx, val in df_cnt.iteritems():
-                alg_counts[int(idx)] = int(val)
+                alg_counts[int(idx) if is_number(idx) else idx] = int(val)
             yaml.dump({main_parameter_name: {'Algorithm': alg_w,
                                              'value_count': alg_counts}},
                       stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
@@ -3157,7 +3157,7 @@ def get_best_robust_pool_pars(**keywords):
                         raise ValueError('Nr of refine algorithms does not match')
                     alg_w = {}
                     for i, val in enumerate(keywords['it_parameters']):
-                        alg_w[val] = int(alg_comb_bestl[i])
+                        alg_w[val] = int(alg_comb_bestl[i]) if is_number(alg_comb_bestl[i]) else alg_comb_bestl[i]
                     yaml.dump({main_parameter_name: {'Algorithm': alg_w,
                                                      'value_count': alg_counts}},
                               stream=fo, Dumper=NoAliasDumper, default_flow_style=False)
