@@ -14,6 +14,14 @@ from copy import deepcopy
 import pickle
 
 
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
 def get_rt_change_type(**keywords):
     if 'data_seperators' not in keywords:
         raise ValueError('data_seperators missing!')
@@ -2972,10 +2980,10 @@ def get_best_robust_pool_pars(**keywords):
         for i, it in enumerate(it_cols):
             options_tex.append('options_tex' + str(i))
             if len(it) > 1:
-                df[options_tex[-1]] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
+                df[options_tex[-1]] = [', '.join(['{:.3f}'.format(float(val)) if is_number(val) else val for _, val in row.iteritems()])
                                        for _, row in df[it].iterrows()]
             else:
-                df[options_tex[-1]] = ['{:.3f}'.format(float(val))
+                df[options_tex[-1]] = ['{:.3f}'.format(float(val)) if is_number(val) else val
                                        for _, val in df[it[0]].iteritems()]
     else:
         x_axis = keywords['data_separators'][0]
@@ -2986,10 +2994,10 @@ def get_best_robust_pool_pars(**keywords):
         it_cols = [keywords['it_parameters']]
         options_tex = ['options_tex']
         if len(it_cols[0]) > 1:
-            df[options_tex[-1]] = [', '.join(['{:.3f}'.format(float(val)) for _, val in row.iteritems()])
+            df[options_tex[-1]] = [', '.join(['{:.3f}'.format(float(val)) if is_number(val) else val for _, val in row.iteritems()])
                                    for _, row in df[it_cols[0]].iterrows()]
         else:
-            df[options_tex[-1]] = ['{:.3f}'.format(float(val))
+            df[options_tex[-1]] = ['{:.3f}'.format(float(val)) if is_number(val) else val
                                    for _, val in df[it_cols[0][0]].iteritems()]
     base_out_name = 'min_rt_error_vs_' + short_concat_str(keywords['data_separators']) + 'for_pars_' + \
                     short_concat_str(keywords['it_parameters'])
