@@ -89,10 +89,17 @@ def get_rt_change_type(**keywords):
         for first, last in zip(indexes['first'], indexes['last']):
             tmp1 = tmp.iloc[((tmp.index >= first) & (tmp.index < last))].copy(deep=True)
             hlp = (tmp1['R_GT_n_diffAll'] + tmp1['t_GT_n_elemDiff_tx'] + tmp1['t_GT_n_elemDiff_ty'] +
-                   tmp1['t_GT_n_elemDiff_tz']).fillna(0).round(decimals=4)
-            cnt = float(np.count_nonzero(hlp.to_numpy()))
-            frac = cnt / float(tmp1.shape[0])
-            if frac > 0.5:
+                   tmp1['t_GT_n_elemDiff_tz']).fillna(0)#.round(decimals=4)
+            hlp_max = hlp.max()
+            hlp_min = hlp.min()
+            cnt1 = float(hlp.loc[hlp > hlp_max / 3].shape[0])
+            th_cnt = hlp_min + 0.5 * (hlp_max - hlp_min)
+            cnt2 = float(hlp.loc[hlp > th_cnt].shape[0])
+            frac1 = cnt1 / float(tmp1.shape[0])
+            frac2 = cnt2 / float(tmp1.shape[0])
+            # cnt = float(np.count_nonzero(hlp.to_numpy()))
+            # frac = cnt / float(tmp1.shape[0])
+            if frac1 > 0.4 and frac2 > 0.3:
                 rxcc = tmp1['R_GT_n_diff_roll_deg'].fillna(0).abs()
                 rycc = tmp1['R_GT_n_diff_pitch_deg'].fillna(0).abs()
                 rzcc = tmp1['R_GT_n_diff_yaw_deg'].fillna(0).abs()
@@ -241,13 +248,13 @@ def get_rt_change_type(**keywords):
                             rxc_max = rxcc.max()
                             ryc_max = rycc.max()
                             rzc_max = rzcc.max()
-                            rxyz_max = max(rxc_max, ryc_max, rzc_max)
-                            rrat = (rxyz_max - min(rxc_max, ryc_max, rzc_max)) / rxyz_max
+                            rsort = sorted([rxc_max, ryc_max, rzc_max])
+                            rrat = (rsort[2] - rsort[1]) / rsort[2]
                             txc_max = txcc.max()
                             tyc_max = tycc.max()
                             tzc_max = tzcc.max()
-                            txyz_max = max(txc_max, tyc_max, tzc_max)
-                            trat = (txyz_max - min(txc_max, tyc_max, tzc_max)) / txyz_max
+                            tsort = sorted([txc_max, tyc_max, tzc_max])
+                            trat = (tsort[2] - tsort[1]) / tsort[2]
                             if rrat > trat:
                                 txc = False
                                 tyc = False
@@ -292,7 +299,7 @@ def get_rt_change_type(**keywords):
                     ryc_max = rycc.max()
                     rzc_max = rzcc.max()
                     rxyz_max = max(rxc_max, ryc_max, rzc_max)
-                    th = rxyz_max / 3
+                    th = rxyz_max / 5
                     if rxc_max < th:
                         rxc = False
                     if ryc_max < th:
@@ -330,16 +337,24 @@ def get_rt_change_type(**keywords):
                                     tzc = False
                                     check_t_later = False
                         elif not check_r_later and not (rxc and ryc and rzc) and (rxc or ryc or rzc):
-                            txc = False
-                            tyc = False
-                            tzc = False
+                            rxc_max = rxcc.max()
+                            ryc_max = rycc.max()
+                            rzc_max = rzcc.max()
+                            if rxc_max > 0.1 or ryc_max > 0.1 or rzc_max > 0.1:
+                                txc = False
+                                tyc = False
+                                tzc = False
+                            else:
+                                rxc = False
+                                ryc = False
+                                rzc = False
                             check_t_later = False
                         if check_t_later:
                             txc_max = txcc.max()
                             tyc_max = tycc.max()
                             tzc_max = tzcc.max()
                             txyz_max = max(txc_max, tyc_max, tzc_max)
-                            th = txyz_max / 3
+                            th = txyz_max / 5
                             if txc_max < th:
                                 txc = False
                             if tyc_max < th:
@@ -368,9 +383,43 @@ def get_rt_change_type(**keywords):
                                         tyc = False
                                         tzc = True
                                 else:
-                                    txc = False
-                                    tyc = False
-                                    tzc = False
+                                    txc = txc_max > 0.01
+                                    tyc = tyc_max > 0.01
+                                    tzc = tzc_max > 0.01
+                                    rxc_max = rxcc.max()
+                                    ryc_max = rycc.max()
+                                    rzc_max = rzcc.max()
+                                    if ((txc and tyc) or (txc and tzc) or (tyc and tzc)) and not \
+                                        (rxc_max > 0.2 or ryc_max > 0.2 or rzc_max > 0.2):
+                                        rxc = False
+                                        ryc = False
+                                        rzc = False
+                                        txc = True
+                                        tyc = True
+                                        tzc = True
+                                    elif ((txc and tyc) or (txc and tzc) or (tyc and tzc)) and \
+                                        (rxc_max > 0.2 or ryc_max > 0.2 or rzc_max > 0.2):
+                                        rxc = rxc_max > 0.2
+                                        ryc = ryc_max > 0.2
+                                        rzc = rzc_max > 0.2
+                                        if (rxc and ryc) or (rxc and rzc) or (ryc and rzc):
+                                            rxc = True
+                                            ryc = True
+                                            rzc = True
+                                            txc = True
+                                            tyc = True
+                                            tzc = True
+                                        else:
+                                            rxc = False
+                                            ryc = False
+                                            rzc = False
+                                            txc = True
+                                            tyc = True
+                                            tzc = True
+                                    else:
+                                        txc = False
+                                        tyc = False
+                                        tzc = False
                             elif txc and tyc and tzc and (rxc or ryc or rzc) and not (rxc and ryc and rzc):
                                 txc_max = txcc.round(decimals=4).max()
                                 tyc_max = tycc.round(decimals=4).max()
@@ -384,9 +433,43 @@ def get_rt_change_type(**keywords):
                                 if tzc_max < th:
                                     tzc = False
                                 if not (txc and tyc and tzc):
-                                    txc = False
-                                    tyc = False
-                                    tzc = False
+                                    txc = txc_max > 0.01
+                                    tyc = tyc_max > 0.01
+                                    tzc = tzc_max > 0.01
+                                    rxc_max = rxcc.max()
+                                    ryc_max = rycc.max()
+                                    rzc_max = rzcc.max()
+                                    if ((txc and tyc) or (txc and tzc) or (tyc and tzc)) and not \
+                                            (rxc_max > 0.2 or ryc_max > 0.2 or rzc_max > 0.2):
+                                        rxc = False
+                                        ryc = False
+                                        rzc = False
+                                        txc = True
+                                        tyc = True
+                                        tzc = True
+                                    elif ((txc and tyc) or (txc and tzc) or (tyc and tzc)) and \
+                                            (rxc_max > 0.2 or ryc_max > 0.2 or rzc_max > 0.2):
+                                        rxc = rxc_max > 0.2
+                                        ryc = ryc_max > 0.2
+                                        rzc = rzc_max > 0.2
+                                        if (rxc and ryc) or (rxc and rzc) or (ryc and rzc):
+                                            rxc = True
+                                            ryc = True
+                                            rzc = True
+                                            txc = True
+                                            tyc = True
+                                            tzc = True
+                                        else:
+                                            rxc = False
+                                            ryc = False
+                                            rzc = False
+                                            txc = True
+                                            tyc = True
+                                            tzc = True
+                                    else:
+                                        txc = False
+                                        tyc = False
+                                        tzc = False
                                 else:
                                     rxc = False
                                     ryc = False
@@ -403,7 +486,7 @@ def get_rt_change_type(**keywords):
                             ryc_max = rycc.max()
                             rzc_max = rzcc.max()
                             rxyz_max = max(rxc_max, ryc_max, rzc_max)
-                            th = rxyz_max / 3
+                            th = rxyz_max / 5
                             if rxc_max < th:
                                 rxc = False
                             if ryc_max < th:
@@ -416,7 +499,7 @@ def get_rt_change_type(**keywords):
                             tyc_max = tycc.max()
                             tzc_max = tzcc.max()
                             txyz_max = max(txc_max, tyc_max, tzc_max)
-                            th = txyz_max / 3
+                            th = txyz_max / 5
                             if txc_max < th:
                                 txc = False
                             if tyc_max < th:
@@ -428,13 +511,13 @@ def get_rt_change_type(**keywords):
                             rxc_max = rxcc.max()
                             ryc_max = rycc.max()
                             rzc_max = rzcc.max()
-                            rxyz_max = max(rxc_max, ryc_max, rzc_max)
-                            rrat = (rxyz_max - min(rxc_max, ryc_max, rzc_max)) / rxyz_max
+                            rsort = sorted([rxc_max, ryc_max, rzc_max])
+                            rrat = (rsort[2] - rsort[1]) / rsort[2]
                             txc_max = txcc.max()
                             tyc_max = tycc.max()
                             tzc_max = tzcc.max()
-                            txyz_max = max(txc_max, tyc_max, tzc_max)
-                            trat = (txyz_max - min(txc_max, tyc_max, tzc_max)) / txyz_max
+                            tsort = sorted([txc_max, tyc_max, tzc_max])
+                            trat = (tsort[2] - tsort[1]) / tsort[2]
                             if rrat > trat:
                                 txc = False
                                 tyc = False
