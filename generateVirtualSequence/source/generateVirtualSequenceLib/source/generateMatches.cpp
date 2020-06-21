@@ -396,7 +396,7 @@ bool genMatchSequ::generateMatches(){
     totalNrCorrs();
 
     //Calculate GTM
-    if(!calcGTM() && (verbose & PRINT_WARNING_MESSAGES)){
+    if(!calcGTM() && !onlyWarped && (verbose & PRINT_WARNING_MESSAGES)){
         cout << "Use of GTM disabled." << endl;
     }
 
@@ -1192,6 +1192,7 @@ bool genMatchSequ::check_3rdPty_GT(){
             ((parsMtch.kittiGTMportion > 0) ? GT_DATASETS::KITTI:0) |
             ((parsMtch.megadepthGTMportion > 0) ? GT_DATASETS::MEGADEPTH:0);
     if (use_3dPrtyGT){
+        onlyWarped = false;
         if(use_3dPrtyGT > 2 && use_3dPrtyGT != 4){
             if(nearZero(parsMtch.GTMportion)){
                 cerr << "Overall portion of GT feature matches from 3rd party datasets must be set "
@@ -1223,6 +1224,7 @@ bool genMatchSequ::check_3rdPty_GT(){
             }
         }
     }
+    onlyWarped = true;
     return false;
 }
 

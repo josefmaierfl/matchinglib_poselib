@@ -845,6 +845,7 @@ private:
     qualityParm timeMatchStats = qualityParm();//Statistics for the execution time in microseconds for calculating matches based on all frames
     qualityParm time3DStats = qualityParm();//Statistics for the execution time in microseconds for calculating 3D correspondences based on all frames
     uint8_t use_3dPrtyGT = false;//Indicates if feature matches from 3rd party GT datasets should be used. The first 3 bits indicate which datasets should be used.
+    bool onlyWarped = true;//Indicates, if GTM were disabled based on inputs
     GTMdata gtmdata;//Holds Ground Truth matches and related information
 };
 
