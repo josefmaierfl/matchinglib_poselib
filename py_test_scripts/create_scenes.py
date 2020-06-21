@@ -562,7 +562,7 @@ def processDir(dirs_list, cpus_rest, executable, message_path):
                 cnt = cnt + 1
             pool.close()
             pool.join()
-        if cnt_start_fail:
+        if cnt_start_fail is not None:
             for i in range(cnt_start_fail, len(cmds)):
                 cmd_fails.append(cmds[i][0])
 
