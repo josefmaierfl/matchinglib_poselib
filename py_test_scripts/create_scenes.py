@@ -742,7 +742,7 @@ def gen_matches_multiprocessing(cmds_m, cmd_fails, cpus_rest):
             cnt = cnt + 1
         pool.close()
         pool.join()
-    if cnt_start_fail:
+    if cnt_start_fail is not None:
         for i in range(cnt_start_fail, len(cmds_m)):
             cmd_fails.append(cmds_m[i][0])
     return res2
