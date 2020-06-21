@@ -1180,11 +1180,19 @@ void genMatchSequ::totalNrCorrs() {
     for (auto &i : nrCorrs) {
         nrCorrsFullSequ += i;
     }
-    nrTNFullSequ = 0;
-    for (auto &i : nrTrueNeg) {
-        nrTNFullSequ += i;
+    if(sequParsLoaded){
+        nrTPFullSequ = 0;
+        for(size_t i = 0; i < nrCorrs.size(); ++i){
+            nrTPFullSequ += static_cast<size_t>(round(inlRat[i] * static_cast<double>(nrCorrs[i])));
+        }
+        nrTNFullSequ = nrCorrsFullSequ - nrTPFullSequ;
+    }else {
+        nrTNFullSequ = 0;
+        for (auto &i : nrTrueNeg) {
+            nrTNFullSequ += i;
+        }
+        nrTPFullSequ = nrCorrsFullSequ - nrTNFullSequ;
     }
-    nrTPFullSequ = nrCorrsFullSequ - nrTNFullSequ;
 }
 
 bool genMatchSequ::check_3rdPty_GT(){
