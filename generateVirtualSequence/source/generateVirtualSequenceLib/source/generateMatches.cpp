@@ -1629,8 +1629,8 @@ bool genMatchSequ::getFeatures() {
             return false;
         }
     }
+    calcGTMimgIDs();
     if(gtmdata.isValid()){
-        calcGTMimgIDs();
         nrImgs = gtmdata.getNumberImgs();
     }
     minNrFramesMatch = max(min(minNrFramesMatch, totalNrFrames / 2), static_cast<size_t>(1));
@@ -1759,10 +1759,12 @@ bool genMatchSequ::getFeatures() {
         vector<size_t> kpPtr(kpCnt);
         std::iota(kpPtr.begin(), kpPtr.end(), 0);
         double repPortF = 0;
+        bool repPortF_var = false;
         if(repFrame){
             if(nearZero(parsMtch.repeatPatternPortFToF.first - parsMtch.repeatPatternPortFToF.second)){
                 repPortF = parsMtch.repeatPatternPortFToF.first;
             }else{
+                repPortF_var = true;
                 repPortF = getRandDoubleValRng(parsMtch.repeatPatternPortFToF.first, parsMtch.repeatPatternPortFToF.second);
             }
         }
@@ -1781,6 +1783,9 @@ bool genMatchSequ::getFeatures() {
             }
             //Get indices for repeated patterns from frame to frame
             if(repFrame){
+                if(repPortF_var){
+                    repPortF = getRandDoubleValRng(parsMtch.repeatPatternPortFToF.first, parsMtch.repeatPatternPortFToF.second);
+                }
                 if(i == 0){
                     kpPtr_tmp = vector<size_t>(nrCorrs[0]);
                     std::iota(kpPtr_tmp.begin(), kpPtr_tmp.end(), 0);
@@ -2872,8 +2877,8 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
         patchInfos.patch2.release();
         patchInfos.patchROIimg1.x = -1;
         patchInfos.patchROIimg2.y = -1;
-        if(showPatches[0]){ gtmcnt++; }
-        if(showPatches[1]){ warpcnt++; }
+        if(showPatches[1]){ gtmcnt++; }
+        if(showPatches[3]){ warpcnt++; }
 
         //Store the keypoints and descriptors
         if(useTN){
@@ -3064,16 +3069,16 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                 H = Mat::eye(3, 3, CV_64FC1);
                 Haff2.copyTo(H.colRange(0, 2).rowRange(0, 2));
                 //Eliminate the translation
-                Mat x1 = (Mat_<double>(3, 1) << (double) kp.pt.x, (double) kp.pt.y, 1.0);
-                Mat tm = H * x1;
-                tm /= tm.at<double>(2);
-                tm = x1 - tm;
-                if(!nearZero(cv::norm(tm))) {
-                    Mat tback = Mat::eye(3, 3, CV_64FC1);
-                    tback.at<double>(0, 2) = tm.at<double>(0);
-                    tback.at<double>(1, 2) = tm.at<double>(1);
-                    H = tback * H;
-                }
+//                Mat x1 = (Mat_<double>(3, 1) << (double) kp.pt.x, (double) kp.pt.y, 1.0);
+//                Mat tm = H * x1;
+//                tm /= tm.at<double>(2);
+//                tm = x1 - tm;
+//                if(!nearZero(cv::norm(tm))) {
+//                    Mat tback = Mat::eye(3, 3, CV_64FC1);
+//                    tback.at<double>(0, 2) = tm.at<double>(0);
+//                    tback.at<double>(1, 2) = tm.at<double>(1);
+//                    H = tback * H;
+//                }
             }
         }while(useFallBack && (fbCnt < 21));
     }
