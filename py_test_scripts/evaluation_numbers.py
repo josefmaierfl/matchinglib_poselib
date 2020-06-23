@@ -348,7 +348,8 @@ def get_used_eval_cols(test_name, test_nr):
                                        't_GT_n_angDiff', 'R_GT_n_diff_roll_deg', 'R_GT_n_diff_pitch_deg',
                                        'R_GT_n_diff_yaw_deg', 't_GT_n_elemDiff_tx', 't_GT_n_elemDiff_ty',
                                        't_GT_n_elemDiff_tz', 'Nr', 'linRefinement_us', 'bundleAdjust_us',
-                                       'robEstimationAndRef_us', 'stereoRefine_us', 'kpDistr', 'accumCorrs']}
+                                       'robEstimationAndRef_us', 'stereoRefine_us', 'kpDistr', 'accumCorrs',
+                                       'nrCorrs_GT']}
     cols_sel = test_cols[test_name]
     if test_nr is not None:
         return cols_sel[str(test_nr)]

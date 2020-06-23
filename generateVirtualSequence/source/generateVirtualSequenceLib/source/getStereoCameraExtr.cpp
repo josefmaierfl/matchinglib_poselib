@@ -597,7 +597,7 @@ int GenStereoPars::optParLM(int verbose)
 		cout << "Unable to reach desired result! Try different ranges and/or parameters." << endl;
 		err = -1;
 	}
-	if (ssq > 10.0)
+	if (ssq > 15.0)
 	{
 		cout << "Resulting parameters are not usable! Sum of squared residuals: " << ssq << endl;
 		err = -2;

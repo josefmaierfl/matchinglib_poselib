@@ -296,8 +296,8 @@ def get_mean_y_vs_x_it(**keywords):
 def filter_calc_t_all_rt_change_type(**vars):
     from robustness_eval import get_rt_change_type
     data = get_rt_change_type(**vars)
-    tmp_usac = data.loc[data['stereoRef'] == 'disabled']
-    tmp_auto = data.loc[data['stereoRef'] == 'enabled']
+    tmp_usac = data.loc[data['stereoRef'] == 0]
+    tmp_auto = data.loc[data['stereoRef'] == 1]
     tmp_usac_li = tmp_usac.loc[(tmp_usac['linRefinement_us'] > 0)]
     if not tmp_usac_li.empty:
         tmp_usac = tmp_usac_li.copy(deep=True)

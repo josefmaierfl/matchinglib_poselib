@@ -30,6 +30,7 @@ find_package(Ceres REQUIRED)
 set(sources
     main.cpp
 	argvparser.cpp
+	pose_partitioning.cpp
 )
 
 

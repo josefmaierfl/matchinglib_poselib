@@ -5229,7 +5229,7 @@ def check_missing_data_block_length_3D(df, xy_axis_columns):
     grp_keys = grps.groups.keys()
     blocks = grps.size()
     if blocks.nunique() > 1:
-        all_entries = df[xy_axis_columns[an1]].unique()
+        all_entries = pd.Series(df[xy_axis_columns[an1]].unique())
         if all_entries.size != blocks.max():
             # Get correct order
             if hlp[an1]:

@@ -6026,7 +6026,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                 filter_func_args = {'data_seperators': ['inlratMin',
                                                         'kpAccSd',
                                                         'depthDistr'],
-                                    'filter_scene': 'nv'}
+                                    'filter_scene': 'nv',
+                                    'data_file': os.path.join(output_path, 'df_usacVScalib_execT_' +
+                                                              str(test_nr) + '_' + str(ev) + '.gz')
+                                    }
                 calc_func_args = {'data_separators': ['depthDistr', 'kpAccSd', 'inlratMin'],
                                   't_data_separators': ['inlratMin'],
                                   'addit_cols': ['inlratMin']}
@@ -6068,7 +6071,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                 filter_func_args = {'data_seperators': ['inlratMin',
                                                         'kpAccSd',
                                                         'depthDistr'],
-                                    'filter_scene': 'nv'}
+                                    'filter_scene': 'nv',
+                                    'data_file': os.path.join(output_path, 'df_usacVScalib_execT_' +
+                                                              str(test_nr) + '_' + str(ev) + '.gz')
+                                    }
                 calc_func_args = {'data_separators': ['depthDistr', 'kpAccSd', 'inlratMin'],
                                   't_data_separators': ['inlratMin', 'kpAccSd'],
                                   'addit_cols': ['inlratMin', 'kpAccSd']}
@@ -6110,7 +6116,10 @@ def eval_test_exec(data, output_path, test_name, test_nr, eval_nr, comp_path, co
                 filter_func_args = {'data_seperators': ['inlratMin',
                                                         'kpAccSd',
                                                         'depthDistr'],
-                                    'filter_scene': 'nv'}
+                                    'filter_scene': 'nv',
+                                    'data_file': os.path.join(output_path, 'df_usacVScalib_execT_' +
+                                                              str(test_nr) + '_' + str(ev) + '.gz')
+                                    }
                 calc_func_args = {'data_separators': ['depthDistr', 'kpAccSd', 'inlratMin']}
                 from usac_vs_autocalib_eval import filter_calc_t_all_rt_change_type, \
                     get_accum_corrs_sequs
