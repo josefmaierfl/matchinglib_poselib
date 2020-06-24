@@ -2828,7 +2828,9 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
             patchInfos.succ = succCam1;
             patchInfos.takeImg2FallBack = false;
             descr11 = calculateDescriptorWarped(img1, kp1, H1_dist, *homoCam1, patchInfos, kp21, kp2err1, descrDist1, true);
-            H = H1_dist * H;
+            if(succ) {
+                H = H1_dist * H;
+            }
             c1_distort = true;
         }else if(!useTN && (homoCam1 != nullptr)){
             homoCam1->emplace_back(Mat::eye(3, 3, CV_64FC1));
@@ -3013,6 +3015,7 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
     const double minPatchSize = 41.0;
     const size_t corrID = tntpindexer.getCorrID(featureIdxRepPatt[patchInfos.featureIdx_tmp], patchInfos.useTN);
     cv::Size imgFeatureSize = img.size();
+    const bool init_succ = patchInfos.succ;
     if(patchInfos.succ) {
         patchInfos.succ = getRectFitsInEllipse(H,
                                                kp,
@@ -3109,6 +3112,12 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
                 Mat Haff2 = scale * Rrot * Rdeform.t() * D * Rdeform;
                 H = Mat::eye(3, 3, CV_64FC1);
                 Haff2.copyTo(H.colRange(0, 2).rowRange(0, 2));
+                if(!forCam1 && !init_succ && !H_cam1.empty()){
+                    Mat H_cam1m = H_cam1.getMat();
+                    if(!H_cam1m.empty()){
+                        H = H_cam1m * H;
+                    }
+                }
                 //Eliminate the translation
 //                Mat x1 = (Mat_<double>(3, 1) << (double) kp.pt.x, (double) kp.pt.y, 1.0);
 //                Mat tm = H * x1;
@@ -4327,10 +4336,12 @@ void genMatchSequ::EstimateNrTPTN(bool reestimate){
             if (nrTNFullSequWarped > nrTNFullSequ - nrGrossTNFullSequGTM) {
                 nrTNFullSequWarped = nrTNFullSequ - nrGrossTNFullSequGTM;
                 if (verbose & PRINT_WARNING_MESSAGES) {
-                    cout << "Number of gross TN from GTM is larger than specified portion of TN from warped patches "
-                            "compared to GTM TN. Updating warped TN portion from " << parsMtch.WarpedPortionTN << " to "
-                         <<
-                         static_cast<double>(nrGrossTNFullSequWarped) / static_cast<double>(nrTNFullSequ) << endl;
+                    cout << "Number of gross TN from GTM is larger than specified "
+                            "portion of TN from warped patches "
+                            "compared to GTM TN. Updating warped TN portion from " <<
+                         parsMtch.WarpedPortionTN << " to " <<
+                         static_cast<double>(nrTNFullSequWarped) /
+                         static_cast<double>(nrTNFullSequ) << endl;
                 }
             }
         }
