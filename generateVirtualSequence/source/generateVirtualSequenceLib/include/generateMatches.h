@@ -660,7 +660,7 @@ private:
     //Generates a folder inside the folder of the 3D scene for storing matches
     bool genMatchDataStorePath();
     //Get the filename for storing an overview of the sequence parameters
-    bool getSequenceOverviewParsFileName(std::string &filename);
+    bool getSequenceOverviewParsFileName(std::string &filename) const;
     //Generates a YAML/XML file containing parameters for generating matches from 3D scenes for every sub-folder (For every run with the same 3D scene, the parameter set for the matches is appended at the end of the file)
     bool writeMatchingParameters();
     //Generates a new file inside the folder of the matches which holds the mean and standard deviation of keypoint position errors of the whole scene in addition to a list of images (including their folder structure) that were used to extract patches for calculating descriptors and keypoints
@@ -668,10 +668,10 @@ private:
     //Writes matches and features in addition to other information for every frame to disk
     bool writeMatchesToDisk();
     //Generates the user specified file extension (xml and yaml in combination with gz)
-    std::string genSequFileExtension(const std::string &basename);
+    std::string genSequFileExtension(const std::string &basename) const;
 
     //Rotates a line 'b' about a line 'a' (only direction vector) using the given angle
-    cv::Mat rotateAboutLine(const cv::Mat &a, const double &angle, const cv::Mat &b);
+    static cv::Mat rotateAboutLine(const cv::Mat &a, const double &angle, const cv::Mat &b);
 
     //Calculates a homography by rotating a plane in 3D (which was generated using a 3D point and its projections into camera 1 & 2) and backprojection of corresponding points on that plane into the second image
     cv::Mat getHomographyForDistortion(const cv::Mat &X,
@@ -700,14 +700,14 @@ private:
                          const cv::Mat &plane1,
                          const cv::Mat &plane2);
     //Adds gaussian noise to an image patch
-    void addImgNoiseGauss(const cv::Mat &patchIn,
+    static void addImgNoiseGauss(const cv::Mat &patchIn,
             cv::Mat &patchOut,
                           double meanNoise,
                           double stdNoise,
                           bool visualize = false);
 
     //Adds salt and pepper noise to an image patch
-    void addImgNoiseSaltAndPepper(const cv::Mat &patchIn,
+    static void addImgNoiseSaltAndPepper(const cv::Mat &patchIn,
             cv::Mat &patchOut,
             int minTH = 30,
             int maxTH = 225,
@@ -722,7 +722,7 @@ private:
                                            std::vector<cv::KeyPoint> &frameKPs2,
                                            cv::Mat &frameDescr1,
                                            cv::Mat &frameDescr2,
-                                           std::vector<cv::DMatch> &frameMatches,
+                                           std::vector<cv::DMatch> &frameMatchesTNTP,
                                            std::vector<cv::Mat> &homo,
                                            std::vector<std::pair<std::pair<size_t,cv::KeyPoint>,
                                                    std::pair<size_t,cv::KeyPoint>>> &srcImgIdxAndKp,

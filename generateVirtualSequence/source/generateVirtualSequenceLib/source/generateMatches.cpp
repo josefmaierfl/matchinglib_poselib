@@ -317,7 +317,7 @@ void genMatchSequ::genSequenceParsFileName() {
     sequParFileName = genSequFileExtension(sequParFileNameBase);
 }
 
-std::string genMatchSequ::genSequFileExtension(const std::string &basename){
+std::string genMatchSequ::genSequFileExtension(const std::string &basename) const{
     std::string filename = basename;
 
     if (parsMtch.rwXMLinfo) {
@@ -2644,7 +2644,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
                                                      std::vector<cv::KeyPoint> &frameKPs2,
                                                      cv::Mat &frameDescr1,
                                                      cv::Mat &frameDescr2,
-                                                     std::vector<cv::DMatch> &frameMatches,
+                                                     std::vector<cv::DMatch> &frameMatchesTNTP,
                                                      std::vector<cv::Mat> &homo,
                                                      std::vector<std::pair<std::pair<size_t,cv::KeyPoint>,
                                                              std::pair<size_t,cv::KeyPoint>>> &srcImgIdxAndKp,
@@ -2972,7 +2972,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
 //            cout << "Is descriptor 2 empty: " << descr21.empty() << endl;
 //            cout << "Iteration number: " << i << endl;
 //        }
-        frameMatches.emplace_back(DMatch(i, i, (float)descrDist));
+        frameMatchesTNTP.emplace_back(DMatch(i, i, (float)descrDist));
 
         featureIdx++;
     }
@@ -5016,7 +5016,7 @@ bool genMatchSequ::writeMatchingParameters(){
     return true;
 }
 
-bool genMatchSequ::getSequenceOverviewParsFileName(std::string &filename){
+bool genMatchSequ::getSequenceOverviewParsFileName(std::string &filename) const{
     if(!checkPathExists(parsMtch.mainStorePath)){
         cerr << "Given path " << parsMtch.mainStorePath <<
              " to store sequence parameter overview does not exist!" << endl;
