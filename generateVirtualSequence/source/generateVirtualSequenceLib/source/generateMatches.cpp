@@ -688,7 +688,7 @@ bool genMatchSequ::check3DToIdxConsisty(const cv::Mat &X, const int64_t &idx3D, 
         }
         Mat diff = X2 - X1;
         double dn = cv::norm(diff);
-        bool test = nearZero(dn / 50.0);
+        bool test = nearZero(dn / 750.0);
         return test;
     }else{
         return true;
