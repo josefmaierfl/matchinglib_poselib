@@ -893,7 +893,7 @@ cv::Mat genMatchSequ::getHomographyForDistortion(const cv::Mat& X,
         CV_Assert(nearZero(errValOld));*/
 
         double errorVal = p1.dot(Xh);
-        if(!nearZero(errorVal / 100.0)){
+        if(!nearZero(errorVal / 750.0)){
             throw SequenceException("Used plane is not compatible with 3D coordinate!");
         }
         pn = p1.rowRange(0, 3).clone();
