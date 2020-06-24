@@ -49,6 +49,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y nano && apt-get clean
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libomp-dev ccache && apt-get clean
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libhdf5-dev libhdf5-serial-dev ccache && apt-get clean
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libgstreamer-plugins-base1.0-dev libgstreamer1.0-dev libmpc-dev && apt-get clean
 
 ADD ci /ci
 RUN cd /ci && ./build_thirdparty.sh

@@ -1150,6 +1150,7 @@ bool genMatchSequ::getImageNetImgs(std::vector<std::string> &filenames){
     }
     command += " --nr_imgs " + std::to_string(parsMtch.nrImgsFromImageNet);
 
+    cout << "Downloading images from ImageNet. This may take some time ..." << endl;
     int ret = system(command.c_str());
     if(ret){
         cerr << "Unable to download images from imagenet using command " << command << endl;
@@ -1246,6 +1247,7 @@ bool genMatchSequ::calcGTM(){
     bool data_av = false;
     if(use_3dPrtyGT & GT_DATASETS::OXFORD){
         auto min_nrTP = static_cast<size_t>(round(parsMtch.oxfordGTMportion * static_cast<double>(nrTPFullSequ)));
+        cout << "Calculating GTM from Oxford dataset. This may take some time ..." << endl;
         if(!bm.calcGTM_Oxford(min_nrTP)){
             cerr << "Unable to use GTM from the Oxford dataset." << endl;
         }else{
@@ -1254,6 +1256,7 @@ bool genMatchSequ::calcGTM(){
     }
     if(use_3dPrtyGT & GT_DATASETS::KITTI){
         auto min_nrTP = static_cast<size_t>(round(parsMtch.kittiGTMportion * static_cast<double>(nrTPFullSequ)));
+        cout << "Calculating GTM from KITTI dataset. This may take some time ..." << endl;
         if(!bm.calcGTM_KITTI(min_nrTP)){
             cerr << "Unable to use GTM from the KITTI dataset." << endl;
         }else{
@@ -1262,6 +1265,7 @@ bool genMatchSequ::calcGTM(){
     }
     if(use_3dPrtyGT & GT_DATASETS::MEGADEPTH){
         auto min_nrTP = static_cast<size_t>(round(parsMtch.megadepthGTMportion * static_cast<double>(nrTPFullSequ)));
+        cout << "Calculating GTM from MegaDepth dataset. This may take some time ..." << endl;
         if(!bm.calcGTM_MegaDepth(min_nrTP, parsMtch.CeresCPUcnt)){
             cerr << "Unable to use GTM from the MegaDepth dataset." << endl;
         }else{
