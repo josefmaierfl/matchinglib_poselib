@@ -688,7 +688,7 @@ bool genMatchSequ::check3DToIdxConsisty(const cv::Mat &X, const int64_t &idx3D, 
         }
         Mat diff = X2 - X1;
         double dn = cv::norm(diff);
-        bool test = nearZero(dn / 100.0);
+        bool test = nearZero(dn / 50.0);
         return test;
     }else{
         return true;
@@ -2746,10 +2746,12 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
                                                      featureIdx,
                                                      patchInfos.visualize);
             }catch(SequenceException &e){
+                cout << "Exception: " << e.what() << endl;
                 cout << "Using random homography." << endl;
                 succ = false;
+                succCam1 = false;
             }
-            if(parsMtch.distortPatchCam1){
+            if(parsMtch.distortPatchCam1 && succ){
                 try {
                     H1_dist = getHomographyForDistortionChkOld(X,
                                                                combCorrsImg1TP.col(i),
@@ -2760,6 +2762,7 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
                                                                patchInfos.visualize,
                                                                true);
                 }catch(SequenceException &e){
+                    cout << "Exception: " << e.what() << endl;
                     cout << "Using random homography for distorting patches in first camera." << endl;
                     succCam1 = false;
                 }
@@ -2961,14 +2964,14 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
             frameDescr1.push_back(kpinfo.getDescriptor1().clone());
         }
         frameDescr2.push_back(descr21.clone());
-        if(frameDescr1.rows != frameDescr2.rows){
-            cout << "Rows descriptor 1: " << frameDescr1.rows << " Rows descriptor 2: " << frameDescr2.rows << endl;
-            cout << "Is img1 distorted: " << c1_distort << endl;
-            cout << "Is warped descriptor 1 empty: " << descr11.empty() << endl;
-            cout << "Is descriptor 1 empty: " << kpinfo.getDescriptor1().empty() << endl;
-            cout << "Is descriptor 2 empty: " << descr21.empty() << endl;
-            cout << "Iteration number: " << i << endl;
-        }
+//        if(frameDescr1.rows != frameDescr2.rows){
+//            cout << "Rows descriptor 1: " << frameDescr1.rows << " Rows descriptor 2: " << frameDescr2.rows << endl;
+//            cout << "Is img1 distorted: " << c1_distort << endl;
+//            cout << "Is warped descriptor 1 empty: " << descr11.empty() << endl;
+//            cout << "Is descriptor 1 empty: " << kpinfo.getDescriptor1().empty() << endl;
+//            cout << "Is descriptor 2 empty: " << descr21.empty() << endl;
+//            cout << "Iteration number: " << i << endl;
+//        }
         frameMatches.emplace_back(DMatch(i, i, (float)descrDist));
 
         featureIdx++;

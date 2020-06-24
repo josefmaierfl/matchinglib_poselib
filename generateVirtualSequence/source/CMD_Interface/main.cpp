@@ -1330,7 +1330,7 @@ bool genStereoConfigurations(const int nrFrames,
                 } else if (err == -2) {
                     cerr << "Not able to reach desired extrinsic stereo parameters or "
                             "input parameters are not usable. Try different parameters." << endl;
-                    if(!isParFixed){
+                    if(isParFixed == 0){
                         if (addPars.acceptBadStereoPars) {
                             double minOvLap = stereoPars.imageOverlap - newStereoPars.getSavedPosMaxOvLapError();
                             double maxOvLap = stereoPars.imageOverlap - newStereoPars.getSavedNegMaxOvLapError();
