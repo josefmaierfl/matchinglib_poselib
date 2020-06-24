@@ -615,6 +615,8 @@ private:
     bool calcGTM();
     //Resets all GTM related variables to only use warped patches
     void resetGTMuse();
+    //Update image IDs by adapting. Used if image was not be able to be loaded.
+    void updateImageIDs(const size_t &fromPos, const size_t &toPos, const size_t &len);
     //Calculate GTM descriptors and update variables within gtmdata
     bool getGtmDescriptors();
     //Recalculate match indices if the descriptor extraction removed keypoints
@@ -825,7 +827,7 @@ private:
     cv::Mat actTransGlobWorldit;//Inverse and translated Transformation for the actual frame to transform 3D camera coordinates to world coordinates
     std::map<int64_t,std::tuple<cv::Mat,size_t,size_t>> planeTo3DIdx;//Holds the plane coefficients, keypoint index, and stereo frame number for every used keypoint in correspondence to the index of the 3D point in the point cloud
     double actNormT = 0;//Norm of the actual translation vector between the stereo cameras
-    std::vector<std::pair<std::map<size_t,size_t>,std::vector<size_t>>> imgFrameIdxMap;//If more than maxImgLoad images to generate features are used, every map contains to most maxImgLoad used images (key = img idx, value = position in the vector holding the images) for keypoints per frame. The vector inside the pair holds a consecutive order of image indices for loading the images
+    std::vector<std::pair<std::map<size_t,size_t>,std::vector<size_t>>> imgFrameIdxMap;//If more than maxImgLoad images to generate features are used, every map contains the most maxImgLoad used images (key = img idx, value = position in the vector holding the images) for keypoints per frame. The vector inside the pair holds a consecutive order of image indices for loading the images
     bool loadImgsEveryFrame = false;//Indicates if there are more than maxImgLoad images in the folder and the images used to extract patches must be loaded for every frame
     std::map<size_t, std::string*> uniqueImgIDToName;//Holds unique image IDs pointing to corresponding image names
     stats badDescrTH = {0,0,0,0,0};//Descriptor distance statistics for not matching descriptors. E.g. a descriptor distance larger the median could be considered as not matching descriptors

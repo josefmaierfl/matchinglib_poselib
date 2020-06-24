@@ -1631,6 +1631,19 @@ void genMatchSequ::resetGTMuse(){
     gtmdata.clear();
 }
 
+//Update image IDs by adapting. Used if image was not be able to be loaded.
+void genMatchSequ::updateImageIDs(const size_t &fromPos, const size_t &toPos, const size_t &len){
+    for (size_t i = fromPos; i < fromPos + len; ++i) {
+        uniqueImgIDToName.erase(i);
+    }
+    size_t cnt = fromPos;
+    for (size_t i = fromPos + len; i < toPos; ++i) {
+        string *tmp = uniqueImgIDToName.at(i);
+        uniqueImgIDToName.erase(i);
+        uniqueImgIDToName.emplace(cnt++, tmp);
+    }
+}
+
 //Extracts the necessary number of keypoints from the set of images
 bool genMatchSequ::getFeatures() {
     size_t nrImgs = 0;
@@ -1642,6 +1655,8 @@ bool genMatchSequ::getFeatures() {
         if (!getImageList()) {
             return false;
         }
+        //Get random sequence of images
+        std::shuffle(imageList.begin(), imageList.end(), std::mt19937{std::random_device{}()});
     }
     calcGTMimgIDs();
     if(gtmdata.isValid()){
@@ -1650,9 +1665,6 @@ bool genMatchSequ::getFeatures() {
     minNrFramesMatch = max(min(minNrFramesMatch, totalNrFrames / 2), static_cast<size_t>(1));
     if(nrCorrsExtractWarped > 0) {
         nrImgs += imageList.size();
-
-        //Get random sequence of images
-        std::shuffle(imageList.begin(), imageList.end(), std::mt19937{std::random_device{}()});
 
         //Check for the correct keypoint & descriptor types
         if (!matchinglib::IsKeypointTypeSupported(parsMtch.keyPointType)) {
@@ -1673,11 +1685,18 @@ bool genMatchSequ::getFeatures() {
         for (size_t i = 0; i < imageList.size(); ++i) {
             //Load image
             Mat img;
-            if (nrImgs <= maxImgLoad) {
-                imgs.emplace_back(cv::imread(imageList[i], IMREAD_GRAYSCALE));
-                img = imgs.back();
-            } else {
-                img = cv::imread(imageList[i], IMREAD_GRAYSCALE);
+            try {
+                if (nrImgs <= maxImgLoad) {
+                    imgs.emplace_back(cv::imread(imageList[i], IMREAD_GRAYSCALE));
+                    img = imgs.back();
+                } else {
+                    img = cv::imread(imageList[i], IMREAD_GRAYSCALE);
+                }
+            } catch (...) {
+                if(verbose & PRINT_WARNING_MESSAGES) {
+                    cout << "Unable to load image " << imageList[i] << " -> skipping" << endl;
+                }
+                continue;
             }
 //        imgs.emplace_back(cv::imread(imageList[i], IMREAD_GRAYSCALE));
             std::vector<cv::KeyPoint> keypoints1Img;
@@ -1686,7 +1705,7 @@ bool genMatchSequ::getFeatures() {
             if (matchinglib::getKeypoints(img, keypoints1Img, parsMtch.keyPointType, true, 8000) != 0) {
                 errCnt++;
                 if (errCnt > maxErrCnt) {
-                    cout << "Extraction of keypoints failed for too many images!" << endl;
+                    cerr << "Extraction of keypoints failed for too many images!" << endl;
                     return false;
                 }
             }
@@ -2762,12 +2781,20 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
             if(imgFrameIdxMap[actFrameCnt].first.find(uimgID1) != imgFrameIdxMap[actFrameCnt].first.end()){
                 img1 = imgs[imgFrameIdxMap[actFrameCnt].first[uimgID1]];
             }else{
+                if(*uniqueImgIDToName.at(uimgID1) != kpinfo.getImgName1()){
+                    cerr << "Image IDs (img1) not consistend when loading images when needed!" << endl;
+                    throw SequenceException("Image IDs not consistend!");
+                }
                 img1 = cv::imread(*uniqueImgIDToName.at(uimgID1), IMREAD_GRAYSCALE);
             }
             if(kpinfo.has2Imgs()){
                 if(imgFrameIdxMap[actFrameCnt].first.find(uimgID2) != imgFrameIdxMap[actFrameCnt].first.end()){
                     img2 = imgs[imgFrameIdxMap[actFrameCnt].first[uimgID2]];
                 }else{
+                    if(*uniqueImgIDToName.at(uimgID2) != kpinfo.getImgName2()){
+                        cerr << "Image IDs (img2) not consistend when loading images when needed!" << endl;
+                        throw SequenceException("Image IDs not consistend!");
+                    }
                     img2 = cv::imread(*uniqueImgIDToName.at(uimgID2), IMREAD_GRAYSCALE);
                 }
             }else{

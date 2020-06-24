@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 import multiprocessing
 import cv2
 import timeit
+import shutil
 
 
 regex = re.compile(
@@ -173,6 +174,10 @@ def downloadImgs(path_store, linklist, nr_imgs):
     t_out = 8
     for idx, elem in enumerate(linklist.items()):
         path_id = os.path.join(path_store, elem[0])
+        folder_err = getErrFolderFileName(path_id)
+        if os.path.exists(folder_err):
+            cnt += nr_list[idx]
+            continue
         if not os.path.exists(path_id):
             os.mkdir(path_id)
         nr_imgs = len(os.listdir(path_id))
@@ -190,6 +195,7 @@ def downloadImgs(path_store, linklist, nr_imgs):
             np.random.shuffle(d_idxs)
             i = 0
             i2 = 0
+            err_cnt = 0
             while i < diff and i2 < nr_links:
                 link = elem[1][d_idxs[i2]]
                 iname = os.path.basename(urlparse(link).path)
@@ -198,6 +204,12 @@ def downloadImgs(path_store, linklist, nr_imgs):
                     nr_act_imgs += 1
                     i2 += 1
                     i += 1
+                    continue
+                ferr, _ = os.path.splitext(fname)
+                ferr += '.err'
+                if os.path.exists(ferr):
+                    i2 += 1
+                    err_cnt += 1
                     continue
                 start = timeit.default_timer()
                 p = multiprocessing.Process(target=get_file, args=(link, fname))
@@ -209,41 +221,80 @@ def downloadImgs(path_store, linklist, nr_imgs):
                     i2 += 1
                     if os.path.exists(fname):
                         os.remove(fname)
+                    writeErrImg(ferr)
+                    err_cnt += 1
                     continue
                 if p.exitcode != 0:
                     i2 += 1
                     if os.path.exists(fname):
                         os.remove(fname)
+                    writeErrImg(ferr)
+                    err_cnt += 1
                     continue
                 endt = timeit.default_timer()
                 dt = endt - start
                 if not os.path.exists(fname):
                     i2 += 1
+                    writeErrImg(ferr)
+                    err_cnt += 1
                     continue
                 fsize = os.path.getsize(fname)
                 if fsize < 14000:
                     os.remove(fname)
                     i2 += 1
+                    writeErrImg(ferr)
+                    err_cnt += 1
                     continue
                 ts.append(fsize / (1048576 * dt))
                 t_out = get_download_speed(ts, t_out)
                 if not check_img(fname):
                     os.remove(fname)
                     i2 += 1
+                    writeErrImg(ferr)
+                    err_cnt += 1
                     continue
                 i += 1
                 i2 += 1
                 nr_act_imgs += 1
             nr_imgs = len(os.listdir(path_id))
-            if nr_imgs == 0:
-                os.removedirs(path_id)
+            if nr_imgs <= err_cnt:
+                shutil.rmtree(path_id, ignore_errors=True)
+                writeErrFolder(path_id)
                 cnt += nr_list[idx]
             elif nr_imgs < nr_list[idx]:
                 cnt += nr_list[idx] - nr_imgs
         else:
-            nr_act_imgs += nr_imgs
+            nr_act_imgs += nr_imgs - countErrImgs(path_id)
 
     return nr_act_imgs != 0 and nr_act_imgs > 0.75 * nr_imgs
+
+
+def writeErrImg(name):
+    with open(name, 'w') as fo:
+        fo.write('Image with this name not usable')
+
+
+def writeErrFolder(path):
+    ferr = getErrFolderFileName(path)
+    with open(ferr, 'w') as fo:
+        fo.write('Images with a WNID of this file name are not usable')
+
+
+def getErrFolderFileName(path):
+    if path[-1] == '/':
+        ferr = path[:-1]
+    else:
+        ferr = path
+    ferr += '.err'
+    return ferr
+
+
+def countErrImgs(path):
+    nr = 0
+    for file in os.listdir(path):
+        if file.endswith('.err'):
+            nr += 1
+    return nr
 
 
 def get_file(link, fname):
