@@ -987,7 +987,7 @@ bool genStereoConfigurations(const int nrFrames,
                         newStereoPars = GenStereoPars(tx, ty, tz, roll, pitch, yaw,
                                                       stereoPars.imageOverlap, stereoPars.imgSize, 0);
                     } catch (exception &e) {
-                        cerr << "Exception: " << e.what() << endl;
+                        cerr << "Exception: " << e.what() << endl << std::flush;
                         if(stereoPars_tmp.moreAvailable()){
                             cout << "Adapting ranges" << endl;
                             continue;
@@ -1032,12 +1032,12 @@ bool genStereoConfigurations(const int nrFrames,
                                  << " yaw= " << yaw_new1[i] << endl;
                         }
                         cout << "**************************************************************************" << endl
-                             << endl;
+                             << endl << std::flush;
                     }
 
                     if (err == -1) {
                         cerr << "Not able to generate a valid random stereo camera configuration. "
-                                "Ranges of tx and ty should be adapted." << endl;
+                                "Ranges of tx and ty should be adapted." << endl << std::flush;
                         if(stereoPars_tmp.moreAvailable()){
                             cout << "Adapting ranges" << endl;
                             continue;
@@ -1046,7 +1046,7 @@ bool genStereoConfigurations(const int nrFrames,
                         }
                     } else if (err) {
                         cerr << "Not able to reach desired extrinsic stereo parameters or "
-                                "input parameters are not usable. Try different parameters." << endl;
+                                "input parameters are not usable. Try different parameters." << endl << std::flush;
                         if(stereoPars_tmp.moreAvailable()){
                             cout << "Adapting ranges" << endl;
                             continue;
@@ -1268,7 +1268,7 @@ bool genStereoConfigurations(const int nrFrames,
                     newStereoPars = GenStereoPars(tx, ty, tz, roll, pitch, yaw,
                                                   stereoPars.imageOverlap, stereoPars.imgSize, varPars);
                 } catch (exception &e) {
-                    cerr << "Exception: " << e.what() << endl;
+                    cerr << "Exception: " << e.what() << endl << std::flush;
                     if(stereoPars_tmp.moreAvailable()){
                         cout << "Adapting ranges" << endl;
                         continue;
@@ -1276,7 +1276,7 @@ bool genStereoConfigurations(const int nrFrames,
                         return false;
                     }
                 } catch (...) {
-                    cerr << "Unkown exception." << endl;
+                    cerr << "Unkown exception." << endl << std::flush;
                     if(stereoPars_tmp.moreAvailable()){
                         cout << "Adapting ranges" << endl;
                         continue;
@@ -1315,12 +1315,12 @@ bool genStereoConfigurations(const int nrFrames,
                              << " yaw= " << yaw_new1[i] << endl;
                     }
                     cout << "**************************************************************************" << endl
-                         << endl;
+                         << endl << std::flush;
                 }
 
                 if (err == -1) {
                     cerr << "Not able to generate a valid random stereo camera configuration. "
-                            "Ranges of tx and ty should be adapted." << endl;
+                            "Ranges of tx and ty should be adapted." << endl << std::flush;
                     if(stereoPars_tmp.moreAvailable()){
                         cout << "Adapting ranges" << endl;
                         continue;
@@ -1329,7 +1329,7 @@ bool genStereoConfigurations(const int nrFrames,
                     }
                 } else if (err == -2) {
                     cerr << "Not able to reach desired extrinsic stereo parameters or "
-                            "input parameters are not usable. Try different parameters." << endl;
+                            "input parameters are not usable. Try different parameters." << endl << std::flush;
                     if(isParFixed == 0){
                         if (addPars.acceptBadStereoPars) {
                             double minOvLap = stereoPars.imageOverlap - newStereoPars.getSavedPosMaxOvLapError();
@@ -1375,7 +1375,7 @@ bool genStereoConfigurations(const int nrFrames,
                         }
                     }
                 } else if (err){
-                    cerr << "Not able to generate a valid random stereo camera configuration." << endl;
+                    cerr << "Not able to generate a valid random stereo camera configuration." << endl << std::flush;
                     if(stereoPars_tmp.moreAvailable()){
                         cout << "Adapting ranges" << endl;
                         continue;
@@ -1430,7 +1430,7 @@ bool genStereoConfigurations(const int nrFrames,
                         newStereoPars1 = GenStereoPars(tx, ty, tz, roll, pitch, yaw,
                                                        stereoPars.imageOverlap, stereoPars.imgSize, 0);
                     } catch (exception &e) {
-                        cerr << "Exception: " << e.what() << endl;
+                        cerr << "Exception: " << e.what() << endl << std::flush;
                         if(stereoPars_tmp.moreAvailable()){
                             cout << "Adapting ranges" << endl;
                             continue;
@@ -1438,7 +1438,7 @@ bool genStereoConfigurations(const int nrFrames,
                             return false;
                         }
                     } catch (...) {
-                        cerr << "Unkown exception." << endl;
+                        cerr << "Unkown exception." << endl << std::flush;
                         if(stereoPars_tmp.moreAvailable()){
                             cout << "Adapting ranges" << endl;
                             continue;
@@ -1476,11 +1476,11 @@ bool genStereoConfigurations(const int nrFrames,
                              << " yaw= " << yaw_new1[i] << endl;
                     }
                     cout << "**************************************************************************" << endl
-                         << endl;
+                         << endl << std::flush;
 
                     if (err == -1) {
                         cerr << "Not able to generate a valid random stereo camera configuration. "
-                                "Ranges of tx and ty should be adapted." << endl;
+                                "Ranges of tx and ty should be adapted." << endl << std::flush;
                         if(stereoPars_tmp.moreAvailable()){
                             cout << "Adapting ranges" << endl;
                         }else {
@@ -1488,7 +1488,7 @@ bool genStereoConfigurations(const int nrFrames,
                         }
                     } else if (err == -2) {
                         cerr << "Not able to reach desired extrinsic stereo parameters or "
-                                "desired image overlap." << endl;
+                                "desired image overlap." << endl << std::flush;
                         if (addPars.acceptBadStereoPars) {
                             double minOvLap = stereoPars.imageOverlap - newStereoPars1.getSavedPosMaxOvLapError();
                             double maxOvLap = stereoPars.imageOverlap - newStereoPars1.getSavedNegMaxOvLapError();
@@ -1525,7 +1525,7 @@ bool genStereoConfigurations(const int nrFrames,
                             }
                         }
                     } else if (err){
-                        cerr << "Not able to generate a valid random stereo camera configuration." << endl;
+                        cerr << "Not able to generate a valid random stereo camera configuration." << endl << std::flush;
                         if(stereoPars_tmp.moreAvailable()){
                             cout << "Adapting ranges" << endl;
                             continue;
@@ -1534,7 +1534,7 @@ bool genStereoConfigurations(const int nrFrames,
                         }
                     }
                     if (!newStereoPars1.getCamPars(Rv, tv, K_1, K_2)) {
-                        cerr << "Unable to get valid stereo camera parameters." << endl;
+                        cerr << "Unable to get valid stereo camera parameters." << endl << std::flush;
                         if(stereoPars_tmp.moreAvailable()){
                             cout << "Adapting ranges" << endl;
                             continue;
@@ -1545,7 +1545,7 @@ bool genStereoConfigurations(const int nrFrames,
                         stereoPars_tmp.valid_found = true;
                     }
                 } else if (!newStereoPars.getCamPars(Rv, tv, K_1, K_2)) {
-                    cerr << "Unable to get valid stereo camera parameters." << endl;
+                    cerr << "Unable to get valid stereo camera parameters." << endl << std::flush;
                     if(stereoPars_tmp.moreAvailable()){
                         cout << "Adapting ranges" << endl;
                         continue;
@@ -1728,7 +1728,7 @@ bool genStereoConfigurations(const int nrFrames,
                                  << " yaw= " << yaw_new1[i] << endl;
                         }
                         cout << "**************************************************************************" << endl
-                             << endl;
+                             << endl << std::flush;
                     }
 
                     if (err == -1) {
@@ -1924,7 +1924,7 @@ bool genStereoConfigurations(const int nrFrames,
                      << " yaw= " << yaw_new1[i] << endl;
             }
             cout << "**************************************************************************" << endl
-                 << endl;
+                 << endl << std::flush;
 
             if(err == -1){
                 cerr << "Not able to generate a valid random stereo camera configuration. "
@@ -1932,7 +1932,7 @@ bool genStereoConfigurations(const int nrFrames,
                 return false;
             }else if(err){
                 cerr << "Not able to reach desired extrinsic stereo parameters or "
-                        "desired image overlap." << endl;
+                        "desired image overlap." << endl << std::flush;
                 if(addPars.acceptBadStereoPars){
                     double minOvLap = stereoPars.imageOverlap - newStereoPars1.getSavedPosMaxOvLapError();
                     double maxOvLap = stereoPars.imageOverlap - newStereoPars1.getSavedNegMaxOvLapError();
