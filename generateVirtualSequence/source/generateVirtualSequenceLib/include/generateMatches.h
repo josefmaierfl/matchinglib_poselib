@@ -849,6 +849,7 @@ private:
     uint8_t use_3dPrtyGT = false;//Indicates if feature matches from 3rd party GT datasets should be used. The first 3 bits indicate which datasets should be used.
     bool onlyWarped = true;//Indicates, if GTM were disabled based on inputs
     GTMdata gtmdata;//Holds Ground Truth matches and related information
+    std::vector<size_t> idxs_match23D1, idxs_match23D2;//Indices for final correspondences to point from reordered frameKeypoints1, frameKeypoints2, frameDescriptors1, frameDescriptors2, frameHomographies, ... to corresponding 3D information like combCorrsImg1TP, combCorrsImg2TP, combCorrsImg12TP_IdxWorld2, ...
 };
 
 //GENERATEVIRTUALSEQUENCELIB_API cv::FileStorage& operator << (cv::FileStorage& fs, bool &value);

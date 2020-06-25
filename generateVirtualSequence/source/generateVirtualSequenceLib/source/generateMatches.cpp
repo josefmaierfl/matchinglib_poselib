@@ -59,7 +59,9 @@ void reOrderSortMatches(std::vector<cv::DMatch> &matches,
                         std::vector<cv::Mat> &homos,
                         std::vector<std::pair<std::pair<size_t,cv::KeyPoint>, std::pair<size_t,cv::KeyPoint>>> &srcImgIdxAndKp,
                         std::vector<int> &corrType,
-                        std::vector<cv::Mat> &homosCam1);
+                        std::vector<cv::Mat> &homosCam1,
+                        std::vector<size_t> &idxs1,
+                        std::vector<size_t> &idxs2);
 bool getNrEntriesYAML(const std::string &filename, const string &buzzword, int &nrEntries);
 bool getImgROIs(const cv::Mat &H,
                 const cv::Point2i &midPt,
@@ -2402,6 +2404,8 @@ bool genMatchSequ::generateCorrespondingFeatures(){
         }
     }
 
+    idxs_match23D1.clear();
+    idxs_match23D2.clear();
     reOrderSortMatches(frameMatches,
                        frameDescriptors1,
                        frameDescriptors2,
@@ -2412,7 +2416,9 @@ bool genMatchSequ::generateCorrespondingFeatures(){
                        frameHomographies,
                        srcImgPatchIdxAndKp,
                        corrType,
-                       frameHomographiesCam1);
+                       frameHomographiesCam1,
+                       idxs_match23D1,
+                       idxs_match23D2);
 
     //Write matches to disk
     if(!writeMatchesToDisk()){
@@ -2557,6 +2563,23 @@ bool genMatchSequ::writeMatchesToDisk(){
     }
     fs << "]";
 
+    fs.writeComment("Indices for final correspondences to point from reordered matches and parameters "
+                    "like frameKeypoints1, frameDescriptors1, frameHomographies, ... to corresponding "
+                    "3D information like combCorrsImg1TP, combCorrsImg12TP_IdxWorld2, ...");
+    fs << "idxs_match23D1" << "[";
+    for (auto &i : idxs_match23D1) {
+        fs << static_cast<int>(i);
+    }
+    fs << "]";
+
+    fs.writeComment("Indices for final correspondences to point from reordered matches and parameters "
+                    "like frameKeypoints2, frameDescriptors2, ... to corresponding 3D information "
+                    "like combCorrsImg2TP, ...");
+    fs << "idxs_match23D2" << "[";
+    for (auto &i : idxs_match23D2) {
+        fs << static_cast<int>(i);
+    }
+    fs << "]";
     fs.release();
 
     return true;
@@ -2572,7 +2595,9 @@ void reOrderSortMatches(std::vector<cv::DMatch> &matches,
                         std::vector<cv::Mat> &homos,
                         std::vector<std::pair<std::pair<size_t,cv::KeyPoint>, std::pair<size_t,cv::KeyPoint>>> &srcImgIdxAndKp,
                         std::vector<int> &corrType,
-                        std::vector<cv::Mat> &homosCam1){
+                        std::vector<cv::Mat> &homosCam1,
+                        std::vector<size_t> &idxs1,
+                        std::vector<size_t> &idxs2){
     CV_Assert((descriptor1.rows == descriptor2.rows)
     && (descriptor1.rows == (int)kp1.size())
     && (kp1.size() == kp2.size())
@@ -2582,7 +2607,7 @@ void reOrderSortMatches(std::vector<cv::DMatch> &matches,
     sort(matches.begin(),
          matches.end(),
          [](DMatch &first, DMatch &second){return first.queryIdx < second.queryIdx;});
-    std::vector<size_t> idxs1, idxs2;
+//    std::vector<size_t> idxs1, idxs2;
     shuffleVector(idxs1, kp1.size());
     cv::Mat descriptor1_tmp;
     descriptor1_tmp.reserve((size_t)descriptor1.rows);
