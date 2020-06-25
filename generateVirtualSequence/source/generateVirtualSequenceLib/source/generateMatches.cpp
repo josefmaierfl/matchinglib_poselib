@@ -3015,9 +3015,12 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
     bool noEllipse = false;
     bool reflectionX = false;
     bool reflectionY = false;
-    const double minPatchSize = 41.0;
-    const size_t corrID = tntpindexer.getCorrID(featureIdxRepPatt[patchInfos.featureIdx_tmp], patchInfos.useTN);
     cv::Size imgFeatureSize = img.size();
+    const int minImgDim = min(imgFeatureSize.width, imgFeatureSize.height);
+    int minPatchSize_tmp = min(41, minImgDim);
+    minPatchSize_tmp -= (minPatchSize_tmp + 1) % 2;
+    const auto minPatchSize = static_cast<double>(minPatchSize_tmp);
+    const size_t corrID = tntpindexer.getCorrID(featureIdxRepPatt[patchInfos.featureIdx_tmp], patchInfos.useTN);
     const bool init_succ = patchInfos.succ;
     if(patchInfos.succ) {
         patchInfos.succ = getRectFitsInEllipse(H,
@@ -3040,6 +3043,10 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
             fbCnt++;
             useFallBack = false;
             int patchSize = minPatchSize2;//Must be an odd number
+            if(patchSize > minImgDim){
+                patchSize = minImgDim;
+                patchSize -= (patchSize + 1) % 2;
+            }
             if(!H.empty()) {
                 do {
                     Mat kpm = (Mat_<double>(3, 1) << (double) kp.pt.x, (double) kp.pt.y, 1.0);
@@ -3072,9 +3079,11 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
 
                     if ((patchROIimg2.width < minPatchSize) ||
                         (patchROIimg2.height < minPatchSize)) {
-                        //Calc a bigger patch size for the warped patch
-                        patchSize = (int) ceil(1.2f * (float) patchSize);
-                        patchSize += (patchSize + 1) % 2;//Must be an odd number
+                        if(patchSize < minImgDim) {
+                            //Calc a bigger patch size for the warped patch
+                            patchSize = (int) ceil(1.2f * (float) patchSize);
+                            patchSize += (patchSize + 1) % 2;//Must be an odd number
+                        }
                     }
 
                 } while (((patchROIimg2.width < minPatchSize) || (patchROIimg2.height < minPatchSize)) &&
@@ -3527,33 +3536,51 @@ cv::Mat genMatchSequ::calculateDescriptorWarped(const cv::Mat &img,
         stdg = getRandDoubleValRng(-10.0, 10.0);
         bool fullImgUsed = false;
         Mat patchfb;
+        int minPatchSize2_img = min(minPatchSize2, minImgDim);
+        minPatchSize2_img -= (minPatchSize2_img + 1) % 2;
         Point2i kp_ri = Point2i((int)round(kp.pt.x), (int)round(kp.pt.y));
         if((patchROIimg1.width < minPatchSize) ||
+           ((patchROIimg1.x + patchROIimg1.width) > img.size().width) ||
            (patchROIimg1.height < minPatchSize) ||
+           ((patchROIimg1.y + patchROIimg1.height) > img.size().height) ||
            (patchROIimg1.x < 0) ||
            (patchROIimg1.y < 0) ||
            (kp_ri.x < (patchROIimg1.x + 10)) ||
            (kp_ri.x > (patchROIimg1.x + patchROIimg1.width - 10)) ||
            (kp_ri.y < (patchROIimg1.y + 10)) ||
            (kp_ri.y > (patchROIimg1.y + patchROIimg1.height - 10))){
-            int ps21 = (minPatchSize2 - 1) / 2;
+            int ps21 = (minPatchSize2_img - 1) / 2;
             patchROIimg1 = Rect((int)round(kp.pt.x) - ps21,
                                 (int)round(kp.pt.y) - ps21,
-                                minPatchSize2,
-                                minPatchSize2);
+                                minPatchSize2_img,
+                                minPatchSize2_img);
             if(patchROIimg1.x < 0){
                 patchROIimg1.width -= patchROIimg1.x;
                 patchROIimg1.x = 0;
+                if(patchROIimg1.width > img.size().width){
+                    patchROIimg1.width = img.size().width;
+                }
             }else if((patchROIimg1.x + patchROIimg1.width) > img.size().width){
                 int wdiff = patchROIimg1.x + patchROIimg1.width - img.size().width;
                 patchROIimg1.x -= wdiff;
+                if(patchROIimg1.x < 0){
+                    patchROIimg1.x = 0;
+                    patchROIimg1.width = img.size().width;
+                }
             }
             if(patchROIimg1.y < 0){
                 patchROIimg1.height -= patchROIimg1.y;
                 patchROIimg1.y = 0;
+                if(patchROIimg1.height > img.size().height){
+                    patchROIimg1.height = img.size().height;
+                }
             }else if((patchROIimg1.y + patchROIimg1.height) > img.size().height){
                 int wdiff = patchROIimg1.y + patchROIimg1.height - img.size().height;
                 patchROIimg1.y -= wdiff;
+                if(patchROIimg1.y < 0){
+                    patchROIimg1.y = 0;
+                    patchROIimg1.height = img.size().height;
+                }
             }
         }
         patchfb = img(patchROIimg1);
@@ -4503,7 +4530,13 @@ bool genMatchSequ::getRectFitsInEllipse(const cv::Mat &H,
     //Make it an odd number
     minSquare += (minSquare + 1) % 2;
     if(minSquare < minPatchSize2){
-        minSquare = minPatchSize2;
+        int minImgDim = min(imgFeatureSi.width, imgFeatureSi.height);
+        if(minSquare > minImgDim || minPatchSize2 > minImgDim){
+            minSquare = minImgDim;
+            minSquare -= (minSquare + 1) % 2;
+        }else {
+            minSquare = minPatchSize2;
+        }
     }
 
     Point2i midPt((int)round(x0), (int)round(y0));
