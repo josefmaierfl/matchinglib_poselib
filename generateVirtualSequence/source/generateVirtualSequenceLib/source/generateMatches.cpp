@@ -1333,10 +1333,15 @@ bool genMatchSequ::calcGTM(){
             }else{
                 remTP -= nrToUse;
             }
+        }else{
+            throw SequenceException("Undefined GT dataset");
         }
         for(size_t j = 0; j < nrToUse; ++j){
             gtmdata.matchesGTAllIdx.emplace_back(i, j);
         }
+    }
+    if(nr_gtm != gtmdata.matchesGTAllIdx.size()){
+        throw SequenceException("Number of correspondences in GT datasets do not match");
     }
     vector<std::size_t> idx;
     shuffleVector(idx, nr_gtm);
@@ -1371,6 +1376,7 @@ bool genMatchSequ::getGtmDescriptors(){
         }else{
             reOrderMatches1Img(kp_tmp, i, true);
         }
+
         nr_before = gtmdata.keypRAll[i].size();
         kp_tmp = gtmdata.keypRAll[i];
         if (matchinglib::getDescriptors(img2,
@@ -1386,6 +1392,29 @@ bool genMatchSequ::getGtmDescriptors(){
         }else{
             reOrderMatches1Img(kp_tmp, i, false);
         }
+
+//        kp_tmp = gtmdata.keypLAll[i];
+//        Mat descr = gtmdata.leftDescriptorsAll[i].clone();
+//        gtmdata.leftDescriptorsAll[i].release();
+//        nr_before = gtmdata.keypLAll[i].size();
+//        if (matchinglib::getDescriptors(img1,
+//                                        gtmdata.keypLAll[i],
+//                                        parsMtch.descriptorType,
+//                                        gtmdata.leftDescriptorsAll[i],
+//                                        parsMtch.keyPointType) != 0) {
+//            return false;
+//        }
+//        if(nr_before != gtmdata.keypLAll[i].size()){
+//            throw SequenceException("During this step the number of descriptors should remain the same");
+//        }else{
+//            reOrderMatches1Img(kp_tmp, i, true);
+//        }
+//        for (int j = 0; j < gtmdata.leftDescriptorsAll[i].rows; ++j) {
+//            double dist = getDescriptorDistance(gtmdata.leftDescriptorsAll[i].row(j), descr.row(j));
+//            if(!nearZero(dist)){
+//                cerr << "Error" << endl;
+//            }
+//        }
 //        if(showMatches){
 //            showMatchesGTMpart(gtmdata.matchesGTAll[i],
 //                               gtmdata.leftInlierAll[i],
@@ -1452,19 +1481,19 @@ void showMatchesGTMpart(const std::vector<cv::DMatch> &matchesGT,
 
 void genMatchSequ::reOrderMatches1Img(const std::vector<cv::KeyPoint> &kpsBefore, const size_t &idx, bool isLeftKp){
     std::vector<cv::KeyPoint> *kpsAfter;
-    Mat descriptors;
+    Mat *descriptors;
     if(isLeftKp){
         kpsAfter = &(gtmdata.keypLAll[idx]);
-        descriptors = gtmdata.leftDescriptorsAll[idx];
+        descriptors = &gtmdata.leftDescriptorsAll[idx];
     }else{
         kpsAfter = &(gtmdata.keypRAll[idx]);
-        descriptors = gtmdata.rightDescriptorsAll[idx];
+        descriptors = &gtmdata.rightDescriptorsAll[idx];
     }
     KeypointSearch kpS(*kpsAfter);
     vector<int> newToOldIdxs;
     kpS.getNewToOldOrdering(kpsBefore, newToOldIdxs);
     reOrderVector(*kpsAfter, newToOldIdxs);
-    reOrderDescriptors(descriptors, newToOldIdxs);
+    reOrderDescriptors(*descriptors, newToOldIdxs);
 }
 
 void reOrderDescriptors(cv::Mat &descriptors, const std::vector<int> &idxs){
@@ -1482,28 +1511,30 @@ bool genMatchSequ::recalcMatchIdxs(const std::vector<cv::KeyPoint> &kpsBefore, c
     size_t nrdiff = 0;
     std::vector<cv::KeyPoint> *kpsAfter, *kpsAfter2;
     vector<bool> *inl, *inl2;
-    Mat descriptors;
+    Mat *descriptors, *descriptors2;
     if(isLeftKp){
         nrdiff = kpsBefore.size() - gtmdata.keypLAll[idx].size();
         kpsAfter = &(gtmdata.keypLAll[idx]);
         kpsAfter2 = &(gtmdata.keypRAll[idx]);
         inl = &(gtmdata.leftInlierAll[idx]);
         inl2 = &(gtmdata.rightInlierAll[idx]);
-        descriptors = gtmdata.leftDescriptorsAll[idx];
+        descriptors = &gtmdata.leftDescriptorsAll[idx];
+        descriptors2 = &gtmdata.rightDescriptorsAll[idx];
     }else{
         nrdiff = kpsBefore.size() - gtmdata.keypRAll[idx].size();
         kpsAfter = &(gtmdata.keypRAll[idx]);
         kpsAfter2 = &(gtmdata.keypLAll[idx]);
         inl = &(gtmdata.rightInlierAll[idx]);
         inl2 = &(gtmdata.leftInlierAll[idx]);
-        descriptors = gtmdata.rightDescriptorsAll[idx];
+        descriptors = &gtmdata.rightDescriptorsAll[idx];
+        descriptors2 = &gtmdata.leftDescriptorsAll[idx];
     }
     if(nrdiff == 0) return true;
     KeypointSearch kpS(*kpsAfter);
     vector<int> missingIdxs, delIdxs, newToOldIdxs;
     kpS.getNewToOldOrdering(kpsBefore, newToOldIdxs);
     reOrderVector(*kpsAfter, newToOldIdxs);
-    reOrderDescriptors(descriptors, newToOldIdxs);
+    reOrderDescriptors(*descriptors, newToOldIdxs);
     kpS.getMissingIdxs(kpsBefore, missingIdxs);
     if(missingIdxs.empty()) return false;
     unordered_set<int> idxs, idxs2;
@@ -1518,8 +1549,8 @@ bool genMatchSequ::recalcMatchIdxs(const std::vector<cv::KeyPoint> &kpsBefore, c
 //    correctMatchesIdx(gtmdata.matchesTNAll[idx], isLeftKp, idxs, missingIdxs, delKpIdx);
 //    size_t nrTNdel = delKpIdx.size() - nrTPdel;
     size_t nrTNdel = 0;
-    if(nrTPdel == 0){
-        nrTNdel = nrdiff;
+    if(nrTPdel != nrdiff){
+        nrTNdel = nrdiff - nrTPdel;
     }
     gtmdata.sum_TN -= nrTNdel;
     const int idxI = static_cast<int>(idx);
@@ -1555,7 +1586,23 @@ bool genMatchSequ::recalcMatchIdxs(const std::vector<cv::KeyPoint> &kpsBefore, c
         for (auto &i: delKpIdx) {
             inl2->erase(inl2->begin() + i);
             kpsAfter2->erase(kpsAfter2->begin() + i);
+            if(!descriptors2->empty()) {
+                if(i > 0 && i < descriptors2->rows - 1) {
+                    Mat b, c, d;
+                    descriptors2->rowRange(0, i).copyTo(b);
+                    descriptors2->rowRange(i + 1, descriptors2->rows).copyTo(c);
+                    vconcat(b, c, d);
+                    d.copyTo(*descriptors2);
+                }else if(i == 0){
+                    descriptors2->rowRange(1, descriptors2->rows).copyTo(*descriptors2);
+                }else if(i == descriptors2->rows - 1){
+                    descriptors2->rowRange(0, descriptors2->rows - 1).copyTo(*descriptors2);
+                }else{
+                    throw SequenceException("Wrong number of GTM keypoints or descriptors");
+                }
+            }
         }
+        CV_Assert(descriptors2->empty() || static_cast<size_t>(descriptors2->rows) == kpsAfter2->size());
         vector<int> delKpIdx2;
         correctMatchesIdx(gtmdata.matchesGTAll[idx], !isLeftKp, idxs2, delKpIdx, delKpIdx2);
 //        correctMatchesIdx(gtmdata.matchesTNAll[idx], !isLeftKp, idxs2, delKpIdx, delKpIdx2);
@@ -2809,22 +2856,22 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
             if(imgFrameIdxMap[actFrameCnt].first.find(uimgID1) != imgFrameIdxMap[actFrameCnt].first.end()){
                 img1 = imgs[imgFrameIdxMap[actFrameCnt].first[uimgID1]];
             }else{
-                if(*uniqueImgIDToName.at(uimgID1) != kpinfo.getImgName1()){
-                    cerr << "Image IDs (img1) not consistend when loading images when needed!" << endl;
-                    throw SequenceException("Image IDs not consistend!");
-                }
                 img1 = cv::imread(*uniqueImgIDToName.at(uimgID1), IMREAD_GRAYSCALE);
             }
+//            if(*uniqueImgIDToName.at(uimgID1) != kpinfo.getImgName1()){
+//                cerr << "Image IDs (img1) not consistend when loading images!" << endl;
+//                throw SequenceException("Image IDs not consistend!");
+//            }
             if(kpinfo.has2Imgs()){
                 if(imgFrameIdxMap[actFrameCnt].first.find(uimgID2) != imgFrameIdxMap[actFrameCnt].first.end()){
                     img2 = imgs[imgFrameIdxMap[actFrameCnt].first[uimgID2]];
                 }else{
-                    if(*uniqueImgIDToName.at(uimgID2) != kpinfo.getImgName2()){
-                        cerr << "Image IDs (img2) not consistend when loading images when needed!" << endl;
-                        throw SequenceException("Image IDs not consistend!");
-                    }
                     img2 = cv::imread(*uniqueImgIDToName.at(uimgID2), IMREAD_GRAYSCALE);
                 }
+//                if(*uniqueImgIDToName.at(uimgID2) != kpinfo.getImgName2()){
+//                    cerr << "Image IDs (img2) not consistend when loading images!" << endl;
+//                    throw SequenceException("Image IDs not consistend!");
+//                }
             }else{
                 img2 = img1;
             }
@@ -2989,14 +3036,6 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
             frameDescr1.push_back(kpinfo.getDescriptor1().clone());
         }
         frameDescr2.push_back(descr21.clone());
-//        if(frameDescr1.rows != frameDescr2.rows){
-//            cout << "Rows descriptor 1: " << frameDescr1.rows << " Rows descriptor 2: " << frameDescr2.rows << endl;
-//            cout << "Is img1 distorted: " << c1_distort << endl;
-//            cout << "Is warped descriptor 1 empty: " << descr11.empty() << endl;
-//            cout << "Is descriptor 1 empty: " << kpinfo.getDescriptor1().empty() << endl;
-//            cout << "Is descriptor 2 empty: " << descr21.empty() << endl;
-//            cout << "Iteration number: " << i << endl;
-//        }
         frameMatchesTNTP.emplace_back(DMatch(i, i, (float)descrDist));
 
         featureIdx++;
