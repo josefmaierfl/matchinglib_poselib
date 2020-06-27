@@ -431,8 +431,6 @@ public:
     double getDescriptorDist(cv::InputArray descr2_ = cv::noArray()) const{
         if(!fromGTM && !isGrossTN && descr2_.empty()){
             throw SequenceException("Cannot calculate descriptor distance. Provide a second descriptor.");
-        }else if(fromGTM && descr2_.empty()){
-            return static_cast<double>(match->distance);
         }
         cv::Mat sec_descr;
         if(!descr2_.empty()){
