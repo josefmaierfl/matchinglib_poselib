@@ -1111,6 +1111,7 @@ bool genMatchSequ::getImageList() {
 
 //Download and load image names from ImageNet
 bool genMatchSequ::getImageNetImgs(std::vector<std::string> &filenames){
+    using namespace boost::interprocess;
     if(parsMtch.nrImgsFromImageNet <= 0){
         return false;
     }
@@ -1153,9 +1154,16 @@ bool genMatchSequ::getImageNetImgs(std::vector<std::string> &filenames){
     command += " --nr_imgs " + std::to_string(parsMtch.nrImgsFromImageNet);
 
     cout << "Downloading images from ImageNet. This may take some time ..." << endl;
-    int ret = system(command.c_str());
-    if(ret){
-        cerr << "Unable to download images from imagenet using command " << command << endl;
+    try {
+        named_mutex mutex(open_or_create, "get_imagenet");
+        scoped_lock<named_mutex> lock(mutex);
+        int ret = system(command.c_str());
+        if (ret) {
+            cerr << "Unable to download images from imagenet using command " << command << endl;
+            return false;
+        }
+    }catch(interprocess_exception &ex){
+        cerr << ex.what() << std::endl;
         return false;
     }
 
@@ -1241,44 +1249,53 @@ bool genMatchSequ::check_3rdPty_GT(){
 
 //Generate GTM from 3rd party datasets
 bool genMatchSequ::calcGTM(){
+    using namespace boost::interprocess;
     if(!check_3rdPty_GT()){
         resetGTMuse();
         return false;
     }
-    baseMatcher bm(parsMtch.keyPointType, parsMtch.imgPath, parsMtch.descriptorType, verbose, &rand2);
-    bool data_av = false;
-    if(use_3dPrtyGT & GT_DATASETS::OXFORD){
-        auto min_nrTP = static_cast<size_t>(round(parsMtch.oxfordGTMportion * static_cast<double>(nrTPFullSequ)));
-        cout << "Calculating GTM from Oxford dataset. This may take some time ..." << endl;
-        if(!bm.calcGTM_Oxford(min_nrTP)){
-            cerr << "Unable to use GTM from the Oxford dataset." << endl;
-        }else{
-            data_av |= true;
+    try {
+        named_mutex mutex(open_or_create, "get_gtm");
+        scoped_lock<named_mutex> lock(mutex);
+        baseMatcher bm(parsMtch.keyPointType, parsMtch.imgPath, parsMtch.descriptorType, verbose, &rand2);
+        bool data_av = false;
+        if (use_3dPrtyGT & GT_DATASETS::OXFORD) {
+            auto min_nrTP = static_cast<size_t>(round(parsMtch.oxfordGTMportion * static_cast<double>(nrTPFullSequ)));
+            cout << "Calculating GTM from Oxford dataset. This may take some time ..." << endl;
+            if (!bm.calcGTM_Oxford(min_nrTP)) {
+                cerr << "Unable to use GTM from the Oxford dataset." << endl;
+            } else {
+                data_av |= true;
+            }
         }
-    }
-    if(use_3dPrtyGT & GT_DATASETS::KITTI){
-        auto min_nrTP = static_cast<size_t>(round(parsMtch.kittiGTMportion * static_cast<double>(nrTPFullSequ)));
-        cout << "Calculating GTM from KITTI dataset. This may take some time ..." << endl;
-        if(!bm.calcGTM_KITTI(min_nrTP)){
-            cerr << "Unable to use GTM from the KITTI dataset." << endl;
-        }else{
-            data_av |= true;
+        if (use_3dPrtyGT & GT_DATASETS::KITTI) {
+            auto min_nrTP = static_cast<size_t>(round(parsMtch.kittiGTMportion * static_cast<double>(nrTPFullSequ)));
+            cout << "Calculating GTM from KITTI dataset. This may take some time ..." << endl;
+            if (!bm.calcGTM_KITTI(min_nrTP)) {
+                cerr << "Unable to use GTM from the KITTI dataset." << endl;
+            } else {
+                data_av |= true;
+            }
         }
-    }
-    if(use_3dPrtyGT & GT_DATASETS::MEGADEPTH){
-        auto min_nrTP = static_cast<size_t>(round(parsMtch.megadepthGTMportion * static_cast<double>(nrTPFullSequ)));
-        cout << "Calculating GTM from MegaDepth dataset. This may take some time ..." << endl;
-        if(!bm.calcGTM_MegaDepth(min_nrTP, parsMtch.CeresCPUcnt)){
-            cerr << "Unable to use GTM from the MegaDepth dataset." << endl;
-        }else{
-            data_av |= true;
+        if (use_3dPrtyGT & GT_DATASETS::MEGADEPTH) {
+            auto min_nrTP = static_cast<size_t>(round(
+                    parsMtch.megadepthGTMportion * static_cast<double>(nrTPFullSequ)));
+            cout << "Calculating GTM from MegaDepth dataset. This may take some time ..." << endl;
+            if (!bm.calcGTM_MegaDepth(min_nrTP, parsMtch.CeresCPUcnt)) {
+                cerr << "Unable to use GTM from the MegaDepth dataset." << endl;
+            } else {
+                data_av |= true;
+            }
         }
-    }
-    if(!data_av){
-        resetGTMuse();
+        if (!data_av) {
+            resetGTMuse();
+            return false;
+        }
+        gtmdata = bm.moveGTMdata();
+    }catch(interprocess_exception &ex){
+        cerr << ex.what() << std::endl;
         return false;
     }
-    gtmdata = bm.moveGTMdata();
     if(!getGtmDescriptors()){
         resetGTMuse();
         return false;
