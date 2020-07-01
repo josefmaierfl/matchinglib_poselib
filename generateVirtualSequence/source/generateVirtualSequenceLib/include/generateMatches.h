@@ -173,7 +173,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             return false;
         }
         imgIntNoise.second = abs(imgIntNoise.second);
-        if(!((imgIntNoise.first > -25.0) && (imgIntNoise.first < 25.0) && (imgIntNoise.second < 25.0))){//A minimum sum of mean and std of 25 is advisable
+        if(abs(imgIntNoise.first) + 2 * imgIntNoise.second > 85){//A minimum sum of mean and std of 25 is advisable
             std::cerr << "Invalid imgIntNoise." << std::endl;
             return false;
         }
@@ -419,11 +419,18 @@ public:
         return descr2.row(descr2Row);
     }
 
-    cv::KeyPoint getKeypoint1() const{ return *kp1; }
+    cv::KeyPoint getKeypoint1() const{
+        CV_Assert(kp1 != nullptr);
+        return *kp1;
+    }
 
     cv::KeyPoint getKeypoint2() const{
         if(!fromGTM && !isGrossTN){
             throw SequenceException("No second keypoint available.");
+        }
+        if(kp2 == nullptr){
+            std::cerr << "Empty keypoint 2 detected. Taking 1st." << std::endl;
+            return *kp1;
         }
         return *kp2;
     }

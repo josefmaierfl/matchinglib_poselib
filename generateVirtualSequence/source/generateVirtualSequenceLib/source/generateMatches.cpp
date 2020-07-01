@@ -97,6 +97,11 @@ void showMatchesGTMpart(const std::vector<cv::DMatch> &matchesGT,
                         const cv::Mat &img1,
                         const cv::Mat &img2);
 void reOrderDescriptors(cv::Mat &descriptors, const std::vector<int> &idxs);
+bool checkMatchesInvalidValues(const std::vector<cv::DMatch> &matches,
+                               const std::vector<cv::KeyPoint> &kp1,
+                               const std::vector<cv::KeyPoint> &kp2,
+                               const cv::Size &img1Size,
+                               const cv::Size &img2Size);
 
 /* -------------------------- Functions -------------------------- */
 
@@ -1368,6 +1373,53 @@ bool genMatchSequ::calcGTM(){
     return true;
 }
 
+bool checkMatchesInvalidValues(const std::vector<cv::DMatch> &matches,
+                               const std::vector<cv::KeyPoint> &kp1,
+                               const std::vector<cv::KeyPoint> &kp2,
+                               const cv::Size &img1Size,
+                               const cv::Size &img2Size){
+    //Check matches
+    float i1w, i1h, i2w, i2h;
+    i1w = static_cast<float>(img1Size.width) - 2.f;
+    i1h = static_cast<float>(img1Size.height) - 2.f;
+    i2w = static_cast<float>(img2Size.width) - 2.f;
+    i2h = static_cast<float>(img2Size.height) - 2.f;
+    const size_t kp1_si = kp1.size();
+    const size_t kp2_si = kp2.size();
+    const auto kp1_sii = static_cast<int>(kp1_si);
+    const auto kp2_sii = static_cast<int>(kp2_si);
+    for(auto matche : matches){
+        if(matche.queryIdx >= kp1_sii || matche.queryIdx < 0 || matche.trainIdx >= kp2_sii || matche.trainIdx < 0){
+            return false;
+        }
+    }
+    for(size_t i = 0; i < kp1_si; i++){
+        if(isnan(kp1[i].pt.x) ||
+        isnan(kp1[i].pt.y) ||
+        isinf(kp1[i].pt.x) ||
+        isinf(kp1[i].pt.y) ||
+        nearZero(kp1[i].pt.x) ||
+        nearZero(kp1[i].pt.y) ||
+        kp1[i].pt.x > i1w ||
+        kp1[i].pt.y > i1h){
+            return false;
+        }
+    }
+    for(size_t i = 0; i < kp2_si; i++){
+        if(isnan(kp2[i].pt.x) ||
+           isnan(kp2[i].pt.y) ||
+           isinf(kp2[i].pt.x) ||
+           isinf(kp2[i].pt.y) ||
+           nearZero(kp2[i].pt.x) ||
+           nearZero(kp2[i].pt.y) ||
+           kp2[i].pt.x > i2w ||
+           kp2[i].pt.y > i2h){
+            return false;
+        }
+    }
+    return true;
+}
+
 bool genMatchSequ::getGtmDescriptors(){
     size_t nr_Elems = gtmdata.matchesGTAll.size();
     gtmdata.leftDescriptorsAll.clear();
@@ -1408,6 +1460,13 @@ bool genMatchSequ::getGtmDescriptors(){
 //            showMatches = true;
         }else{
             reOrderMatches1Img(kp_tmp, i, false);
+        }
+        if(!checkMatchesInvalidValues(gtmdata.matchesGTAll[i],
+                                      gtmdata.keypLAll[i],
+                                      gtmdata.keypRAll[i],
+                                      img1.size(),
+                                      img2.size())){
+            return false;
         }
 
 //        kp_tmp = gtmdata.keypLAll[i];
@@ -1669,16 +1728,22 @@ bool correctMatchIdx(const unordered_set<int> &idxs, const vector<int> &missingI
 }
 
 void getNewFromOldIdx(const vector<int> &missingIdxs, int &oldIdx){
-    bool corr = false;
     const int mis = static_cast<int>(missingIdxs.size());
+    int i1 = 0;
     for (int i = 0; i < mis; ++i) {
         if(oldIdx > missingIdxs[i]){
-            corr = true;
+            i1++;
             if(i == mis - 1){
-                oldIdx -= i + 1;
+                oldIdx -= i1;
+                if(oldIdx < 0){
+                    cerr << "err" << endl;
+                }
             }
-        }else if(corr){
-            oldIdx -= i;
+        }else if(i1 > 0){
+            oldIdx -= i1;
+            if(oldIdx < 0){
+                cerr << "err" << endl;
+            }
             break;
         }
     }
@@ -2941,15 +3006,24 @@ void genMatchSequ::generateCorrespondingFeaturesTPTN(size_t featureIdxBegin_,
                 descr21 = kpinfo.getDescriptor2();
                 descrDist = kpinfo.getDescriptorDist();
             }else {
-                distortKeyPointPosition(kp3, cv::Rect(Point(0, 0), img2.size()), patchInfos.distr);
-                vector<KeyPoint> kpv_tmp(1, kp3);
-                if (matchinglib::getDescriptors(img2,
+                cv::Rect roi2 = getNormalPatchROI(img2.size(), kp3);
+                cv::KeyPoint kp4 = kp3;
+                kp4.pt.x -= static_cast<float>(roi2.x);
+                kp4.pt.y -= static_cast<float>(roi2.y);
+                distortKeyPointPosition(kp4, roi2, patchInfos.distr);
+                vector<KeyPoint> kpv_tmp(1, kp4);
+                Mat img2_roi = img2(roi2);
+                if (matchinglib::getDescriptors(img2_roi,
                                                 kpv_tmp,
                                                 parsMtch.descriptorType,
                                                 descr21,
                                                 parsMtch.keyPointType) != 0) {
                     kp3 = kp2;
                     descr21 = kpinfo.getDescriptor2();
+                }else{
+                    kp4.pt.x += static_cast<float>(roi2.x);
+                    kp4.pt.y += static_cast<float>(roi2.y);
+                    kp3 = kp4;
                 }
                 descrDist = kpinfo.getDescriptorDist(descr21);
                 if (descrDist > ThTp) {
@@ -4000,7 +4074,7 @@ void genMatchSequ::distortKeyPointPosition(cv::KeyPoint &kp2,
                 if (maxr > (parsMtch.keypErrDistr.first + 5.0 * parsMtch.keypErrDistr.second)) {
                     float r_error = (float) abs(distr(rand_gen)) * pow(-1.f, (float) (rand2() % 2));
                     kp2.pt.y += r_error;
-                } else if (!nearZero(maxr)) {
+                } else if (maxr > 0 && !nearZero(maxr)) {
                     auto r_error = (float) getRandDoubleValRng(-1.0 * maxr, maxr);
                     kp2.pt.y += r_error;
                 }
@@ -4014,7 +4088,7 @@ void genMatchSequ::distortKeyPointPosition(cv::KeyPoint &kp2,
                 if (maxr > (parsMtch.keypErrDistr.first + 5.0 * parsMtch.keypErrDistr.second)) {
                     float r_error = (float) abs(distr(rand_gen)) * pow(-1.f, (float) (rand2() % 2));
                     kp2.pt.x += r_error;
-                } else if (!nearZero(maxr)) {
+                } else if (maxr > 0 && !nearZero(maxr)) {
                     auto r_error = (float) getRandDoubleValRng(-1.0 * maxr, maxr);
                     kp2.pt.x += r_error;
                 }

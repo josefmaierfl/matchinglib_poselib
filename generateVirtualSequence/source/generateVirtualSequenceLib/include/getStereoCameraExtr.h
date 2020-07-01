@@ -29,6 +29,7 @@
 //#include "opencv2/features2d/features2d.hpp"
 #include <stdexcept>
 #include <random>
+#include <utility>
 
 #include "generateVirtualSequenceLib/generateVirtualSequenceLib_api.h"
 
@@ -94,6 +95,8 @@ public:
             rollRangeEqual(gsp.rollRangeEqual),
             pitchRangeEqual(gsp.pitchRangeEqual),
             yawRangeEqual(gsp.yawRangeEqual),
+            variablePoses(gsp.variablePoses),
+            init_rounds(gsp.init_rounds),
             tx_use(gsp.tx_use),
             ty_use(gsp.ty_use),
             tz_use(gsp.tz_use),
@@ -138,6 +141,8 @@ public:
         rollRangeEqual = gsp.rollRangeEqual;
         pitchRangeEqual = gsp.pitchRangeEqual;
         yawRangeEqual = gsp.yawRangeEqual;
+        variablePoses = gsp.variablePoses;
+        init_rounds = gsp.init_rounds;
         tx_use = gsp.tx_use;
         ty_use = gsp.ty_use;
         tz_use = gsp.tz_use;
@@ -172,25 +177,25 @@ public:
 	bool getCamPars(std::vector<cv::Mat>& Rv, std::vector<cv::Mat>& tv, cv::Mat& K_1, cv::Mat& K_2);
 	bool getEulerAngles(std::vector<double>& roll, std::vector<double>& pitch, std::vector<double>& yaw);
 	void getNewRandSeed();
-	double getMeanOverlapError(){
+	double getMeanOverlapError() const{
 	    return meanOvLapError;
 	}
-    double getNegMaxOvLapError(){
+    double getNegMaxOvLapError() const{
         return negMaxOvLapError;
     }
-    double getPosMaxOvLapError(){
+    double getPosMaxOvLapError() const{
         return posMaxOvLapError;
     }
-    double getSavedMeanOverlapError(){
+    double getSavedMeanOverlapError() const{
         return meanOvLapError_sv;
     }
-    double getSavedNegMaxOvLapError(){
+    double getSavedNegMaxOvLapError() const{
         return negMaxOvLapError_sv;
     }
-    double getSavedPosMaxOvLapError(){
+    double getSavedPosMaxOvLapError() const{
         return posMaxOvLapError_sv;
     }
-    double getSumofSquredResiduals(){
+    double getSumofSquredResiduals() const{
 	    return sumSqrRes;
 	}
 
@@ -226,6 +231,60 @@ private:
 	bool rollRangeEqual = false;
 	bool pitchRangeEqual = false;
 	bool yawRangeEqual = false;
+
+    uint16_t variablePoses;//Specifies which pose parameters are variable
+    size_t init_rounds = 1;//Specifies how often the overall error for random initialization should be calculated (to choose best initial)
+    struct storePoseUse{
+        std::vector<double> tx_use;
+        std::vector<double> ty_use;
+        std::vector<double> tz_use;
+        std::vector<double> roll_use;
+        std::vector<double> pitch_use;
+        std::vector<double> yaw_use;
+        cv::Mat residuals;
+        std::vector<double> errors;
+        double err = 0;
+
+        explicit storePoseUse(std::vector<double> tx_use_,
+                              std::vector<double> ty_use_,
+                              std::vector<double> tz_use_,
+                              std::vector<double> roll_use_,
+                              std::vector<double> pitch_use_,
+                              std::vector<double> yaw_use_):
+                tx_use(std::move(tx_use_)),
+                ty_use(std::move(ty_use_)),
+                tz_use(std::move(tz_use_)),
+                roll_use(std::move(roll_use_)),
+                pitch_use(std::move(pitch_use_)),
+                yaw_use(std::move(yaw_use_)),
+                err(DBL_MAX){}
+
+        void copyBack(std::vector<double> &tx_use_,
+                      std::vector<double> &ty_use_,
+                      std::vector<double> &tz_use_,
+                      std::vector<double> &roll_use_,
+                      std::vector<double> &pitch_use_,
+                      std::vector<double> &yaw_use_) const{
+            tx_use_ = tx_use;
+            ty_use_ = ty_use;
+            tz_use_ = tz_use;
+            roll_use_ = roll_use;
+            pitch_use_ = pitch_use;
+            yaw_use_ = yaw_use;
+        }
+
+        void setResiduals(const cv::Mat &resi, const size_t &nrConditions_){
+            resi.copyTo(residuals);
+            err = residuals.dot(residuals);
+            int nr = residuals.rows;
+            const int nr_single_r = nr / static_cast<int>(nrConditions_);
+            for (int i = 0; i < nr; i += nr_single_r) {
+                cv::Mat tmp = residuals.rowRange(i, i + nr_single_r);
+                errors.emplace_back(tmp.dot(tmp));
+            }
+        }
+    };
+    std::vector<storePoseUse> initPoses;
 
 	std::vector<double> tx_use;
 	std::vector<double> ty_use;
@@ -298,6 +357,8 @@ private:
 	cv::Mat getNormalDistributionVals(int sizeV, double mean, double stddev);
 	void adaptParVec(cv::Mat& parVec, cv::Mat& parVecOut, cv::Mat& deltaValid);
 	int optParLM(int verbose);
+	int initParameters();
+	int genMultInits();
 };
 
 /* --------------------- Function prototypes --------------------- */

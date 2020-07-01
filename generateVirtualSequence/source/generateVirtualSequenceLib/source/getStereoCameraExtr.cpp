@@ -50,7 +50,8 @@ GenStereoPars::GenStereoPars(std::vector<std::vector<double>> tx,
 	pitch_(move(pitch)),
 	yaw_(move(yaw)),
 	approxImgOverlap_(approxImgOverlap),
-	imgSize_(imgSize)
+	imgSize_(imgSize),
+    variablePoses(variableAllPoses)
 {
 	//srand(time(NULL));
     long int seed = randSeed(rand_generator);
@@ -143,14 +144,73 @@ GenStereoPars::GenStereoPars(std::vector<std::vector<double>> tx,
 	}
 
 	//Check if the ranges are equal
-	checkEqualRanges(tx_, txRangeEqual, static_cast<bool>(variableAllPoses & variablePars::TXv));
-	checkEqualRanges(ty_, tyRangeEqual, static_cast<bool>(variableAllPoses & variablePars::TYv));
-	checkEqualRanges(tz_, tzRangeEqual, static_cast<bool>(variableAllPoses & variablePars::TZv));
-	checkEqualRanges(roll_, rollRangeEqual, static_cast<bool>(variableAllPoses & variablePars::ROLLv));
-	checkEqualRanges(pitch_, pitchRangeEqual, static_cast<bool>(variableAllPoses & variablePars::PITCHv));
-	checkEqualRanges(yaw_, yawRangeEqual, static_cast<bool>(variableAllPoses & variablePars::YAWv));
+	vector<bool> variesP;
+	variesP.emplace_back(static_cast<bool>(variableAllPoses & variablePars::TXv));
+    variesP.emplace_back(static_cast<bool>(variableAllPoses & variablePars::TYv));
+    variesP.emplace_back(static_cast<bool>(variableAllPoses & variablePars::TZv));
+    variesP.emplace_back(static_cast<bool>(variableAllPoses & variablePars::ROLLv));
+    variesP.emplace_back(static_cast<bool>(variableAllPoses & variablePars::PITCHv));
+    variesP.emplace_back(static_cast<bool>(variableAllPoses & variablePars::YAWv));
+	checkEqualRanges(tx_, txRangeEqual, variesP[0]);
+	checkEqualRanges(ty_, tyRangeEqual, variesP[1]);
+	checkEqualRanges(tz_, tzRangeEqual, variesP[2]);
+	checkEqualRanges(roll_, rollRangeEqual, variesP[3]);
+	checkEqualRanges(pitch_, pitchRangeEqual, variesP[4]);
+	checkEqualRanges(yaw_, yawRangeEqual, variesP[5]);
 
     iOvLapMult = 1.0 + 15.0 * std::pow(std::log(approxImgOverlap_), 2);
+
+    if(variableAllPoses > 0) {
+        init_rounds = 1;
+        if (variesP[0] || variesP[1] || variesP[2]) {
+            vector<pair<double, bool>> ranges;
+            if (variesP[0]) ranges.emplace_back(abs(tx_[0][1] - tx_[0][0]), tx_[0][0] < 0 && tx_[0][1] > 0);
+            if (variesP[1]) ranges.emplace_back(abs(ty_[0][1] - ty_[0][0]), ty_[0][0] < 0 && ty_[0][1] > 0);
+            if (variesP[2]) ranges.emplace_back(abs(tz_[0][1] - tz_[0][0]), tz_[0][0] < 0 && tz_[0][1] > 0);
+            if (ranges.size() > 1)
+                std::sort(ranges.begin(), ranges.end(),
+                          [](const pair<double, bool> &first, const pair<double, bool> &second) {
+                              return first.first > second.first;
+                          });
+            double div = 3.;
+            init_rounds = 3;
+            if (ranges.back().second) {
+                div = 5.;
+                init_rounds = 5;
+            }
+            double part = ranges.back().first / div;
+            ranges.pop_back();
+            for (auto &i: ranges) {
+                init_rounds *= static_cast<size_t>(ceil(i.first / part));
+            }
+        }
+        if (variesP[3] || variesP[4] || variesP[5]) {
+            vector<pair<double, bool>> ranges;
+            if (variesP[0]) ranges.emplace_back(abs(roll_[0][1] - roll_[0][0]), roll_[0][0] < 0 && roll_[0][1] > 0);
+            if (variesP[1]) ranges.emplace_back(abs(pitch_[0][1] - pitch_[0][0]), pitch_[0][0] < 0 && pitch_[0][1] > 0);
+            if (variesP[2]) ranges.emplace_back(abs(yaw_[0][1] - yaw_[0][0]), yaw_[0][0] < 0 && yaw_[0][1] > 0);
+            if (ranges.size() > 1)
+                std::sort(ranges.begin(), ranges.end(),
+                          [](const pair<double, bool> &first, const pair<double, bool> &second) {
+                              return first.first > second.first;
+                          });
+            double div = 3.;
+            if (ranges.back().second) {
+                div = 5.;
+                init_rounds *= 5;
+            } else {
+                init_rounds *= 3;
+            }
+            double part = ranges.back().first / div;
+            ranges.pop_back();
+            for (auto &i: ranges) {
+                init_rounds *= static_cast<size_t>(ceil(i.first / part));
+            }
+        }
+        init_rounds = max(min(init_rounds, static_cast<size_t>(10000)), static_cast<size_t>(10));
+    }else{
+        init_rounds = 1;
+    }
 }
 
 void GenStereoPars::getNewRandSeed(){
@@ -259,173 +319,367 @@ void GenStereoPars::initRandPars(std::vector<std::vector<double>>& parIn, bool& 
 
 int GenStereoPars::optimizeRtf(int verbose)
 {
-    tx_use.clear();
-    ty_use.clear();
-    pitch_use.clear();
-    roll_use.clear();
-    yaw_use.clear();
-    Ris.clear();
-    tis.clear();
-	//Set the rotation about the z axis (yaw)
-	initRandPars(yaw_, yawRangeEqual, yaw_use);
-	//Set the virtual image widths
-	double perc = 0;
-	virtWidth = vector<double>(nrConditions);
-	for (size_t i = 0; i < nrConditions; i++)
-	{
-		getRotRectDiffArea(yaw_use[i], perc, virtWidth[i]);
-	}
+    //Set the focal length to a default value
+    f = (double)imgSize_.width / (2.0 * tan(PI / 4.0));
 
-	//Set the z-component of the translation vector
-	initRandPars(tz_, tzRangeEqual, tz_use);
+    //Camera matrix 1
+    K1 = Mat::eye(3, 3, CV_64FC1);
+    K1.at<double>(0, 0) = f;
+    K1.at<double>(1, 1) = f;
+    K1.at<double>(0, 2) = (double)imgSize_.width / 2.0;
+    K1.at<double>(1, 2) = (double)imgSize_.height / 2.0;
+    //Camera matrix 2
+    K2 = K1.clone();
 
-	//Set the focal length to a default value
-	f = (double)imgSize_.width / (2.0 * tan(PI / 4.0));
-
-	//Camera matrix 1
-	K1 = Mat::eye(3, 3, CV_64FC1);
-	K1.at<double>(0, 0) = f;
-	K1.at<double>(1, 1) = f;
-	K1.at<double>(0, 2) = (double)imgSize_.width / 2.0;
-	K1.at<double>(1, 2) = (double)imgSize_.height / 2.0;
-	//Camera matrix 2
-	K2 = K1.clone();
-
-	//Set all remaining parameters to a random or given value
-	initRandPars(tx_, txRangeEqual, tx_use);
-	initRandPars(ty_, tyRangeEqual, ty_use);
-	initRandPars(pitch_, pitchRangeEqual, pitch_use);
-	initRandPars(roll_, rollRangeEqual, roll_use);
-
-	//Check if tx is larger ty and if the larger value is negative
-	//If the larger value is not negative, try to find new random values
-	//And check, if the camera alignment is the same for all configurations
-	size_t cnt = 0;
-	const size_t maxit = 200;
-	if (txRangeEqual && tyRangeEqual)
-	{
-		while ((((std::abs(tx_use[0]) >= std::abs(ty_use[0])) && (tx_use[0] > 0)) ||
-			((std::abs(tx_use[0]) < std::abs(ty_use[0])) && (ty_use[0] > 0))) &&
-			(cnt < maxit))
-		{
-			tx_use.clear();
-			initRandPars(tx_, txRangeEqual, tx_use);
-			if (((std::abs(tx_use[0]) >= std::abs(ty_use[0])) && (tx_use[0] > 0)) ||
-				((std::abs(tx_use[0]) < std::abs(ty_use[0])) && (ty_use[0] > 0)))
-			{
-				ty_use.clear();
-				initRandPars(ty_, tyRangeEqual, ty_use);
-			}
-			cnt++;
-		}
-		if (cnt >= maxit)
-		{
-			return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
-		}
-	}
-	else
-	{
-		int alignCnt = 0;
-		size_t cnt2 = 0;
-		const size_t maxit1 = maxit * maxit;
-		for (int i = 0; i < (int)nrConditions; i++)
-		{
-			cnt = 0;
-			int i_tmp = i;
-			while ((((std::abs(tx_use[i]) >= std::abs(ty_use[i])) && (tx_use[i] > 0)) ||
-				((std::abs(tx_use[i]) < std::abs(ty_use[i])) && (ty_use[i] > 0))) &&
-				(cnt < maxit))
-			{
-				if(!helpNewRandEquRangeVals(i_tmp, maxit, 0))
-					return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
-				cnt++;
-			}
-			if (cnt >= maxit)
-			{
-				return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
-			}
-			if (std::abs(tx_use[i]) >= std::abs(ty_use[i]))
-			{
-				alignCnt++;
-			}
-			else
-			{
-				alignCnt--;
-			}
-			cnt2++;
-			if (cnt2 >= maxit1)
-			{
-				return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
-			}
-			if (i_tmp != i)
-			{
-				alignCnt = 0;
-				i = -1;
-			}
-		}
-		if (std::abs(alignCnt) != (int)nrConditions)//The camera alignment changes between configurations but must be the same
-		{
-			alignCnt = alignCnt == 0 ? 1 : alignCnt;//If both alignment options are equal often covered choose horizontal alignment
-			cnt2 = 0;
-			for (int i = 0; i < (int)nrConditions; i++)
-			{
-				cnt = 0;
-				int i_tmp[2];
-				i_tmp[0] = i_tmp[1] = i;
-				//Generate a new random configuration for wrong alignments
-				while ((((std::abs(tx_use[i]) >= std::abs(ty_use[i])) && (alignCnt < 0)) ||
-					((std::abs(tx_use[i]) < std::abs(ty_use[i])) && (alignCnt > 0))) &&
-					(cnt < maxit))
-				{
-					if (!helpNewRandEquRangeVals(i_tmp[0], maxit, alignCnt))
-						return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
-					size_t cnt1 = 0;
-					while ((((std::abs(tx_use[i]) >= std::abs(ty_use[i])) && (tx_use[i] > 0)) ||
-						((std::abs(tx_use[i]) < std::abs(ty_use[i])) && (ty_use[i] > 0))) &&
-						(cnt1 < maxit))
-					{
-						if (!helpNewRandEquRangeVals(i_tmp[1], maxit, alignCnt))
-							return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
-						cnt1++;
-					}
-					if (cnt1 >= maxit)
-					{
-						return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
-					}
-					cnt++;
-				}
-				if (cnt >= maxit)
-				{
-					return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
-				}
-				cnt2++;
-				if (cnt2 >= maxit1)
-				{
-					return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
-				}
-				if ((i_tmp[0] != i) ||
-					(i_tmp[1] != i))
-				{
-					i = -1;
-				}
-			}
-		}
-	}
-	horizontalCamAlign = false;
-	if (std::abs(tx_use[0]) >= std::abs(ty_use[0]))
-	{
-		horizontalCamAlign = true;
-	}
+    int err = 0;
+    if(init_rounds == 1) {
+        err = initParameters();
+    }else{
+        err = genMultInits();
+    }
+    if (err != 0) return err;
 
 	//Set the range of the focal length
 	fRange[0] = (double)imgSize_.width / (2.0 * tan(angView[1] / 2.0));
 	fRange[1] = (double)imgSize_.width / (2.0 * tan(angView[0] / 2.0));
 
-	int err = optParLM(verbose);
+	err = optParLM(verbose);
 	if (err)
 		return err-1; //Not able to reach desired result (-2) or paramters are not usable (-3)
 
 	return 0;	
+}
+
+int GenStereoPars::genMultInits(){
+    for(size_t i = 0; i < init_rounds; ++i){
+        if(initParameters() == 0){
+            initPoses.emplace_back(tx_use, ty_use, tz_use, roll_use, pitch_use, yaw_use);
+            setCoordsForOpti();
+            Mat p = Mat((int)(nrConditions * 4 + 1), 1, CV_64FC1);
+            for (int j = 0; j < (int)nrConditions; j++)
+            {
+                p.at<double>(j * 4) = pitch_use[j];
+                p.at<double>(j * 4 + 1) = roll_use[j];
+                p.at<double>(j * 4 + 2) = tx_use[j];
+                p.at<double>(j * 4 + 3) = ty_use[j];
+            }
+            p.at<double>((int)(nrConditions * 4)) = f;
+            initPoses.back().setResiduals(LMfunc(p), nrConditions);
+        }
+    }
+    if(initPoses.empty()) return -1;
+    storePoseUse &best = *min_element(initPoses.begin(), initPoses.end(),
+            [](const storePoseUse &first, const storePoseUse &second){return first.err < second.err;});
+    best.copyBack(tx_use, ty_use, tz_use, roll_use, pitch_use, yaw_use);
+    struct frPoses{
+        double tx, ty, tz, roll, pitch, yaw, error;
+        frPoses(const double &tx_, const double &ty_, const double &tz_, const double &roll_, const double &pitch_, const double &yaw_, const double &error_):
+                tx(tx_), ty(ty_), tz(tz_), roll(roll_), pitch(pitch_), yaw(yaw_), error(error_){}
+    };
+    vector<frPoses> best_frPoses;
+    for (size_t i = 0; i < nrConditions; i++){
+        vector<frPoses> best_frPoses_tmp;
+        for(auto &j: initPoses){
+            best_frPoses_tmp.emplace_back(j.tx_use[i], j.ty_use[i], j.tz_use[i], j.roll_use[i], j.pitch_use[i], j.yaw_use[i], j.errors[i]);
+        }
+        frPoses tmp = *min_element(best_frPoses_tmp.begin(), best_frPoses_tmp.end(),
+                                   [](const frPoses &first, const frPoses &second){return first.error < second.error;});
+        if(variablePoses & variablePars::TXv){
+            tx_use[i] = tmp.tx;
+        }
+        if(variablePoses & variablePars::TYv){
+            ty_use[i] = tmp.ty;
+        }
+        if(variablePoses & variablePars::TZv){
+            tz_use[i] = tmp.tz;
+        }
+        if(variablePoses & variablePars::ROLLv){
+            roll_use[i] = tmp.roll;
+        }
+        if(variablePoses & variablePars::PITCHv){
+            pitch_use[i] = tmp.pitch;
+        }
+        if(variablePoses & variablePars::YAWv){
+            yaw_use[i] = tmp.yaw;
+        }
+    }
+    initPoses.clear();
+    double perc = 0;
+    virtWidth = vector<double>(nrConditions);
+    for (size_t i = 0; i < nrConditions; i++)
+    {
+        getRotRectDiffArea(yaw_use[i], perc, virtWidth[i]);
+    }
+    //Check if tx is larger ty and if the larger value is negative
+    //If the larger value is not negative, try to find new random values
+    //And check, if the camera alignment is the same for all configurations
+    size_t cnt = 0;
+    const size_t maxit = 200;
+    if (txRangeEqual && tyRangeEqual)
+    {
+        while ((((std::abs(tx_use[0]) >= std::abs(ty_use[0])) && (tx_use[0] > 0)) ||
+                ((std::abs(tx_use[0]) < std::abs(ty_use[0])) && (ty_use[0] > 0))) &&
+               (cnt < maxit))
+        {
+            tx_use.clear();
+            initRandPars(tx_, txRangeEqual, tx_use);
+            if (((std::abs(tx_use[0]) >= std::abs(ty_use[0])) && (tx_use[0] > 0)) ||
+                ((std::abs(tx_use[0]) < std::abs(ty_use[0])) && (ty_use[0] > 0)))
+            {
+                ty_use.clear();
+                initRandPars(ty_, tyRangeEqual, ty_use);
+            }
+            cnt++;
+        }
+        if (cnt >= maxit)
+        {
+            return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
+        }
+    }
+    else
+    {
+        int alignCnt = 0;
+        size_t cnt2 = 0;
+        const size_t maxit1 = maxit * maxit;
+        for (int i = 0; i < (int)nrConditions; i++)
+        {
+            cnt = 0;
+            int i_tmp = i;
+            while ((((std::abs(tx_use[i]) >= std::abs(ty_use[i])) && (tx_use[i] > 0)) ||
+                    ((std::abs(tx_use[i]) < std::abs(ty_use[i])) && (ty_use[i] > 0))) &&
+                   (cnt < maxit))
+            {
+                if(!helpNewRandEquRangeVals(i_tmp, maxit, 0))
+                    return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
+                cnt++;
+            }
+            if (cnt >= maxit)
+            {
+                return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
+            }
+            if (std::abs(tx_use[i]) >= std::abs(ty_use[i]))
+            {
+                alignCnt++;
+            }
+            else
+            {
+                alignCnt--;
+            }
+            cnt2++;
+            if (cnt2 >= maxit1)
+            {
+                return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
+            }
+            if (i_tmp != i)
+            {
+                alignCnt = 0;
+                i = -1;
+            }
+        }
+        if (std::abs(alignCnt) != (int)nrConditions)//The camera alignment changes between configurations but must be the same
+        {
+            alignCnt = alignCnt == 0 ? 1 : alignCnt;//If both alignment options are equal often covered choose horizontal alignment
+            cnt2 = 0;
+            for (int i = 0; i < (int)nrConditions; i++)
+            {
+                cnt = 0;
+                int i_tmp[2];
+                i_tmp[0] = i_tmp[1] = i;
+                //Generate a new random configuration for wrong alignments
+                while ((((std::abs(tx_use[i]) >= std::abs(ty_use[i])) && (alignCnt < 0)) ||
+                        ((std::abs(tx_use[i]) < std::abs(ty_use[i])) && (alignCnt > 0))) &&
+                       (cnt < maxit))
+                {
+                    if (!helpNewRandEquRangeVals(i_tmp[0], maxit, alignCnt))
+                        return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
+                    size_t cnt1 = 0;
+                    while ((((std::abs(tx_use[i]) >= std::abs(ty_use[i])) && (tx_use[i] > 0)) ||
+                            ((std::abs(tx_use[i]) < std::abs(ty_use[i])) && (ty_use[i] > 0))) &&
+                           (cnt1 < maxit))
+                    {
+                        if (!helpNewRandEquRangeVals(i_tmp[1], maxit, alignCnt))
+                            return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
+                        cnt1++;
+                    }
+                    if (cnt1 >= maxit)
+                    {
+                        return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
+                    }
+                    cnt++;
+                }
+                if (cnt >= maxit)
+                {
+                    return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
+                }
+                cnt2++;
+                if (cnt2 >= maxit1)
+                {
+                    return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
+                }
+                if ((i_tmp[0] != i) ||
+                    (i_tmp[1] != i))
+                {
+                    i = -1;
+                }
+            }
+        }
+    }
+    horizontalCamAlign = false;
+    if (std::abs(tx_use[0]) >= std::abs(ty_use[0]))
+    {
+        horizontalCamAlign = true;
+    }
+    return 0;
+}
+
+int GenStereoPars::initParameters(){
+    tx_use.clear();
+    ty_use.clear();
+    tz_use.clear();
+    pitch_use.clear();
+    roll_use.clear();
+    yaw_use.clear();
+    Ris.clear();
+    tis.clear();
+    //Set the rotation about the z axis (yaw)
+    initRandPars(yaw_, yawRangeEqual, yaw_use);
+    //Set the virtual image widths
+    double perc = 0;
+    virtWidth = vector<double>(nrConditions);
+    for (size_t i = 0; i < nrConditions; i++)
+    {
+        getRotRectDiffArea(yaw_use[i], perc, virtWidth[i]);
+    }
+
+    //Set the z-component of the translation vector
+    initRandPars(tz_, tzRangeEqual, tz_use);
+
+    //Set all remaining parameters to a random or given value
+    initRandPars(tx_, txRangeEqual, tx_use);
+    initRandPars(ty_, tyRangeEqual, ty_use);
+    initRandPars(pitch_, pitchRangeEqual, pitch_use);
+    initRandPars(roll_, rollRangeEqual, roll_use);
+
+    //Check if tx is larger ty and if the larger value is negative
+    //If the larger value is not negative, try to find new random values
+    //And check, if the camera alignment is the same for all configurations
+    size_t cnt = 0;
+    const size_t maxit = 200;
+    if (txRangeEqual && tyRangeEqual)
+    {
+        while ((((std::abs(tx_use[0]) >= std::abs(ty_use[0])) && (tx_use[0] > 0)) ||
+                ((std::abs(tx_use[0]) < std::abs(ty_use[0])) && (ty_use[0] > 0))) &&
+               (cnt < maxit))
+        {
+            tx_use.clear();
+            initRandPars(tx_, txRangeEqual, tx_use);
+            if (((std::abs(tx_use[0]) >= std::abs(ty_use[0])) && (tx_use[0] > 0)) ||
+                ((std::abs(tx_use[0]) < std::abs(ty_use[0])) && (ty_use[0] > 0)))
+            {
+                ty_use.clear();
+                initRandPars(ty_, tyRangeEqual, ty_use);
+            }
+            cnt++;
+        }
+        if (cnt >= maxit)
+        {
+            return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
+        }
+    }
+    else
+    {
+        int alignCnt = 0;
+        size_t cnt2 = 0;
+        const size_t maxit1 = maxit * maxit;
+        for (int i = 0; i < (int)nrConditions; i++)
+        {
+            cnt = 0;
+            int i_tmp = i;
+            while ((((std::abs(tx_use[i]) >= std::abs(ty_use[i])) && (tx_use[i] > 0)) ||
+                    ((std::abs(tx_use[i]) < std::abs(ty_use[i])) && (ty_use[i] > 0))) &&
+                   (cnt < maxit))
+            {
+                if(!helpNewRandEquRangeVals(i_tmp, maxit, 0))
+                    return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
+                cnt++;
+            }
+            if (cnt >= maxit)
+            {
+                return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
+            }
+            if (std::abs(tx_use[i]) >= std::abs(ty_use[i]))
+            {
+                alignCnt++;
+            }
+            else
+            {
+                alignCnt--;
+            }
+            cnt2++;
+            if (cnt2 >= maxit1)
+            {
+                return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
+            }
+            if (i_tmp != i)
+            {
+                alignCnt = 0;
+                i = -1;
+            }
+        }
+        if (std::abs(alignCnt) != (int)nrConditions)//The camera alignment changes between configurations but must be the same
+        {
+            alignCnt = alignCnt == 0 ? 1 : alignCnt;//If both alignment options are equal often covered choose horizontal alignment
+            cnt2 = 0;
+            for (int i = 0; i < (int)nrConditions; i++)
+            {
+                cnt = 0;
+                int i_tmp[2];
+                i_tmp[0] = i_tmp[1] = i;
+                //Generate a new random configuration for wrong alignments
+                while ((((std::abs(tx_use[i]) >= std::abs(ty_use[i])) && (alignCnt < 0)) ||
+                        ((std::abs(tx_use[i]) < std::abs(ty_use[i])) && (alignCnt > 0))) &&
+                       (cnt < maxit))
+                {
+                    if (!helpNewRandEquRangeVals(i_tmp[0], maxit, alignCnt))
+                        return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
+                    size_t cnt1 = 0;
+                    while ((((std::abs(tx_use[i]) >= std::abs(ty_use[i])) && (tx_use[i] > 0)) ||
+                            ((std::abs(tx_use[i]) < std::abs(ty_use[i])) && (ty_use[i] > 0))) &&
+                           (cnt1 < maxit))
+                    {
+                        if (!helpNewRandEquRangeVals(i_tmp[1], maxit, alignCnt))
+                            return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
+                        cnt1++;
+                    }
+                    if (cnt1 >= maxit)
+                    {
+                        return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
+                    }
+                    cnt++;
+                }
+                if (cnt >= maxit)
+                {
+                    return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
+                }
+                cnt2++;
+                if (cnt2 >= maxit1)
+                {
+                    return -1;//Not able to generate a valid random camera configuration. Ranges of tx and ty should be adapted.
+                }
+                if ((i_tmp[0] != i) ||
+                    (i_tmp[1] != i))
+                {
+                    i = -1;
+                }
+            }
+        }
+    }
+    horizontalCamAlign = false;
+    if (std::abs(tx_use[0]) >= std::abs(ty_use[0]))
+    {
+        horizontalCamAlign = true;
+    }
+    return 0;
 }
 
 int GenStereoPars::optParLM(int verbose)
@@ -586,18 +840,19 @@ int GenStereoPars::optParLM(int verbose)
             posMaxOvLapError = ovLapErrorResidual;
         }
 	}
-	meanOvLapError /= (double)nrConditions;
+	meanOvLapError /= static_cast<double>(nrConditions);
     meanOvLapError_sv = meanOvLapError;
     negMaxOvLapError_sv = negMaxOvLapError;
     posMaxOvLapError_sv = posMaxOvLapError;
     sumSqrRes = ssq;
+    const double max_ssq = min(max(static_cast<double>(nrConditions) * 1.5, 10.), 500.);
 	cout << "Approx. overlap error: " << meanOvLapError << endl;
 	if (meanOvLapError > 0.05)
 	{
 		cout << "Unable to reach desired result! Try different ranges and/or parameters." << endl;
 		err = -1;
 	}
-	if (ssq > 15.0)
+	if (ssq > max_ssq)
 	{
 		cout << "Resulting parameters are not usable! Sum of squared residuals: " << ssq << endl;
 		err = -2;
