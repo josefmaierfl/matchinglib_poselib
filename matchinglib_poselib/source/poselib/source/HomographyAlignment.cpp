@@ -1,3 +1,26 @@
+//Released under the MIT License - https://opensource.org/licenses/MIT
+//
+//Copyright (c) 2019 AIT Austrian Institute of Technology GmbH
+//
+//Permission is hereby granted, free of charge, to any person obtaining
+//a copy of this software and associated documentation files (the "Software"),
+//to deal in the Software without restriction, including without limitation
+//the rights to use, copy, modify, merge, publish, distribute, sublicense,
+//and/or sell copies of the Software, and to permit persons to whom the
+//Software is furnished to do so, subject to the following conditions:
+//
+//The above copyright notice and this permission notice shall be included
+//in all copies or substantial portions of the Software.
+//
+//THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+//EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+//MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+//IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+//DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+//OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+//USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
+//Author: Josef Maier (josefjohann-dot-maier-at-gmail-dot-at)
 /**********************************************************************************************************
  FILE: RectStructMot.cpp
 
@@ -9,7 +32,7 @@
 
  DATE: July 2015
 
- LOCATION: TechGate Vienna, Donau-City-Stra�e 1, 1220 Vienna
+ LOCATION: TechGate Vienna, Donau-City-Strasse 1, 1220 Vienna
 
  VERSION: 1.0
 
@@ -79,7 +102,6 @@ int ComputeHomographyMotion(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 	if(num_planes > 1)
 	{
 		//rot is rotation from frame 1 to frame 2
-		//PRT_INT("---- nr of planes", num_planes)
 		if(!t1_2.empty() && cv::norm(t1_2) > 0.0)
 		{
 			if(!R1_2.empty())
@@ -97,17 +119,13 @@ int ComputeHomographyMotion(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 			constructAnalyticHomography(rot2_1, t1_2, norms.col(i), homo);
 			Hs_out.push_back(homo.clone());
 		}
-		//PRT_TIME("---- constructAnalyticHomography", start)
 	}
 	else if(num_planes == 1)
 	{
 		if(t1_2.empty() || cv::norm(t1_2) < 1e-6)
 			return 0;
-		//PRT_MSG("---- nr of planes: 1")
 
-		//PRT_TIME("---- getHomographyFromPoints", start)
 		LonguetHigginsSolution(Hs[0], rot_b2, dt_b2, norm2);
-		//PRT_TIME("---- LonguetHigginsSolution", start)
 		inv_rot_b2.push_back(rot_b2[0].t());
 		inv_rot_b2.push_back(rot_b2[1].t());
 		error[0] = 0.0;
@@ -120,17 +138,12 @@ int ComputeHomographyMotion(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 			R1_2 = rot_b2[0].t();
 			dt_b2[0].copyTo(t1_2);
 			norm2[0].copyTo(N);
-			//xyzrot(rot, &er[0], &er[1], &er[2]);
-			//this motion can be used in bundle adjustment input
-			//printf("%f %f %f %f %f %f\n", dt_b2[0][0], dt_b2[0][1],  dt_b2[0][2], er[0], er[1], er[2]);
 		}
 		else
 		{
 			R1_2 = rot_b2[1].t();
 			dt_b2[1].copyTo(t1_2);
 			norm2[1].copyTo(N);
-			//xyzrot(rot, &er[0], &er[1], &er[2]);
-			//printf("%f %f %f %f %f %f\n", dt_b2[1][0], dt_b2[1][1],  dt_b2[1][2], er[0], er[1], er[2]);
 		}
 	}
 	else
@@ -153,9 +166,6 @@ int ComputeHomographyMotion(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 	cout << "reprojection error " << p_diff.at<double>(0) << ", " << p_diff.at<double>(1) << endl;
   }
 #endif
-
-  //PRT_MAT33F("rotation", rot2_1)
-  //PRT_VEC3F("translation", t1_2)
 
   return 1;//*numm;
 }
@@ -234,8 +244,6 @@ int  HomographysAlignment(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 	LonguetHigginsSolution(_H, rot_b2, dt_b2, norm2);
 	errors[0] = Check_motion_error(inl_points, num_inl, rot_b2[0], dt_b2[0]);
 	errors[1] = Check_motion_error(inl_points, num_inl, rot_b2[1], dt_b2[1]);
-	//printf("error %f dt %f %f %f\n", errors[0], dt_b2[0][0], dt_b2[0][1], dt_b2[0][2]);
-	//printf("error %f dt %f %f %f\n", errors[1], dt_b2[1][0], dt_b2[1][1], dt_b2[1][2]);
 
 	dn.row(0) = Mat::zeros(1,3,CV_64F);
 
@@ -284,7 +292,6 @@ int  HomographysAlignment(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 
 			e1 = Check_error(inl_points, num_inl, h0, dn, rt0);
 
-			//printf("iter %d e1 = %f e2 = %f\n", iter, e1, e2);
 			if((fabs(e1-e2) < 0.000001 || e1 < tol)&& iter > 2)
 			{
 				break;
@@ -307,17 +314,11 @@ int  HomographysAlignment(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 		{
 			dn.row(i).copyTo(dn2.row(q*num_patches + i));//keep the old dn for the future uses
 		}
-	}  //end of q loop
-	//printf("homo 1\n");
-	//prt33(homo2[0]);
-	//printf("homo 2\n");
-	//prt33(homo2[1]);
+	}
 
 	//LonguetHigginsSolution(h0, rot_b2, dt_b2, norm2);
 	errors[0] = Check_motion_error(inl_points, num_inl, rot2[0], t2[0]);
 	errors[1] = Check_motion_error(inl_points, num_inl, rot2[1], t2[1]);
-	//printf("error %f dt %f %f %f\n", errors[0], t2[0][0], t2[0][1],  t2[0][2]);
-	//printf("error %f dt %f %f %f\n", errors[1], t2[1][0], t2[1][1], t2[1][2]);
 
 	if(errors[0] < errors[1])
 	{
@@ -488,7 +489,6 @@ int HomographysAlignment_initial_rotation(std::vector<std::pair<cv::Mat,cv::Mat>
 
 				update_h0_rt(inl_points,num_inl,h0,dn,rt0);
 				e1 = Check_error(inl_points, num_inl, h0, dn, rt0);
-				//printf("q = %d iter %d e1 = %f e2 = %f\n", q, iter, e1, e2);
 
 				if((fabs(e1-e2) < 0.00001 || e1 < tol)&& iter > 2)
 				{
@@ -630,8 +630,6 @@ int LonguetHigginsSolution( cv::InputArray H, std::vector<cv::Mat> & R1_2, std::
     if(d[0] - d[1] < 0.000001 && d[1]- d[2] < 0.000001)
     {
         // the two images are too close each other
-        //printf("the images are two close each other and the slope estimation is not valid\n");
-        //printf("the rotation estimation is ok\n");
 		dt2in1[0] = Mat::zeros(3,1,CV_64F);
 		dt2in1[1] = Mat::zeros(3,1,CV_64F);
         //the homography degerate to a rotation
@@ -710,7 +708,6 @@ int LonguetHigginsSolution( cv::InputArray H, std::vector<cv::Mat> & R1_2, std::
 		_tn = -1.0 * _tn;
 		invtn = _tn.inv();
         rot = h_norm * invtn;
-		//printf("det rot %f\n", det33(rot));
 		if(determinant(rot) < 0.0)
 		{
 			rot = -1.0 * rot;
@@ -770,8 +767,6 @@ int LonguetHigginsSolution_with_initial( cv::InputArray H, cv::Mat & R2_1, cv::M
     if(d[0] - d[1] < 0.000001 && d[1]- d[2] < 0.000001)
     {
         // the two images are too close each other
-        //printf("the images are two close each other and the slope estimation is not valid\n");
-        //printf("the rotation estimation is ok\n");
 		dt1 = Mat::zeros(3,1,CV_64F);
         //the homography degerate to a rotation
 		h_norm.copyTo(rot);
@@ -903,37 +898,22 @@ int jacobi33(double a[3][3], double d[3], double v[3][3], int *nrot)
 				sm += fabs(a[ip][iq]);
 		}
 		if (sm < 0.000001) {
-		    /*rearange the eigenvalue and eigenvector*/
-/*		trans33(v, dt);
-			mult333(dt, abc, tmp);
-			mult333(tmp, v, tmp1);
-*/
 			if(d[1] > d[0])
 			{
 				c = d[0];
 				d[0] = d[1];
 				d[1] = c;
-				//zero33(dt);
 				memset(dt,0,9*sizeof(double));
 				dt[0][1] = 1.0;
 				dt[1][0] = 1.0;
 				dt[2][2] = 1.0;
 
-				//mult333(v, dt, tmp);
 				Mat _v = Mat(3,3,CV_64F,v);
 				Mat _dt = Mat(3,3,CV_64F,dt);
 				Mat _tmp = Mat(3,3,CV_64F,tmp);
 				_tmp = _v * _dt;
 
 				memcpy(v,tmp,9*sizeof(double));
-				/*
-				for(i = 0; i< 3; ++i)
-				{
-					c = v[0][i];
-					v[0][i] = v[1][i];
-					v[1][i] = c;
-				}
-				*/
 			}
 			if(d[2] > d[1])
 			{
@@ -951,13 +931,6 @@ int jacobi33(double a[3][3], double d[3], double v[3][3], int *nrot)
 				_tmp = _v * _dt;
 
 				memcpy(v,tmp,9*sizeof(double));
-				/*
-				for(i = 0; i< 3; ++i)
-				{
-					c = v[1][i];
-					v[1][i] = v[2][i];
-					v[2][i] = c;
-				}*/
 			}
 			if(d[1] > d[0])
 			{
@@ -975,13 +948,6 @@ int jacobi33(double a[3][3], double d[3], double v[3][3], int *nrot)
 				_tmp = _v * _dt;
 
 				memcpy(v,tmp,9*sizeof(double));
-				/*
-				for(i = 0; i< 3; ++i)
-				{
-					c = v[0][i];
-					v[0][i] = v[1][i];
-					v[1][i] = c;
-				}*/
 			}
 			Mat _v = Mat(3,3,CV_64F,v);
 			Mat _dt = Mat(3,3,CV_64F,dt);
@@ -1079,14 +1045,12 @@ double Check_motion_error(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 
 			if(Rays_ClosestPoints(c0, r1, t, r2, p1, p2)!= 0)
 			{
-				//printf("i = %d j = %d det %f %f\n", i, j,  det33(epi));
 				dp = p1 - p2;
 				error1 += cv::norm(dp);
 
 				total_pts++;
 			}
 		}
-		//printf("patch %d  %d error %18.12f\n", i, num_pts[i],  error1/(float)num_pts[i]);
 		error +=error1;
 	}
 	return error/(double)total_pts;
@@ -1178,29 +1142,6 @@ int update_dn(cv::Mat points1, cv::Mat points2, int num_pts, cv::Mat h0, cv::Mat
 		ty = y * t;
 		A = _tt + A;
 		B = ty + B;
-
-		/*
-		p[0] = points1[i*2];
-			p[1] = points1[i*2+1];
-		p[2] = 1.0;
-		mult331(h0, p, hp);
-		mult313(k0, p, kp);
-		scale3(points2[i*2], kp[2], t);
-		sub3(kp[0], t, t);
-		y = points2[i*2]*hp[2] - hp[0];
-		mult313(t, t, tt);
-		scale3(y, t, ty);
-		add33(tt, A, A);
-		add3(ty, B, B);
-
-		scale3(points2[i*2+1], kp[2], t);
-		sub3(kp[1], t, t);
-		y = points2[i*2+1]*hp[2] - hp[1];
-		mult313(t, t, tt);
-		scale3(y, t, ty);
-		add33(tt, A, A);
-		add3(ty, B, B);
-		*/
 	}
 	invA = A.inv();
 	dn = (invA * B).t();
@@ -1251,7 +1192,6 @@ int update_dn(cv::Mat points1, cv::Mat points2, int num_pts, cv::Mat h0, cv::Mat
 			dnp = _p1.dot(dn.row(i).t());
 			p2[0] = inl_points[i].second.at<double>(j,0);
 			p2[1] = inl_points[i].second.at<double>(j,1);
-			//printf("i = %d point from %f %f to  %f %f\n", i, ipoint[0], ipoint[1], ipoint1[0], ipoint1[1]);
 			r[0] = p1[0];
 			r[1] = p1[1];
 			r[2] = 1.0;
@@ -1435,7 +1375,6 @@ long InvertMatrixD (const double *M, double *Minv, long nRows, register long n)
 	double lu[MAXDIM*MAXDIM+MAXDIM];
 
 	/* Decompose matrix into L and U triangular matrices */
-// was	if ((tallerBy < 0) || (MLLUdecompose(M, lu, n) == 0)) {
 	if ((tallerBy < 0) || (LUDecomposeD(M, lu, n) == 0)) {
 		return(0);		/* Singular */
 	}
@@ -1445,7 +1384,6 @@ long InvertMatrixD (const double *M, double *Minv, long nRows, register long n)
 		for(j = 0; j < n; j++)
 			b[j] = 0;
 		b[i] = 1;
-	// was	MLLUsolve(lu, m, b, n);	/* Into a row of m */
 
 		LUSolveD(lu, b, m, n);	/* Into a row of m */
 	}
@@ -1454,7 +1392,6 @@ long InvertMatrixD (const double *M, double *Minv, long nRows, register long n)
 	if (tallerBy) {			/* Affine transformation */
 		register double *t = Minv+n*n;			/* Translation vector */
 		m = Minv;			/* Reset m */
-	// was	MLLinearTransformInPlace(t, m, tallerBy, n);	/* Invert translation */
 		LinearTransformD(t, m, t, tallerBy, n, n);	/* Invert translation */
 		for (j = tallerBy * n; n--; t++)
 			*t = -*t;				/* Negate translation vector */
@@ -1576,7 +1513,6 @@ double Check_error(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 				  cv::Mat base_homo,
 				  cv::Mat dn,
 				  cv::Mat rt)
-	//double **points1, double **points2, int *num_pts, int num_homo, double base_homo[3][3], double *dn, double rt[3])
 {
 	int num_homo = (int)num_inl.size();
 	double *points1, *points2;
@@ -1612,11 +1548,9 @@ double Check_error(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 			homographyTransfer33D(h, points1, op);
 			dx = op[0] - points2[0];
 			dy = op[1] - points2[1];
-			//printf("i = %d dx dy %f %f\n", i, dx, dy);
 			error1 +=sqrt(dx*dx + dy*dy);
 			total_pts++;
 		}
-		//printf("patch %d error %18.12f\n", i, error1/(float)num_pts[i]);
 		error +=error1;
 	}
 	return error/(float)total_pts;
