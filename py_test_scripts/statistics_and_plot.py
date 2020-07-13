@@ -33,6 +33,7 @@ import jinja2 as ji
 from copy import deepcopy
 import shutil
 import multiprocessing
+import multiprocessing.pool
 from difflib import SequenceMatcher
 # from timeit import default_timer as timer
 # We must import this explicitly, it is not imported by the top-level

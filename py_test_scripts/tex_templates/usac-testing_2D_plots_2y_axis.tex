@@ -345,8 +345,11 @@ bar width=0.3cm,%
 +(.5+\plotnumofactualtype)*\pgfplotbarwidth + \plotnumofactualtype*(2pt)},%
 \BLOCK{ else }
 /pgf/bar shift=-6pt,%
+bar width=0.3cm,%
 \BLOCK{ if sec['xaxis_txt_rows'] > 1 }
-y=\VAR{ sec['xaxis_txt_rows'] * 12 }pt,%
+y=\VAR{ [(sec['xaxis_txt_rows'] * 0.421752)|round(2), 1.64]|max }cm,%
+\BLOCK{ else }
+y=1.64cm,%
 \BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ if sec['print_meta_l'] }
@@ -383,8 +386,11 @@ bar width=0.3cm,%
 +(.5+\plotnumofactualtype)*\pgfplotbarwidth + \plotnumofactualtype*(2pt)},%
 \BLOCK{ else }
 /pgf/bar shift=-6pt,%
+bar width=0.3cm,%
 \BLOCK{ if sec['xaxis_txt_rows'] > 1 }
-x=\VAR{ sec['xaxis_txt_rows'] * 12 }pt,%
+x=\VAR{ [(sec['xaxis_txt_rows'] * 0.421752)|round(2), 1.64]|max }cm,%
+\BLOCK{ else }
+x=1.64cm,%
 \BLOCK{ endif }
 \BLOCK{ endif }
 \BLOCK{ if sec['print_meta_l'] }
@@ -574,6 +580,12 @@ bar width=0.3cm,%
 +(.5+\plotnumofactualtype)*\pgfplotbarwidth + \plotnumofactualtype*(2pt)},%
 \BLOCK{ else }
 /pgf/bar shift=6pt,%
+bar width=0.3cm,%
+\BLOCK{ if sec['xaxis_txt_rows'] > 1 }
+y=\VAR{ [(sec['xaxis_txt_rows'] * 0.421752)|round(2), 1.64]|max }cm,%
+\BLOCK{ else }
+y=1.64cm,%
+\BLOCK{ endif }
 \BLOCK{ endif }
 xticklabel style={/pgf/number format/precision=4},%
 \BLOCK{ if sec['print_meta_r'] }
@@ -606,6 +618,12 @@ bar width=0.3cm,%
 +(.5+\plotnumofactualtype)*\pgfplotbarwidth + \plotnumofactualtype*(2pt)},%
 \BLOCK{ else }
 /pgf/bar shift=6pt,%
+bar width=0.3cm,%
+\BLOCK{ if sec['xaxis_txt_rows'] > 1 }
+x=\VAR{ [(sec['xaxis_txt_rows'] * 0.421752)|round(2), 1.64]|max }cm,%
+\BLOCK{ else }
+x=1.64cm,%
+\BLOCK{ endif }
 \BLOCK{ endif }
 yticklabel style={/pgf/number format/precision=4},%
 \BLOCK{ if sec['print_meta_r'] }
