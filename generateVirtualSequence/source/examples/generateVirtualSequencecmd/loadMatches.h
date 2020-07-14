@@ -1,3 +1,26 @@
+//Released under the MIT License - https://opensource.org/licenses/MIT
+//
+//Copyright (c) 2019 AIT Austrian Institute of Technology GmbH
+//
+//Permission is hereby granted, free of charge, to any person obtaining
+//a copy of this software and associated documentation files (the "Software"),
+//to deal in the Software without restriction, including without limitation
+//the rights to use, copy, modify, merge, publish, distribute, sublicense,
+//and/or sell copies of the Software, and to permit persons to whom the
+//Software is furnished to do so, subject to the following conditions:
+//
+//The above copyright notice and this permission notice shall be included
+//in all copies or substantial portions of the Software.
+//
+//THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+//EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+//MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+//IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+//DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+//OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+//USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
+//Author: Josef Maier (josefjohann-dot-maier-at-gmail-dot-at)
 //
 // Created by maierj on 08.05.19.
 //
@@ -48,11 +71,21 @@ struct sequMatches{
      * then used to calculate the matching descriptor. Homographies corresponding to the same
      * static 3D point (not for moving objects) in different stereo frames are similar*/
     std::vector<cv::Mat> frameHomographies;
+    /* Holds homographies for all patches arround keypoints in the first camera (for tracked features)
+     * for warping the patch which is then used to calculate the matching descriptor.
+     * Homographies corresponding to the same static 3D point in different stereo frames are similar
+     */
+    std::vector<cv::Mat> frameHomographiesCam1;
     /* Holds the keypoints from the images used to extract patches (image indices for keypoints
-     * are stored in srcImgPatchKpImgIdx)*/
-    std::vector<cv::KeyPoint> srcImgPatchKp;
-    /* Holds the image indices of the images used to extract patches for every keypoint in srcImgPatchKp (same order)*/
-    std::vector<int> srcImgPatchKpImgIdx;
+     * are stored in srcImgPatchKpImgIdx1)*/
+    std::vector<cv::KeyPoint> srcImgPatchKp1;
+    /* Holds the image indices of the images used to extract patches for every keypoint in srcImgPatchKp1 (same order) */
+    std::vector<size_t> srcImgPatchKpImgIdx1;
+    /* Holds the keypoints from the images used to extract patches for the second keypoint of a match.
+     * (image indices for keypoints are stored in srcImgPatchKpImgIdx2) */
+    std::vector<cv::KeyPoint> srcImgPatchKp2;
+    /* Holds the image indices of the images used to extract patches for every keypoint in srcImgPatchKp2 (same order) */
+    std::vector<size_t> srcImgPatchKpImgIdx2;
     /* Specifies the type of a correspondence (TN from static (=4) or TN from moving (=5) object,
      * or TP from a new static (=0), a new moving (=1), an old static (=2), or an old moving (=3)
      * object (old means, that the corresponding 3D point emerged before this stereo frame and
@@ -126,19 +159,47 @@ bool readMatchesFromDisk(const std::string &filename,
         sm.frameHomographies.emplace_back(m.clone());
     }
 
-    fs["srcImgPatchKp"] >> sm.srcImgPatchKp;
-
-    n = fs["srcImgPatchKpImgIdx"];
+    n = fs["frameHomographiesCam1"];
     if (n.type() != FileNode::SEQ) {
-        cerr << "srcImgPatchKpImgIdx is not a sequence! FAIL" << endl;
+        cerr << "frameHomographiesCam1 is not a sequence! FAIL" << endl;
         return false;
     }
-    sm.srcImgPatchKpImgIdx.clear();
+    sm.frameHomographiesCam1.clear();
+    it = n.begin(), it_end = n.end();
+    while (it != it_end) {
+        Mat m;
+        it >> m;
+        sm.frameHomographiesCam1.emplace_back(m.clone());
+    }
+
+    fs["srcImgPatchKp1"] >> sm.srcImgPatchKp1;
+
+    n = fs["srcImgPatchKpImgIdx1"];
+    if (n.type() != FileNode::SEQ) {
+        cerr << "srcImgPatchKpImgIdx1 is not a sequence! FAIL" << endl;
+        return false;
+    }
+    sm.srcImgPatchKpImgIdx1.clear();
     it = n.begin(), it_end = n.end();
     while (it != it_end) {
         int tmp = 0;
         it >> tmp;
-        sm.srcImgPatchKpImgIdx.push_back(tmp);
+        sm.srcImgPatchKpImgIdx1.push_back(static_cast<size_t>(tmp));
+    }
+
+    fs["srcImgPatchKp2"] >> sm.srcImgPatchKp2;
+
+    n = fs["srcImgPatchKpImgIdx2"];
+    if (n.type() != FileNode::SEQ) {
+        cerr << "srcImgPatchKpImgIdx2 is not a sequence! FAIL" << endl;
+        return false;
+    }
+    sm.srcImgPatchKpImgIdx2.clear();
+    it = n.begin(), it_end = n.end();
+    while (it != it_end) {
+        int tmp = 0;
+        it >> tmp;
+        sm.srcImgPatchKpImgIdx2.push_back(static_cast<size_t>(tmp));
     }
 
     n = fs["corrType"];
@@ -178,6 +239,8 @@ bool readCamParsFromDisk(const std::string &filename,
     fs["K2"] >> sm.K2;
     fs["actKd1"] >> sm.actKd1;
     fs["actKd2"] >> sm.actKd2;
+
+    fs.release();
 
     return true;
 }
