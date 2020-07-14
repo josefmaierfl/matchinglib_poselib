@@ -1047,6 +1047,7 @@ cv::Mat getEssentialMat(const cv::Mat &R_rel, const cv::Mat &t_rel){
     E.at<double>(1, 2) = -1. * t_rel.at<double>(0);
     E.at<double>(2, 0) = -1. * t_rel.at<double>(1);
     E.at<double>(2, 1) = t_rel.at<double>(0);
+    E = E * R_rel;
     return E.clone();
 }
 
@@ -1090,7 +1091,7 @@ bool getFrameToFrameMatches(const std::vector<int64_t> &combCorrsImg12TP_IdxWorl
                             const cv::Mat &K2,
                             const cv::Mat &R_rel,
                             const cv::Mat &t_rel,
-                            const std::mt19937 &rand2,
+                            std::mt19937 &rand2,
                             std::vector<cv::KeyPoint> &matchKeypoints_1,
                             std::vector<cv::KeyPoint> &matchKeypoints_2,
                             cv::Mat &matchDescriptors_1,
