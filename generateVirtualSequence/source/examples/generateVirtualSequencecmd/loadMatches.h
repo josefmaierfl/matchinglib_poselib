@@ -97,9 +97,25 @@ struct sequMatches{
      * frameDescriptors1, frameDescriptors2, frameHomographies, ... to corresponding 3D information
      * like combCorrsImg1TP, combCorrsImg2TP, combCorrsImg12TP_IdxWorld2, ... */
     std::vector<size_t> idxs_match23D1, idxs_match23D2;
+    /* 3D points corresponding to keypoints frameKeypoints1 (same order).
+     * For TN, all coordinate values (i.e. x, y, and z) are set to -999.0.
+     * 3D points are in the actual stereo camera coordinate frame (i.e. center of first stereo camera at origin.) */
+    std::vector<cv::Point3d> stereo3DPts;
+    /* 3D points corresponding to keypoints frameKeypoints1 (same order).
+     * For TN, all coordinate values (i.e. x, y, and z) are set to -999.0.
+     * 3D points are in the world coordinate frame */
+    std::vector<cv::Point3d> world3DPts;
+    /* Indicates, if a 3D point within stereo3DPts and world3DPts is dynamic (from a moving object) */
+    std::vector<bool> isDynamic;
 };
 
 //Order of correspondences in combined Mat combCorrsImg1TP, combCorrsImg2TP, and comb3DPts
+enum CorrType{
+    STATIC_LAST,
+    STATIC_NEW,
+    MOVING_LAST,
+    MOVING_NEW
+};
 struct CorrOrderTP{
     CorrOrderTP()
     {
@@ -112,6 +128,13 @@ struct CorrOrderTP{
     unsigned char statTPnew;
     unsigned char movTPfromLast;
     unsigned char movTPnew;
+
+    CorrType getOrderElement(const unsigned char &nr) const{
+        if(nr == statTPfromLast) return CorrType::STATIC_LAST;
+        if(nr == statTPnew) return CorrType::STATIC_NEW;
+        if(nr == movTPfromLast) return CorrType::MOVING_LAST;
+        return CorrType::MOVING_NEW;
+    }
 };
 
 struct data3D{
@@ -190,6 +213,19 @@ struct data3D{
     bool combCorrsImg12TNstatFirst = true;
 };
 
+struct Poses
+{
+    Poses()
+    {
+        R = cv::Mat::eye(3, 3, CV_64FC1);
+        t = cv::Mat::zeros(3, 1, CV_64FC1);
+    }
+    Poses(const cv::Mat &R_, const cv::Mat &t_) : R(R_), t(t_) {}
+
+    cv::Mat R;
+    cv::Mat t;
+};
+
 struct FrameToFrameMatches{
     /* Keypoints in first stereo camera of frame i-1 */
     std::vector<cv::KeyPoint> frameKeypoints_1_1;
@@ -211,16 +247,48 @@ struct FrameToFrameMatches{
     std::vector<cv::DMatch> matches_1;
     /* Matches in second stereo camera of frame i-1 and i */
     std::vector<cv::DMatch> matches_2;
+    /* 3D points corresponding to keypoints frameKeypoints_1_1 (same order).
+     * For TN, all coordinate values (i.e. x, y, and z) are set to -999.0.
+     * 3D points are in the world coordinate frame */
+    std::vector<cv::Point3d> world3DPts_1;
+    /* 3D points corresponding to keypoints frameKeypoints_1_2 (same order).
+     * For TN, all coordinate values (i.e. x, y, and z) are set to -999.0.
+     * 3D points are in the world coordinate frame */
+    std::vector<cv::Point3d> world3DPts_2;
+    /* 3D points corresponding to keypoints frameKeypoints_1_1 (same order).
+     * For TN, all coordinate values (i.e. x, y, and z) are set to -999.0.
+     * Origin of coordinate frame corresponds to center of first stereo camera of frame i-1 */
+    std::vector<cv::Point3d> relative3DPts_1;
+    /* 3D points corresponding to keypoints frameKeypoints_1_2 (same order).
+     * For TN, all coordinate values (i.e. x, y, and z) are set to -999.0.
+     * Origin of coordinate frame corresponds to center of second stereo camera of frame i-1 */
+    std::vector<cv::Point3d> relative3DPts_2;
+    /* Inlier mask for matches in first stereo camera of frame i-1 and i */
+    std::vector<bool> inlier_mask_1;
+    /* Inlier mask for matches in second stereo camera of frame i-1 and i */
+    std::vector<bool> inlier_mask_2;
+    /* Specifies if match data in first stereo camera of frame i-1 and i is valid */
+    bool valid_1 = false;
+    /* Specifies if match data in second stereo camera of frame i-1 and i is valid */
+    bool valid_2 = false;
     /* Frame number i-1 */
     size_t frameNr = 0;
-    /* Relative rotation matrix from first stereo camera of frame i-1 to first stereo camera of frame i */
+    /* Relative rotation matrix (X_i = R * X_(i-1) + t) from first stereo camera of frame i-1 to first stereo camera of frame i */
     cv::Mat R_rel_1;
-    /* Relative rotation matrix from second stereo camera of frame i-1 to second stereo camera of frame i */
+    /* Relative rotation matrix (X_i = R * X_(i-1) + t) from second stereo camera of frame i-1 to second stereo camera of frame i */
     cv::Mat R_rel_2;
     /* Relative translation vector from first stereo camera of frame i-1 to first stereo camera of frame i */
     cv::Mat t_rel_1;
     /* Relative translation vector from second stereo camera of frame i-1 to second stereo camera of frame i */
     cv::Mat t_rel_2;
+    /* Absolute camera pose in world coordinates (X_cam = R * X_w + t) of first stereo camera of frame i-1*/
+    Poses pose_abs_1_1;
+    /* Absolute camera pose in world coordinates (X_cam = R * X_w + t) of second stereo camera of frame i-1*/
+    Poses pose_abs_1_2;
+    /* Indicates, if a 3D point within world3DPts_1 and relative3DPts_1 is dynamic (from a moving object) */
+    std::vector<bool> isDynamic_1;
+    /* Indicates, if a 3D point within world3DPts_2 and relative3DPts_2 is dynamic (from a moving object) */
+    std::vector<bool> isDynamic_2;
 };
 
 struct matchSequParameters {
@@ -258,19 +326,6 @@ struct matchSequParameters {
     double portionGrossTN = 0;
     /* Folder name including matches */
     string hashMatchingPars;
-};
-
-struct Poses
-{
-    Poses()
-    {
-        R = cv::Mat::eye(3, 3, CV_64FC1);
-        t = cv::Mat::zeros(3, 1, CV_64FC1);
-    }
-    Poses(const cv::Mat &R_, const cv::Mat &t_) : R(R_), t(t_) {}
-
-    cv::Mat R;
-    cv::Mat t;
 };
 
 struct depthPortion{
@@ -1039,6 +1094,16 @@ void calcRelPose2(const cv::Mat &R_rel_1,
     t_rel = t_stereo_2 + R_stereo_2 * t_rel_1 - R_rel * t_stereo_1;
 }
 
+void calcAbsPose2(const cv::Mat &R_abs_1,
+                  const cv::Mat &t_abs_1,
+                  const cv::Mat &R_stereo_1,
+                  const cv::Mat &t_stereo_1,
+                  cv::Mat &R_stereo_abs_2,
+                  cv::Mat &t_stereo_abs_2){
+    R_stereo_abs_2 = R_stereo_1 * R_abs_1;
+    t_stereo_abs_2 = R_stereo_1 * t_abs_1 + t_stereo_1;
+}
+
 cv::Mat getEssentialMat(const cv::Mat &R_rel, const cv::Mat &t_rel){
     cv::Mat E = cv::Mat::zeros(3, 3, CV_64FC1);
     E.at<double>(0, 1) = -1. * t_rel.at<double>(2);
@@ -1087,16 +1152,23 @@ bool getFrameToFrameMatches(const std::vector<int64_t> &combCorrsImg12TP_IdxWorl
                             const std::vector<cv::KeyPoint> &frameKeypoints_2,
                             const cv::Mat &frameDescriptors_1,
                             const cv::Mat &frameDescriptors_2,
+                            const std::vector<cv::Point3d> &stereoWorld3DPts,
+                            const std::vector<bool> &dynamicElements_1,
                             const cv::Mat &K1,
                             const cv::Mat &K2,
                             const cv::Mat &R_rel,
                             const cv::Mat &t_rel,
+                            const Poses &Rt_abs,
                             std::mt19937 &rand2,
                             std::vector<cv::KeyPoint> &matchKeypoints_1,
                             std::vector<cv::KeyPoint> &matchKeypoints_2,
                             cv::Mat &matchDescriptors_1,
                             cv::Mat &matchDescriptors_2,
-                            std::vector<cv::DMatch> &matches){
+                            std::vector<cv::DMatch> &matches,
+                            std::vector<bool> &inlier_mask,
+                            std::vector<cv::Point3d> &world3DPts,
+                            std::vector<cv::Point3d> &relative3DPts,
+                            std::vector<bool> &dynamicElements){
     if(combCorrsImg12TP_IdxWorld2_1.empty() || combCorrsImg12TP_IdxWorld2_2.empty()){
         return false;
     }
@@ -1104,7 +1176,12 @@ bool getFrameToFrameMatches(const std::vector<int64_t> &combCorrsImg12TP_IdxWorl
     matchKeypoints_1.clear();
     matchKeypoints_2.clear();
     matchDescriptors_1.release();
+    matchDescriptors_1 = cv::Mat();
     matchDescriptors_2.release();
+    matchDescriptors_2 = cv::Mat();
+    world3DPts.clear();
+    relative3DPts.clear();
+    dynamicElements.clear();
     size_t nr_TP1 = combCorrsImg12TP_IdxWorld2_1.size();
     size_t nr_TP2 = combCorrsImg12TP_IdxWorld2_2.size();
     std::unordered_map<int64_t, size_t> idx3D1, idx3D2;
@@ -1117,7 +1194,7 @@ bool getFrameToFrameMatches(const std::vector<int64_t> &combCorrsImg12TP_IdxWorl
     for(size_t i = 0; i < idxs_match23D_2.size(); ++i){
         const size_t &id = idxs_match23D_2[i];
         if(id < nr_TP2){
-            idx3D2[combCorrsImg12TP_IdxWorld2_1[id]] = i;
+            idx3D2[combCorrsImg12TP_IdxWorld2_2[id]] = i;
         }
     }
     matchDescriptors_1.reserve(nr_TP1);
@@ -1136,17 +1213,27 @@ bool getFrameToFrameMatches(const std::vector<int64_t> &combCorrsImg12TP_IdxWorl
             matchKeypoints_2.push_back(frameKeypoints_2[it->second]);
             matchDescriptors_1.push_back(frameDescriptors_1.row(static_cast<int>(idx1.second)));
             matchDescriptors_2.push_back(frameDescriptors_2.row(static_cast<int>(it->second)));
+            world3DPts.push_back(stereoWorld3DPts[idx1.second]);
+            dynamicElements.push_back(dynamicElements_1[idx1.second]);
         }
     }
     if(matchKeypoints_1.empty()){
         return false;
     }
+    cv::Mat Rt = Rt_abs.R.t();
+    for(auto &p3: world3DPts){
+        Mat X = Mat(p3, false).reshape(1, 3);
+        Mat Xw = Rt * (X - Rt_abs.t);
+        cv::Point3d pt3w(Xw);
+        relative3DPts.push_back(move(pt3w));
+    }
+    inlier_mask = std::vector<bool>(matchKeypoints_1.size(), true);
     cv::Mat F = getFundamentalMat(R_rel, t_rel, K1, K2);
     size_t cnt = 0;
     for(size_t i = 0; i < matchKeypoints_1.size(); i++){
         cv::Mat pt1 = (cv::Mat_<double>(3,1) << static_cast<double>(matchKeypoints_1[i].pt.x),
                 static_cast<double>(matchKeypoints_1[i].pt.y), 1.);
-        cv::Mat pt2 = (cv::Mat_<double>(1,3) << static_cast<double>(matchKeypoints_2[i].pt.x),
+        cv::Mat pt2 = (cv::Mat_<double>(3,1) << static_cast<double>(matchKeypoints_2[i].pt.x),
                 static_cast<double>(matchKeypoints_2[i].pt.y), 1.);
         double err = abs(pt2.dot(F * pt1));
         if(err < 10.){
@@ -1179,12 +1266,20 @@ bool getFrameToFrameMatches(const std::vector<int64_t> &combCorrsImg12TP_IdxWorl
             matchDescriptors_1.push_back(frameDescriptors_1.row(static_cast<int>(tnidx1[i])));
             matchDescriptors_2.push_back(frameDescriptors_2.row(static_cast<int>(tnidx2[i])));
         }
+        inlier_mask.resize(matchKeypoints_1.size(), false);
+        world3DPts.resize(matchKeypoints_1.size(), cv::Point3d(-999.0, -999.0, -999.0));
+        relative3DPts.resize(matchKeypoints_1.size(), cv::Point3d(-999.0, -999.0, -999.0));
+        dynamicElements.resize(matchKeypoints_1.size(), false);
     }
     std::vector<std::size_t> shuffle_idx(matchKeypoints_1.size());
     std::iota(shuffle_idx.begin(), shuffle_idx.end(), 0);
     std::shuffle(shuffle_idx.begin(), shuffle_idx.end(), rand2);
     reOrderVector(matchKeypoints_1, shuffle_idx);
     reOrderVector(matchKeypoints_2, shuffle_idx);
+    reOrderVector(inlier_mask, shuffle_idx);
+    reOrderVector(world3DPts, shuffle_idx);
+    reOrderVector(relative3DPts, shuffle_idx);
+    reOrderVector(dynamicElements, shuffle_idx);
     reOrderDescriptors(matchDescriptors_1, shuffle_idx);
     reOrderDescriptors(matchDescriptors_2, shuffle_idx);
     for(int i = 0; i < static_cast<int>(matchKeypoints_1.size()); i++) {
@@ -1223,11 +1318,21 @@ bool getMultFrameToFrameMatches(const sequParameters &sequPars,
                      sequData[i].actT,
                      R2,
                      t2);
+        calcAbsPose2(sequPars.absCamCoordinates[i1].R,
+                     sequPars.absCamCoordinates[i1].t,
+                     sequData[i1].actR,
+                     sequData[i1].actT,
+                     f2f.pose_abs_1_2.R,
+                     f2f.pose_abs_1_2.t);
+        sequPars.absCamCoordinates[i1].R.copyTo(f2f.pose_abs_1_1.R);
+        sequPars.absCamCoordinates[i1].t.copyTo(f2f.pose_abs_1_1.t);
         std::random_device rd;
         std::mt19937 rand2(rd());
         std::vector<cv::KeyPoint> matchKeypoints1, matchKeypoints2;
         cv::Mat matchDescriptors1, matchDescriptors2;
         std::vector<cv::DMatch> matches;
+        std::vector<bool> inlier_mask, f2f_dynamic;
+        std::vector<cv::Point3d> world3DPts, relative3DPts;
         bool valid = false;
         if(getFrameToFrameMatches(sequData[i1].combCorrsImg12TP_IdxWorld2,
                                   sequData[i].combCorrsImg12TP_IdxWorld2,
@@ -1237,25 +1342,44 @@ bool getMultFrameToFrameMatches(const sequParameters &sequPars,
                                   matchData1[i].frameKeypoints1,
                                   matchData1[i1].frameDescriptors1,
                                   matchData1[i].frameDescriptors1,
+                                  matchData1[i1].world3DPts,
+                                  matchData1[i1].isDynamic,
                                   sequPars.K1,
                                   sequPars.K2,
                                   R1,
                                   t1,
+                                  f2f.pose_abs_1_1,
                                   rand2,
                                   matchKeypoints1,
                                   matchKeypoints2,
                                   matchDescriptors1,
                                   matchDescriptors2,
-                                  matches)){
+                                  matches,
+                                  inlier_mask,
+                                  world3DPts,
+                                  relative3DPts,
+                                  f2f_dynamic)){
             f2f.frameKeypoints_1_1 = move(matchKeypoints1);
             f2f.frameKeypoints_2_1 = move(matchKeypoints2);
+            f2f.inlier_mask_1 = move(inlier_mask);
             matchDescriptors1.copyTo(f2f.descriptors_1_1);
             matchDescriptors2.copyTo(f2f.descriptors_2_1);
             f2f.matches_1 = move(matches);
+            f2f.world3DPts_1 = move(world3DPts);
+            f2f.relative3DPts_1 = move(relative3DPts);
+            f2f.isDynamic_1 = move(f2f_dynamic);
             R1.copyTo(f2f.R_rel_1);
             t1.copyTo(f2f.t_rel_1);
             f2f.frameNr = i1;
+            f2f.valid_1 = true;
             valid = true;
+        }
+
+        std::vector<cv::Point3d> stereoWorld3DPts(matchData1[i1].idxs_match23D2.size());
+        std::vector<bool> dynamicElements(matchData1[i1].idxs_match23D2.size());
+        for(auto &j: matchData1[i1].frameMatches){
+            stereoWorld3DPts[j.trainIdx] = matchData1[i1].world3DPts[j.queryIdx];
+            dynamicElements[j.trainIdx] = matchData1[i1].isDynamic[j.queryIdx];
         }
 
         if(getFrameToFrameMatches(sequData[i1].combCorrsImg12TP_IdxWorld2,
@@ -1266,24 +1390,36 @@ bool getMultFrameToFrameMatches(const sequParameters &sequPars,
                                   matchData1[i].frameKeypoints2,
                                   matchData1[i1].frameDescriptors2,
                                   matchData1[i].frameDescriptors2,
+                                  stereoWorld3DPts,
+                                  dynamicElements,
                                   sequPars.K1,
                                   sequPars.K2,
                                   R2,
                                   t2,
+                                  f2f.pose_abs_1_2,
                                   rand2,
                                   matchKeypoints1,
                                   matchKeypoints2,
                                   matchDescriptors1,
                                   matchDescriptors2,
-                                  matches)){
+                                  matches,
+                                  inlier_mask,
+                                  world3DPts,
+                                  relative3DPts,
+                                  f2f_dynamic)){
             f2f.frameKeypoints_1_2 = move(matchKeypoints1);
             f2f.frameKeypoints_2_2 = move(matchKeypoints2);
+            f2f.inlier_mask_2 = move(inlier_mask);
             matchDescriptors1.copyTo(f2f.descriptors_1_2);
             matchDescriptors2.copyTo(f2f.descriptors_2_2);
             f2f.matches_2 = move(matches);
+            f2f.world3DPts_2 = move(world3DPts);
+            f2f.relative3DPts_2 = move(relative3DPts);
+            f2f.isDynamic_2 = move(f2f_dynamic);
             R2.copyTo(f2f.R_rel_2);
             t2.copyTo(f2f.t_rel_2);
             f2f.frameNr = i1;
+            f2f.valid_2 = true;
             valid = true;
         }
         if(valid){
@@ -1294,6 +1430,125 @@ bool getMultFrameToFrameMatches(const sequParameters &sequPars,
     return !f2f_matches.empty();
 }
 
+void get3DpointsForMatches(const std::vector<cv::Point3d> &comb3DPts,
+                           const Poses &absCamCoordinate,
+                           const std::vector<bool> &frameInliers,
+                           const std::vector<size_t> &idxs_match23D1,
+                           std::vector<cv::Point3d> &stereo3DPts,
+                           std::vector<cv::Point3d> &world3DPts){
+    const size_t nr_Corrs = frameInliers.size();
+    stereo3DPts.clear();
+    world3DPts.clear();
+    stereo3DPts.reserve(nr_Corrs);
+    world3DPts.reserve(nr_Corrs);
+    for(size_t i = 0; i < nr_Corrs; ++i){
+        if(frameInliers[i]){
+            cv::Point3d pt3 = comb3DPts[idxs_match23D1[i]];
+            stereo3DPts.push_back(pt3);
+            Mat X = Mat(pt3, false).reshape(1, 3);
+            Mat Xw = absCamCoordinate.R * X + absCamCoordinate.t;
+            cv::Point3d pt3w(Xw);
+            world3DPts.push_back(move(pt3w));
+        }else{
+            stereo3DPts.emplace_back(-999.0, -999.0, -999.0);
+            world3DPts.emplace_back(-999.0, -999.0, -999.0);
+        }
+    }
+}
 
+void getFull3Ddata(const std::vector<data3D> &sequData, const sequParameters &sequPars, std::vector<sequMatches> &matchData1){
+    for(size_t i = 0; i < sequPars.totalNrFrames; ++i) {
+        get3DpointsForMatches(sequData[i].comb3DPts,
+                              sequPars.absCamCoordinates[i],
+                              matchData1[i].frameInliers,
+                              matchData1[i].idxs_match23D1,
+                              matchData1[i].stereo3DPts,
+                              matchData1[i].world3DPts);
+    }
+}
+
+void getDynamic3Dpoints(const data3D &data, const std::vector<size_t> &idxs_match23D1, std::vector<bool> &dynamicElems){
+    std::vector<bool> tn, tpls, tplm, tpns, tpnm, tnp;
+    dynamicElems.clear();
+    int nr_corrs = data.combNrCorrsTN + data.combNrCorrsTP;
+    tnp.reserve(nr_corrs);
+    dynamicElems.reserve(nr_corrs);
+    if(data.combNrCorrsTN > 0){
+        tn.resize(data.combNrCorrsTN, false);
+    }
+    if(data.finalNrTPStatCorrsFromLast > 0){
+        tpls.resize(data.finalNrTPStatCorrsFromLast, false);
+    }
+    if(data.finalNrTPMovCorrsFromLast > 0){
+        tplm.resize(data.finalNrTPMovCorrsFromLast, true);
+    }
+    if(data.finalNrTPStatCorrs > 0){
+        tpns.resize(data.finalNrTPStatCorrs, false);
+    }
+    if(data.finalNrTPMovCorrs > 0){
+        tpnm.resize(data.finalNrTPMovCorrs, true);
+    }
+    if(data.combNrCorrsTP > 0) {
+        for (unsigned char i = 0; i < 4; ++i) {
+            switch (data.combCorrsImg12TPorder.getOrderElement(i)) {
+                case CorrType::STATIC_LAST:
+                    if(!tpls.empty()) tnp.insert(tnp.end(), tpls.begin(), tpls.end());
+                    break;
+                case CorrType::STATIC_NEW:
+                    if(!tpns.empty()) tnp.insert(tnp.end(), tpns.begin(), tpns.end());
+                    break;
+                case CorrType::MOVING_LAST:
+                    if(!tplm.empty()) tnp.insert(tnp.end(), tplm.begin(), tplm.end());
+                    break;
+                case CorrType::MOVING_NEW:
+                    if(!tpnm.empty()) tnp.insert(tnp.end(), tpnm.begin(), tpnm.end());
+                    break;
+            }
+        }
+        if(!tn.empty()){
+            tnp.insert(tnp.end(), tn.begin(), tn.end());
+        }
+    }else{
+        tnp = tn;
+    }
+    for(auto &i: idxs_match23D1){
+        dynamicElems.push_back(tnp[i]);
+    }
+}
+
+void getDynamic3Dpoints(sequMatches &data){
+    data.isDynamic.clear();
+    size_t nr_Corrs = data.frameKeypoints1.size();
+    data.isDynamic.reserve(nr_Corrs);
+    /* Type of correspondence: TN from static (=4) or TN from moving (=5) object,
+     * or TP from a new static (=0), a new moving (=1), an old static (=2), or an old moving (=3)
+     * object (old means, that the corresponding 3D point emerged before this stereo frame and
+     * also has one or more correspondences in a different stereo frame) */
+    for(auto &type: data.corrType){
+        switch (type) {
+            case 0:
+                data.isDynamic.emplace_back(false);
+                break;
+            case 1:
+                data.isDynamic.emplace_back(true);
+                break;
+            case 2:
+                data.isDynamic.emplace_back(false);
+                break;
+            case 3:
+                data.isDynamic.emplace_back(true);
+                break;
+            default:
+                data.isDynamic.emplace_back(false);
+                break;
+        }
+    }
+}
+
+void getAllDynamic3Dpoints(std::vector<sequMatches> &matchData1){
+    for(auto &data: matchData1) {
+        getDynamic3Dpoints(data);
+    }
+}
 
 #endif //GENERATEVIRTUALSEQUENCE_LOADMATCHES_H

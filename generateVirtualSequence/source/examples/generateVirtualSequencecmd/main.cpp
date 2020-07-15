@@ -32,7 +32,8 @@
 
  void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
  {
-     cmd.setIntroductoryDescription("Example program to show how the generated matches should be loaded.");
+     cmd.setIntroductoryDescription("Example program to show how the generated matches should be loaded.\n"
+                                    "It prints descriptor distance statistics of loaded data.");
      //define error codes
      cmd.addErrorCode(0, "Success");
      cmd.addErrorCode(1, "Error");
@@ -79,12 +80,16 @@
          cerr << "Wrong file structure" << endl;
          return false;
      }
-     size_t pos = filenames[0].rfind('.');
+     size_t pos1 = filenames[0].rfind(".gz");
+     if(pos1 != string::npos){
+         pos1 -= 1;
+     }
+     size_t pos = filenames[0].rfind('.', pos1);
      if(pos == string::npos){
          cerr << "Cannot extract file ending." << endl;
          return false;
      }
-     ending = ending.substr(pos);
+     ending = filenames[0].substr(pos);
      return true;
  }
 
@@ -155,6 +160,112 @@ bool getMult2FrameToFrameMatches(const sequParameters &sequPars,
      return !f2f_matches.empty();
  }
 
+void getMultFull3Ddata(const std::vector<data3D> &sequData, const sequParameters &sequPars, std::vector<std::vector<sequMatches>> &matchData1){
+     for(auto& matches: matchData1){
+         getFull3Ddata(sequData, sequPars, matches);
+     }
+ }
+
+ void getMultAllDynamic3Dpoints(std::vector<std::vector<sequMatches>> &matchData1){
+     for(auto& matches: matchData1){
+         getAllDynamic3Dpoints(matches);
+     }
+ }
+
+ void getDescriptorDistStat(const cv::Mat &descr1, const cv::Mat &descr2, double &minDist, double &maxDist, double &meanDist){
+     bool useHamming = descr1.type() == CV_8UC1;
+     vector<double> dists;
+     double sum = 0;
+     for (int i = 0; i < descr1.rows; ++i) {
+         if(useHamming){
+             dists.emplace_back(cv::norm(descr1.row(i), descr2.row(i), cv::NORM_HAMMING));
+         }else{
+             dists.emplace_back(cv::norm(descr1.row(i), descr2.row(i), cv::NORM_L2));
+         }
+         sum += dists.back();
+     }
+     minDist = *min_element(dists.begin(), dists.end());
+     maxDist = *max_element(dists.begin(), dists.end());
+     meanDist = sum / static_cast<double>(dists.size());
+ }
+
+void printDistStat(const double &minDist,
+                   const double &maxDist,
+                   const double &meanDist,
+                   const bool &isTP,
+                   const size_t &frameNr1,
+                   const size_t &frameNr2,
+                   const bool &cam1IsFirstStereo = true){
+    stringstream text;
+    int precimi = 1, precima = 1, precime = 1;
+    auto a = static_cast<int>(round(1e3 * (minDist - floor(minDist))));
+    if(a > 0){
+        precimi = 4;
+    }
+    a = static_cast<int>(round(1e3 * (maxDist - floor(maxDist))));
+    if(a > 0){
+        precima = 4;
+    }
+    a = static_cast<int>(round(1e3 * (meanDist - floor(meanDist))));
+    if(a > 0){
+        precime = 4;
+    }
+
+    text << "Descriptor distances of ";
+    if(isTP){
+        text << "TP ";
+    }else{
+        text << "TN ";
+    }
+    if(frameNr1 == frameNr2){
+        text << "stereo correspondences of frame " << frameNr1 << ": ";
+    }else{
+        text << "correspondences ";
+        if(cam1IsFirstStereo){
+            text << "in first stereo camera ";
+        }else{
+            text << "in second stereo camera ";
+        }
+        text << "of frames " << frameNr1 << " and " << frameNr2 << ": ";
+    }
+    text << "Mean: " << setprecision(precime) << meanDist << ", ";
+    text << "Min: " << setprecision(precimi) << minDist << ", ";
+    text << "Max: " << setprecision(precima) << maxDist;
+    cout << text.str() << endl;
+ }
+
+void getTNTPDescriptorDistances(const cv::Mat &descr1,
+                                const cv::Mat &descr2,
+                                const vector<bool> &inlier,
+                                const vector<cv::DMatch> &matches,
+                                const size_t &frameNr1,
+                                const size_t &frameNr2,
+                                const bool &cam1IsFirstStereo = true){
+     Mat d1p, d2p, d1n, d2n;
+     d1p.reserve(descr1.rows);
+     d2p.reserve(descr1.rows);
+     d1n.reserve(descr1.rows);
+     d2n.reserve(descr1.rows);
+     for(auto &m: matches){
+         if(inlier[m.queryIdx]){
+             d1p.push_back(descr1.row(m.queryIdx));
+             d2p.push_back(descr2.row(m.trainIdx));
+         }else{
+             d1n.push_back(descr1.row(m.queryIdx));
+             d2n.push_back(descr2.row(m.trainIdx));
+         }
+     }
+     double minDist, maxDist, meanDist;
+     if(!d1p.empty()){
+         getDescriptorDistStat(d1p, d2p, minDist, maxDist, meanDist);
+         printDistStat(minDist, maxDist, meanDist, true, frameNr1, frameNr2, cam1IsFirstStereo);
+     }
+     if(!d1n.empty()){
+         getDescriptorDistStat(d1n, d2n, minDist, maxDist, meanDist);
+         printDistStat(minDist, maxDist, meanDist, false, frameNr1, frameNr2, cam1IsFirstStereo);
+     }
+ }
+
  int main(int argc, char* argv[])
  {
      ArgvParser cmd;
@@ -191,6 +302,12 @@ bool getMult2FrameToFrameMatches(const sequParameters &sequPars,
          }else{
              cout << "Loading 3D data successful" << endl;
          }
+         getTNTPDescriptorDistances(sm.frameDescriptors1,
+                                    sm.frameDescriptors1,
+                                    sm.frameInliers,
+                                    sm.frameMatches,
+                                    d3.actFrameCnt,
+                                    d3.actFrameCnt);
      }else if(cmd.foundOption("sequPath")){
          string sequPath = cmd.optionValue("sequPath");
          if(!checkPathExists(sequPath)){
@@ -233,9 +350,38 @@ bool getMult2FrameToFrameMatches(const sequParameters &sequPars,
              if(!readMatchesSequence(matchPath, data_ending, sequPars.totalNrFrames, matchData1)){
                  return EXIT_FAILURE;
              }
+             for(size_t i = 0; i < matchData1.size(); ++i){
+                 getTNTPDescriptorDistances(matchData1[i].frameDescriptors1,
+                                            matchData1[i].frameDescriptors1,
+                                            matchData1[i].frameInliers,
+                                            matchData1[i].frameMatches,
+                                            sequData[i].actFrameCnt,
+                                            sequData[i].actFrameCnt);
+             }
+             //Get 3D data for every stereo pair
+             getFull3Ddata(sequData, sequPars, matchData1);
+             //Get dynamic elements
+             getAllDynamic3Dpoints(matchData1);
              //Get frame to frame matches
              vector<FrameToFrameMatches> f2f_matches;
              getMultFrameToFrameMatches(sequPars, sequData, matchData1, f2f_matches);
+             for(auto & f2f_matche : f2f_matches){
+                 getTNTPDescriptorDistances(f2f_matche.descriptors_1_1,
+                                            f2f_matche.descriptors_2_1,
+                                            f2f_matche.inlier_mask_1,
+                                            f2f_matche.matches_1,
+                                            f2f_matche.frameNr,
+                                            f2f_matche.frameNr + 1);
+             }
+             for(auto & f2f_matche : f2f_matches){
+                 getTNTPDescriptorDistances(f2f_matche.descriptors_1_2,
+                                            f2f_matche.descriptors_2_2,
+                                            f2f_matche.inlier_mask_2,
+                                            f2f_matche.matches_2,
+                                            f2f_matche.frameNr,
+                                            f2f_matche.frameNr + 1,
+                                            false);
+             }
          }else{
              //Get file extension (yaml/xml) for parameter files
              string base_ending;
@@ -264,9 +410,42 @@ bool getMult2FrameToFrameMatches(const sequParameters &sequPars,
                                              matchData)){
                  return EXIT_FAILURE;
              }
+             for(auto &ms: matchData) {
+                 for (size_t i = 0; i < ms.size(); ++i) {
+                     getTNTPDescriptorDistances(ms[i].frameDescriptors1,
+                                                ms[i].frameDescriptors1,
+                                                ms[i].frameInliers,
+                                                ms[i].frameMatches,
+                                                sequData[i].actFrameCnt,
+                                                sequData[i].actFrameCnt);
+                 }
+             }
+             //Get 3D data for every stereo pair
+             getMultFull3Ddata(sequData, sequPars, matchData);
+             //Get dynamic elements
+             getMultAllDynamic3Dpoints(matchData);
              //Get frame to frame matches
              std::vector<std::vector<FrameToFrameMatches>> f2f_matches;
              getMult2FrameToFrameMatches(sequPars, sequData, matchData, f2f_matches);
+             for(auto &ffm: f2f_matches){
+                 for(auto & f2f_matche : ffm){
+                     getTNTPDescriptorDistances(f2f_matche.descriptors_1_1,
+                                                f2f_matche.descriptors_2_1,
+                                                f2f_matche.inlier_mask_1,
+                                                f2f_matche.matches_1,
+                                                f2f_matche.frameNr,
+                                                f2f_matche.frameNr + 1);
+                 }
+                 for(auto & f2f_matche : ffm){
+                     getTNTPDescriptorDistances(f2f_matche.descriptors_1_2,
+                                                f2f_matche.descriptors_2_2,
+                                                f2f_matche.inlier_mask_2,
+                                                f2f_matche.matches_2,
+                                                f2f_matche.frameNr,
+                                                f2f_matche.frameNr + 1,
+                                                false);
+                 }
+             }
          }
      }else{
          cerr << "Options required. Use -h or --help for addition information." << endl;
