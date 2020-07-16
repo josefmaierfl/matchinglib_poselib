@@ -1,4 +1,4 @@
-# C++ CMake Project Template
+# SemiRealSequence: Unlimited Semi-Real-World GT Data Generation Framework for Feature-Based Applications
 
 cmake-init is a copy and paste template, that provides the following features:
  * Cross Platform
@@ -80,3 +80,16 @@ The project is installed globally on a system.
 binaries: /usr/[local/]bin
 rpath:    empty
 datapath: /usr/[local/]share/<projectname>
+
+## Citation
+
+Please cite the following paper if you use SemiRealSequence or parts of this code in your own work.
+
+```
+@inproceedings{maier2020semireal,
+  title={Unlimited Semi-Real-World Ground Truth Generation for Feature-Based Applications},
+  author={Maier, Josef},
+  booktitle={ACCV},
+  year={2020}
+}
+```

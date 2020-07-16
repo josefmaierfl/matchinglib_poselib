@@ -496,6 +496,9 @@ bool readMatchesFromDisk(const std::string &filename,
         return false;
     }
 
+    size_t posxml = filename.rfind(".xml");
+    bool isxml = posxml != string::npos;
+
     fs["frameKeypoints1"] >> sm.frameKeypoints1;
     fs["frameKeypoints2"] >> sm.frameKeypoints2;
     fs["frameDescriptors1"] >> sm.frameDescriptors1;
@@ -503,112 +506,186 @@ bool readMatchesFromDisk(const std::string &filename,
     fs["frameMatches"] >> sm.frameMatches;
 
     FileNode n = fs["frameInliers"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "frameInliers is not a sequence! FAIL" << endl;
-        return false;
-    }
+    FileNodeIterator it, it_end;
     sm.frameInliers.clear();
-    FileNodeIterator it = n.begin(), it_end = n.end();
-    while ( it != it_end) {
-        bool inli = false;
-        it >> inli;
-        sm.frameInliers.push_back(inli);
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                bool inli = false;
+                n >> inli;
+                sm.frameInliers.push_back(inli);
+            } else {
+                cerr << "frameInliers is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                bool inli = false;
+                it >> inli;
+                sm.frameInliers.push_back(inli);
+            }
+        }
     }
 
     fs["frameKeypoints2NoErr"] >> sm.frameKeypoints2NoErr;
 
     n = fs["frameHomographies"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "frameHomographies is not a sequence! FAIL" << endl;
-        return false;
-    }
     sm.frameHomographies.clear();
-    it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        Mat m;
-        it >> m;
-        sm.frameHomographies.emplace_back(m.clone());
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                Mat m;
+                n >> m;
+                sm.frameHomographies.emplace_back(m.clone());
+            } else {
+                cerr << "frameHomographies is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                Mat m;
+                it >> m;
+                sm.frameHomographies.emplace_back(m.clone());
+            }
+        }
     }
 
     n = fs["frameHomographiesCam1"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "frameHomographiesCam1 is not a sequence! FAIL" << endl;
-        return false;
-    }
     sm.frameHomographiesCam1.clear();
-    it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        Mat m;
-        it >> m;
-        sm.frameHomographiesCam1.emplace_back(m.clone());
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                Mat m;
+                n >> m;
+                sm.frameHomographiesCam1.emplace_back(m.clone());
+            } else {
+                cerr << "frameHomographiesCam1 is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                Mat m;
+                it >> m;
+                sm.frameHomographiesCam1.emplace_back(m.clone());
+            }
+        }
     }
 
     fs["srcImgPatchKp1"] >> sm.srcImgPatchKp1;
 
     n = fs["srcImgPatchKpImgIdx1"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "srcImgPatchKpImgIdx1 is not a sequence! FAIL" << endl;
-        return false;
-    }
     sm.srcImgPatchKpImgIdx1.clear();
-    it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        int tmp = 0;
-        it >> tmp;
-        sm.srcImgPatchKpImgIdx1.push_back(static_cast<size_t>(tmp));
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                int tmp = 0;
+                n >> tmp;
+                sm.srcImgPatchKpImgIdx1.push_back(static_cast<size_t>(tmp));
+            } else {
+                cerr << "srcImgPatchKpImgIdx1 is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                int tmp = 0;
+                it >> tmp;
+                sm.srcImgPatchKpImgIdx1.push_back(static_cast<size_t>(tmp));
+            }
+        }
     }
 
     fs["srcImgPatchKp2"] >> sm.srcImgPatchKp2;
 
     n = fs["srcImgPatchKpImgIdx2"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "srcImgPatchKpImgIdx2 is not a sequence! FAIL" << endl;
-        return false;
-    }
     sm.srcImgPatchKpImgIdx2.clear();
-    it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        int tmp = 0;
-        it >> tmp;
-        sm.srcImgPatchKpImgIdx2.push_back(static_cast<size_t>(tmp));
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                int tmp = 0;
+                n >> tmp;
+                sm.srcImgPatchKpImgIdx2.push_back(static_cast<size_t>(tmp));
+            } else {
+                cerr << "srcImgPatchKpImgIdx2 is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                int tmp = 0;
+                it >> tmp;
+                sm.srcImgPatchKpImgIdx2.push_back(static_cast<size_t>(tmp));
+            }
+        }
     }
 
     n = fs["corrType"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "corrType is not a sequence! FAIL" << endl;
-        return false;
-    }
     sm.corrType.clear();
-    it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        int tmp = 0;
-        it >> tmp;
-        sm.corrType.push_back(tmp);
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                int tmp = 0;
+                n >> tmp;
+                sm.corrType.push_back(tmp);
+            } else {
+                cerr << "corrType is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                int tmp = 0;
+                it >> tmp;
+                sm.corrType.push_back(tmp);
+            }
+        }
     }
 
     n = fs["idxs_match23D1"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "idxs_match23D1 is not a sequence! FAIL" << endl;
-        return false;
-    }
     sm.idxs_match23D1.clear();
-    it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        int tmp = 0;
-        it >> tmp;
-        sm.idxs_match23D1.push_back(static_cast<size_t>(tmp));
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                int tmp = 0;
+                n >> tmp;
+                sm.idxs_match23D1.push_back(static_cast<size_t>(tmp));
+            } else {
+                cerr << "idxs_match23D1 is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                int tmp = 0;
+                it >> tmp;
+                sm.idxs_match23D1.push_back(static_cast<size_t>(tmp));
+            }
+        }
     }
+
     n = fs["idxs_match23D2"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "idxs_match23D2 is not a sequence! FAIL" << endl;
-        return false;
-    }
     sm.idxs_match23D2.clear();
-    it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        int tmp = 0;
-        it >> tmp;
-        sm.idxs_match23D2.push_back(static_cast<size_t>(tmp));
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                int tmp = 0;
+                n >> tmp;
+                sm.idxs_match23D2.push_back(static_cast<size_t>(tmp));
+            } else {
+                cerr << "idxs_match23D2 is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                int tmp = 0;
+                it >> tmp;
+                sm.idxs_match23D2.push_back(static_cast<size_t>(tmp));
+            }
+        }
     }
     fs.release();
 
@@ -623,6 +700,9 @@ bool readCamParsFromDisk(const std::string &filename,
         cerr << "Failed to open " << filename << endl;
         return false;
     }
+
+    size_t posxml = filename.rfind(".xml");
+    bool isxml = posxml != string::npos;
 
     int tmp = 0;
 
@@ -643,91 +723,148 @@ bool readCamParsFromDisk(const std::string &filename,
     fs["combCorrsImg2TP"] >> sm.combCorrsImg2TP;
 
     FileNode n = fs["comb3DPts"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "comb3DPts is not a sequence! FAIL" << endl;
-        return false;
-    }
     sm.comb3DPts.clear();
-    FileNodeIterator it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        cv::Point3d pt;
-        it >> pt;
-        sm.comb3DPts.push_back(pt);
+    FileNodeIterator it, it_end;
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                cv::Point3d pt;
+                n >> pt;
+                sm.comb3DPts.push_back(pt);
+            } else {
+                cerr << "comb3DPts is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                cv::Point3d pt;
+                it >> pt;
+                sm.comb3DPts.push_back(pt);
+            }
+        }
     }
 
     n = fs["combCorrsImg12TP_IdxWorld"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "combCorrsImg12TP_IdxWorld is not a sequence! FAIL" << endl;
-        return false;
-    }
     sm.combCorrsImg12TP_IdxWorld.clear();
-    it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        int64_t val;
-        it >> val;
-        sm.combCorrsImg12TP_IdxWorld.push_back(val);
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                int64_t val;
+                n >> val;
+                sm.combCorrsImg12TP_IdxWorld.push_back(val);
+            } else {
+                cerr << "combCorrsImg12TP_IdxWorld is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                int64_t val;
+                it >> val;
+                sm.combCorrsImg12TP_IdxWorld.push_back(val);
+            }
+        }
     }
 
     n = fs["combCorrsImg12TP_IdxWorld2"];
-    if(!n.empty()){
-        if (n.type() != FileNode::SEQ) {
-            cerr << "combCorrsImg12TP_IdxWorld2 is not a sequence! FAIL" << endl;
-            return false;
-        }
+    if(!n.empty() && n.size() > 0){
         sm.combCorrsImg12TP_IdxWorld2.clear();
-        it = n.begin(), it_end = n.end();
-        while (it != it_end) {
-            int64_t val;
-            it >> val;
-            sm.combCorrsImg12TP_IdxWorld2.push_back(val);
+        if (n.type() != FileNode::SEQ) {
+            if(isxml){
+                int64_t val;
+                n >> val;
+                sm.combCorrsImg12TP_IdxWorld2.push_back(val);
+            }else {
+                cerr << "combCorrsImg12TP_IdxWorld2 is not a sequence! FAIL" << endl;
+                return false;
+            }
+        }else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                int64_t val;
+                it >> val;
+                sm.combCorrsImg12TP_IdxWorld2.push_back(val);
+            }
         }
     }
 
     n = fs["nrMovingObjPerFrame"];
-    if(!n.empty()){
-        if (n.type() != FileNode::SEQ) {
-            cerr << "nrMovingObjPerFrame is not a sequence! FAIL" << endl;
-            return false;
-        }
+    if(!n.empty() && n.size() > 0){
         sm.nrMovingObjPerFrame.clear();
-        it = n.begin(), it_end = n.end();
-        while (it != it_end) {
-            int val;
-            it >> val;
-            sm.nrMovingObjPerFrame.push_back(static_cast<unsigned int>(val));
+        if (n.type() != FileNode::SEQ) {
+            if(isxml){
+                int val;
+                n >> val;
+                sm.nrMovingObjPerFrame.push_back(static_cast<unsigned int>(val));
+            }else {
+                cerr << "nrMovingObjPerFrame is not a sequence! FAIL" << endl;
+                return false;
+            }
+        }else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                int val;
+                it >> val;
+                sm.nrMovingObjPerFrame.push_back(static_cast<unsigned int>(val));
+            }
         }
     }
 
     n = fs["movObjFrameEmerge"];
-    if(!n.empty()){
-        if (n.type() != FileNode::SEQ) {
-            cerr << "movObjFrameEmerge is not a sequence! FAIL" << endl;
-            return false;
-        }
+    if(!n.empty() && n.size() > 0){
         sm.movObjFrameEmerge.clear();
-        it = n.begin(), it_end = n.end();
-        for (; it != it_end; ++it) {
-            FileNode n1 = *it;
-            Mat move_vect;
-            int fc, pos;
-            n1["fc"] >> fc;
-            n1["pos"] >> pos;
-            n1["move_vect"] >> move_vect;
-            sm.movObjFrameEmerge.emplace_back(make_tuple(static_cast<size_t>(fc), static_cast<size_t>(pos), move_vect.clone()));
+        if (n.type() != FileNode::SEQ) {
+            if(isxml){
+                Mat move_vect;
+                int fc, pos;
+                FileNode n1 = n["fc"];
+                if(!n1.empty()) {
+                    n1 >> fc;
+                    n["pos"] >> pos;
+                    n["move_vect"] >> move_vect;
+                    sm.movObjFrameEmerge.emplace_back(
+                            make_tuple(static_cast<size_t>(fc), static_cast<size_t>(pos), move_vect.clone()));
+                }
+            }else {
+                cerr << "movObjFrameEmerge is not a sequence! FAIL" << endl;
+                return false;
+            }
+        }else {
+            it = n.begin(), it_end = n.end();
+            for (; it != it_end; ++it) {
+                FileNode n1 = *it;
+                Mat move_vect;
+                int fc, pos;
+                n1["fc"] >> fc;
+                n1["pos"] >> pos;
+                n1["move_vect"] >> move_vect;
+                sm.movObjFrameEmerge.emplace_back(
+                        make_tuple(static_cast<size_t>(fc), static_cast<size_t>(pos), move_vect.clone()));
+            }
         }
     }
 
     n = fs["combCorrsImg12TPContMovObj_IdxWorld"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "combCorrsImg12TPContMovObj_IdxWorld is not a sequence! FAIL" << endl;
-        return false;
-    }
     sm.combCorrsImg12TPContMovObj_IdxWorld.clear();
-    it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        int64_t val;
-        it >> val;
-        sm.combCorrsImg12TPContMovObj_IdxWorld.push_back(val);
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                int64_t val;
+                n >> val;
+                sm.combCorrsImg12TPContMovObj_IdxWorld.push_back(val);
+            } else {
+                cerr << "combCorrsImg12TPContMovObj_IdxWorld is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                int64_t val;
+                it >> val;
+                sm.combCorrsImg12TPContMovObj_IdxWorld.push_back(val);
+            }
+        }
     }
 
     fs["combCorrsImg1TN"] >> sm.combCorrsImg1TN;
@@ -737,16 +874,25 @@ bool readCamParsFromDisk(const std::string &filename,
     fs["combNrCorrsTN"] >> sm.combNrCorrsTN;
 
     n = fs["combDistTNtoReal"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "combDistTNtoReal is not a sequence! FAIL" << endl;
-        return false;
-    }
     sm.combDistTNtoReal.clear();
-    it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        double dist = 0;
-        it >> dist;
-        sm.combDistTNtoReal.push_back(dist);
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                double dist = 0;
+                n >> dist;
+                sm.combDistTNtoReal.push_back(dist);
+            } else {
+                cerr << "combDistTNtoReal is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                double dist = 0;
+                it >> dist;
+                sm.combDistTNtoReal.push_back(dist);
+            }
+        }
     }
 
     fs["finalNrTPStatCorrs"] >> sm.finalNrTPStatCorrs;
@@ -844,21 +990,35 @@ bool readSequenceParameters(const std::string &filename, sequParameters &pars) {
         cerr << "Failed to open " << filename << endl;
         return false;
     }
+
+    size_t posxml = filename.rfind(".xml");
+    bool isxml = posxml != string::npos;
+
     int tmp = 0;
     fs["nrStereoConfs"] >> tmp;
     pars.nrStereoConfs = (size_t)tmp;
 
     FileNode n = fs["inlRat"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "inlRat is not a sequence! FAIL" << endl;
-        return false;
-    }
+    FileNodeIterator it, it_end;
     pars.inlRat.clear();
-    FileNodeIterator it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        double inlRa1 = 0;
-        it >> inlRa1;
-        pars.inlRat.push_back(inlRa1);
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                double inlRa1 = 0;
+                n >> inlRa1;
+                pars.inlRat.push_back(inlRa1);
+            } else {
+                cerr << "inlRat is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                double inlRa1 = 0;
+                it >> inlRa1;
+                pars.inlRat.push_back(inlRa1);
+            }
+        }
     }
 
     fs["nFramesPerCamConf"] >> tmp;
@@ -888,16 +1048,25 @@ bool readSequenceParameters(const std::string &filename, sequParameters &pars) {
     n["far"] >> pars.corrsPerDepth.far;
 
     n = fs["corrsPerRegion"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "corrsPerRegion is not a sequence! FAIL" << endl;
-        return false;
-    }
     pars.corrsPerRegion.clear();
-    it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        Mat m;
-        it >> m;
-        pars.corrsPerRegion.push_back(m.clone());
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                Mat m;
+                n >> m;
+                pars.corrsPerRegion.push_back(m.clone());
+            } else {
+                cerr << "corrsPerRegion is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                Mat m;
+                it >> m;
+                pars.corrsPerRegion.push_back(m.clone());
+            }
+        }
     }
 
     fs["corrsPerRegRepRate"] >> tmp;
@@ -942,16 +1111,25 @@ bool readSequenceParameters(const std::string &filename, sequParameters &pars) {
     }
 
     n = fs["camTrack"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "camTrack is not a sequence! FAIL" << endl;
-        return false;
-    }
     pars.camTrack.clear();
-    it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        Mat m;
-        it >> m;
-        pars.camTrack.emplace_back(m.clone());
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                Mat m;
+                n >> m;
+                pars.camTrack.emplace_back(m.clone());
+            } else {
+                cerr << "camTrack is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                Mat m;
+                it >> m;
+                pars.camTrack.emplace_back(m.clone());
+            }
+        }
     }
 
     fs["relCamVelocity"] >> pars.relCamVelocity;
@@ -969,15 +1147,23 @@ bool readSequenceParameters(const std::string &filename, sequParameters &pars) {
     pars.relAreaRangeMovObjs = make_pair(first_dbl, second_dbl);
 
     n = fs["movObjDepth"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "camTrack is not a sequence! FAIL" << endl;
-        return false;
-    }
     pars.movObjDepth.clear();
-    it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        it >> tmp;
-        pars.movObjDepth.push_back((depthClass) tmp);
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                n >> tmp;
+                pars.movObjDepth.push_back((depthClass) tmp);
+            } else {
+                cerr << "camTrack is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                it >> tmp;
+                pars.movObjDepth.push_back((depthClass) tmp);
+            }
+        }
     }
 
     fs["movObjDir"] >> pars.movObjDir;
@@ -1003,56 +1189,95 @@ bool readSequenceParameters(const std::string &filename, sequParameters &pars) {
     pars.totalNrFrames = (size_t) tmp;
 
     n = fs["nrCorrs"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "nrCorrs is not a sequence! FAIL" << endl;
-        return false;
-    }
     pars.nrCorrs.clear();
-    it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        it >> tmp;
-        pars.nrCorrs.push_back((size_t) tmp);
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                n >> tmp;
+                pars.nrCorrs.push_back((size_t) tmp);
+            } else {
+                cerr << "nrCorrs is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                it >> tmp;
+                pars.nrCorrs.push_back((size_t) tmp);
+            }
+        }
     }
 
     n = fs["absCamCoordinates"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "absCamCoordinates is not a sequence! FAIL" << endl;
-        return false;
-    }
     pars.absCamCoordinates.clear();
-    it = n.begin(), it_end = n.end();
-    for (; it != it_end; ++it) {
-        FileNode n1 = *it;
-        Mat m1, m2;
-        n1["R"] >> m1;
-        n1["t"] >> m2;
-        pars.absCamCoordinates.emplace_back(Poses(m1.clone(), m2.clone()));
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                Mat m1, m2;
+                FileNode n1 = n["R"];
+                if(!n1.empty()) {
+                    n1 >> m1;
+                    n["t"] >> m2;
+                    pars.absCamCoordinates.emplace_back(Poses(m1.clone(), m2.clone()));
+                }
+            } else {
+                cerr << "absCamCoordinates is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            for (; it != it_end; ++it) {
+                FileNode n1 = *it;
+                Mat m1, m2;
+                n1["R"] >> m1;
+                n1["t"] >> m2;
+                pars.absCamCoordinates.emplace_back(Poses(m1.clone(), m2.clone()));
+            }
+        }
     }
 
     n = fs["R_stereo"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "R_stereo is not a sequence! FAIL" << endl;
-        return false;
-    }
-    pars.R_stereo.clear();
-    it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        Mat R_stereo;
-        it >> R_stereo;
-        pars.R_stereo.emplace_back(R_stereo.clone());
+    if(!n.empty() && n.size() > 0) {
+        pars.R_stereo.clear();
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                Mat R_stereo;
+                n >> R_stereo;
+                pars.R_stereo.emplace_back(R_stereo.clone());
+            } else {
+                cerr << "R_stereo is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                Mat R_stereo;
+                it >> R_stereo;
+                pars.R_stereo.emplace_back(R_stereo.clone());
+            }
+        }
     }
 
     n = fs["t_stereo"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "t_stereo is not a sequence! FAIL" << endl;
-        return false;
-    }
-    pars.t_stereo.clear();
-    it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        Mat t_stereo;
-        it >> t_stereo;
-        pars.t_stereo.emplace_back(t_stereo.clone());
+    if(!n.empty() && n.size() > 0) {
+        pars.t_stereo.clear();
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                Mat t_stereo;
+                n >> t_stereo;
+                pars.t_stereo.emplace_back(t_stereo.clone());
+            } else {
+                cerr << "t_stereo is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                Mat t_stereo;
+                it >> t_stereo;
+                pars.t_stereo.emplace_back(t_stereo.clone());
+            }
+        }
     }
 
     fs["nrMovObjAllFrames"] >> tmp;

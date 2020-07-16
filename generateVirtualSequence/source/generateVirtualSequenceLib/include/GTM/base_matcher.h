@@ -226,10 +226,7 @@ struct kittiFolders{
         folderPostF(folderPostF &&kf) noexcept :sub_folder(move(kf.sub_folder)), postfix(move(kf.postfix)){}
         folderPostF(std::initializer_list<std::string> kf):sub_folder(*kf.begin()), postfix(*(kf.begin() + 1)){}
         folderPostF(const folderPostF &kf) = default;
-        folderPostF& operator=(const folderPostF & kf){
-            sub_folder = kf.sub_folder;
-            postfix = kf.postfix;
-        }
+        folderPostF& operator=(const folderPostF & kf)= default;
     };
     folderPostF img1;
     folderPostF img2;

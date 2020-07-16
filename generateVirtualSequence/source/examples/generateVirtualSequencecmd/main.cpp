@@ -172,7 +172,7 @@ void getMultFull3Ddata(const std::vector<data3D> &sequData, const sequParameters
      }
  }
 
- void getDescriptorDistStat(const cv::Mat &descr1, const cv::Mat &descr2, double &minDist, double &maxDist, double &meanDist){
+ void getDescriptorDistStat(const cv::Mat &descr1, const cv::Mat &descr2, double &minDist, double &maxDist, double &meanDist, double &medianDist){
      bool useHamming = descr1.type() == CV_8UC1;
      vector<double> dists;
      double sum = 0;
@@ -184,20 +184,29 @@ void getMultFull3Ddata(const std::vector<data3D> &sequData, const sequParameters
          }
          sum += dists.back();
      }
-     minDist = *min_element(dists.begin(), dists.end());
-     maxDist = *max_element(dists.begin(), dists.end());
+     sort(dists.begin(), dists.end());
+     const size_t nr_elems = dists.size();
+     if(nr_elems % 2){
+         medianDist = dists[(nr_elems - 1) / 2];
+     }else{
+         const size_t nr_elems1 = nr_elems / 2;
+         medianDist = (dists[nr_elems1 - 1] + dists[nr_elems1]) / 2.;
+     }
+     minDist = dists[0];
+     maxDist = dists.back();
      meanDist = sum / static_cast<double>(dists.size());
  }
 
 void printDistStat(const double &minDist,
                    const double &maxDist,
                    const double &meanDist,
+                   const double &medianDist,
                    const bool &isTP,
                    const size_t &frameNr1,
                    const size_t &frameNr2,
                    const bool &cam1IsFirstStereo = true){
     stringstream text;
-    int precimi = 1, precima = 1, precime = 1;
+    int precimi = 1, precima = 1, precimea = 1, precimed = 1;
     auto a = static_cast<int>(round(1e3 * (minDist - floor(minDist))));
     if(a > 0){
         precimi = 4;
@@ -208,7 +217,11 @@ void printDistStat(const double &minDist,
     }
     a = static_cast<int>(round(1e3 * (meanDist - floor(meanDist))));
     if(a > 0){
-        precime = 4;
+        precimea = 4;
+    }
+    a = static_cast<int>(round(1e3 * (medianDist - floor(medianDist))));
+    if(a > 0){
+        precimed = 4;
     }
 
     text << "Descriptor distances of ";
@@ -228,7 +241,8 @@ void printDistStat(const double &minDist,
         }
         text << "of frames " << frameNr1 << " and " << frameNr2 << ": ";
     }
-    text << "Mean: " << setprecision(precime) << meanDist << ", ";
+    text << "Median: " << setprecision(precimed) << medianDist << ", ";
+    text << "Mean: " << setprecision(precimea) << meanDist << ", ";
     text << "Min: " << setprecision(precimi) << minDist << ", ";
     text << "Max: " << setprecision(precima) << maxDist;
     cout << text.str() << endl;
@@ -255,14 +269,14 @@ void getTNTPDescriptorDistances(const cv::Mat &descr1,
              d2n.push_back(descr2.row(m.trainIdx));
          }
      }
-     double minDist, maxDist, meanDist;
+     double minDist, maxDist, meanDist, medianDist;
      if(!d1p.empty()){
-         getDescriptorDistStat(d1p, d2p, minDist, maxDist, meanDist);
-         printDistStat(minDist, maxDist, meanDist, true, frameNr1, frameNr2, cam1IsFirstStereo);
+         getDescriptorDistStat(d1p, d2p, minDist, maxDist, meanDist, medianDist);
+         printDistStat(minDist, maxDist, meanDist, medianDist, true, frameNr1, frameNr2, cam1IsFirstStereo);
      }
      if(!d1n.empty()){
-         getDescriptorDistStat(d1n, d2n, minDist, maxDist, meanDist);
-         printDistStat(minDist, maxDist, meanDist, false, frameNr1, frameNr2, cam1IsFirstStereo);
+         getDescriptorDistStat(d1n, d2n, minDist, maxDist, meanDist, medianDist);
+         printDistStat(minDist, maxDist, meanDist, medianDist, false, frameNr1, frameNr2, cam1IsFirstStereo);
      }
  }
 
@@ -303,7 +317,7 @@ void getTNTPDescriptorDistances(const cv::Mat &descr1,
              cout << "Loading 3D data successful" << endl;
          }
          getTNTPDescriptorDistances(sm.frameDescriptors1,
-                                    sm.frameDescriptors1,
+                                    sm.frameDescriptors2,
                                     sm.frameInliers,
                                     sm.frameMatches,
                                     d3.actFrameCnt,
@@ -352,7 +366,7 @@ void getTNTPDescriptorDistances(const cv::Mat &descr1,
              }
              for(size_t i = 0; i < matchData1.size(); ++i){
                  getTNTPDescriptorDistances(matchData1[i].frameDescriptors1,
-                                            matchData1[i].frameDescriptors1,
+                                            matchData1[i].frameDescriptors2,
                                             matchData1[i].frameInliers,
                                             matchData1[i].frameMatches,
                                             sequData[i].actFrameCnt,
@@ -413,7 +427,7 @@ void getTNTPDescriptorDistances(const cv::Mat &descr1,
              for(auto &ms: matchData) {
                  for (size_t i = 0; i < ms.size(); ++i) {
                      getTNTPDescriptorDistances(ms[i].frameDescriptors1,
-                                                ms[i].frameDescriptors1,
+                                                ms[i].frameDescriptors2,
                                                 ms[i].frameInliers,
                                                 ms[i].frameMatches,
                                                 sequData[i].actFrameCnt,
