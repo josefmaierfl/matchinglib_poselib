@@ -36,7 +36,7 @@
 #include "GTM/prepareMegaDepth.h"
 #include "boost/container_hash/hash.hpp"
 #include "helper_funcs.h"
-//#include "generateVirtualSequenceLib/generateVirtualSequenceLib_api.h"
+#include "generateVirtualSequenceLib/generateVirtualSequenceLib_api.h"
 
 /* --------------------------- Defines --------------------------- */
 
@@ -342,7 +342,7 @@ private:
     cv::Mat descriptors;
 };
 
-class baseMatcher {
+class GENERATEVIRTUALSEQUENCELIB_API baseMatcher {
 public:
 	//VARIABLES --------------------------------------------
     GTMdata gtmdata;//Holds GTM over all loaded/calculated datasets
