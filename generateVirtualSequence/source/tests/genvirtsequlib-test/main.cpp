@@ -25,6 +25,9 @@ int startEvaluation(ArgvParser& cmd);
 int testStereoCamGeneration(int verbose = 0,
 							bool genSequence = true,
 							bool genMatches = false,
+                            bool use_kitti = false,
+                            bool use_oxford = false,
+                            bool use_mega = false,
 							std::string *mainStorePath = nullptr,
 							std::string *imgPath = nullptr,
 							std::string *imgPrePostFix = nullptr,
@@ -37,6 +40,9 @@ int genNewSequence(std::vector<cv::Mat>& Rv,
 				   cv::Mat& K_2,
 				   cv::Size &imgSize,
 				   bool genMatches = false,
+                   bool use_kitti = false,
+                   bool use_oxford = false,
+                   bool use_mega = false,
 				   std::string *mainStorePath = nullptr,
 				   std::string *imgPath = nullptr,
 				   std::string *imgPrePostFix = nullptr,
@@ -55,6 +61,9 @@ int genNewMatches(std::vector<cv::Mat>& Rv,
 				  const std::string &sequLoadFolder,
 				  bool rwXMLinfo = false,
 				  bool compressedWrittenInfo = false,
+                  bool use_kitti = false,
+                  bool use_oxford = false,
+                  bool use_mega = false,
 				  uint32_t verbose = 0);
 
 depthClass getRandDepthClass();
@@ -86,6 +95,9 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 					 "\n 2\t XML without compression"
 					 "\n 3\t XML with compression (.xml.gz)",
 			ArgvParser::OptionRequiresValue);
+    cmd.defineOption("kitti", "<If provided, GTM from KITTI are included.>", ArgvParser::NoOptionAttribute);
+    cmd.defineOption("oxford", "<If provided, GTM from Oxford are included.>", ArgvParser::NoOptionAttribute);
+    cmd.defineOption("mega", "<If provided, GTM from MegaDepth are included.>", ArgvParser::NoOptionAttribute);
 	
 	/// finally parse and handle return codes (display help etc...)
 	int result = -1;
@@ -101,6 +113,9 @@ int startEvaluation(ArgvParser& cmd)
 {
 	bool option_found = false;
 	option_found = cmd.foundOption("img_path") & cmd.foundOption("img_pref") & cmd.foundOption("store_path");
+    bool use_kitti = cmd.foundOption("kitti");
+    bool use_oxf = cmd.foundOption("oxford");
+    bool use_mega = cmd.foundOption("mega");
 	int err = 0;
 	if(!option_found){
 		cout << "Did not find necessary options to test generation of matches. Performing only tests for generating 3D sequences." << endl;
@@ -145,17 +160,28 @@ int startEvaluation(ArgvParser& cmd)
 					cerr << "Wrong parameter value for the file type." << endl;
 					return -1;
 			}
-			err = testStereoCamGeneration(0,
-					true,
-					true,
-					&store_path,
-					&img_path,
-					&img_pref,
-					&load_folder,
-										  rwXMLinfo,
-										  compressedWrittenInfo);
+            err = testStereoCamGeneration(0,
+                                          true,
+                                          true,
+                                          use_kitti,
+                                          use_oxf,
+                                          use_mega,
+                                          &store_path,
+                                          &img_path,
+                                          &img_pref,
+                                          &load_folder,
+                                          rwXMLinfo,
+                                          compressedWrittenInfo);
 		}else {
-			err = testStereoCamGeneration(0, true, true, &store_path, &img_path, &img_pref);
+            err = testStereoCamGeneration(0,
+                                          true,
+                                          true,
+                                          use_kitti,
+                                          use_oxf,
+                                          use_mega,
+                                          &store_path,
+                                          &img_path,
+                                          &img_pref);
 		}
 		if(err){
 			return -1;
@@ -163,174 +189,6 @@ int startEvaluation(ArgvParser& cmd)
 	}
 
 	return 0;
-
-
-	/*bool t_meas, t_meas_inlr, inl_rat_test, inl_rat_test_all, qual_meas, th_eval, rad_eval, initM_eval, CDrat_eval;
-	string img_path, gt_path, gt_type_str, l_img_pref, gt_pref, r_img_pref, f_detect, d_extr, matcher, nmsIdx, nmsQry;
-	string res_path, inl_rat_str, show_str, show_ref_str, img_res_path, img_ref_path, idx1_str, idx2_str, valid_th_str, threshhTh_str;
-	int gt_type, show, show_ref, idx1, idx2;
-	bool ratiot, refine, s_key_size;
-	double inl_rat = -1.0, valid_th = 0.3;
-	bool testGT, timeDescr;
-	double threshhTh = 64.0;
-	bool loadGTM, initGTMs, genGTMs;
-	string gtm_path, gtm_postf;
-
-	t_meas = cmd.foundOption("t_meas");
-	t_meas_inlr = cmd.foundOption("t_meas_inlr");
-	inl_rat_test = cmd.foundOption("inl_rat_test");
-	inl_rat_test_all = cmd.foundOption("inl_rat_test_all");
-	th_eval = cmd.foundOption("th_eval");
-	qual_meas = cmd.foundOption("qual_meas");
-	rad_eval = cmd.foundOption("rad_eval");
-	initM_eval = cmd.foundOption("initM_eval");
-	CDrat_eval = cmd.foundOption("CDrat_eval");
-	testGT = cmd.foundOption("testGT");
-	timeDescr = cmd.foundOption("timeDescr");
-	loadGTM = cmd.foundOption("loadGTM");
-	initGTMs = cmd.foundOption("initGTMs");
-	genGTMs = cmd.foundOption("genGTMs");
-
-	ratiot = cmd.foundOption("ratiot");
-	refine = cmd.foundOption("refine");
-	s_key_size = cmd.foundOption("s_key_size");
-
-	if (cmd.foundOption("img_path"))
-		img_path = cmd.optionValue("img_path");
-	if (cmd.foundOption("gt_path"))
-		gt_path = cmd.optionValue("gt_path");
-	if (cmd.foundOption("l_img_pref"))
-		l_img_pref = cmd.optionValue("l_img_pref");
-	if (cmd.foundOption("gt_pref"))
-		gt_pref = cmd.optionValue("gt_pref");
-	if(cmd.foundOption("r_img_pref"))
-		r_img_pref = cmd.optionValue("r_img_pref");
-	if (cmd.foundOption("f_detect"))
-		f_detect = cmd.optionValue("f_detect");
-	if (cmd.foundOption("d_extr"))
-		d_extr = cmd.optionValue("d_extr");
-	if(cmd.foundOption("matcher"))
-		matcher = cmd.optionValue("matcher");
-	if(cmd.foundOption("res_path"))
-		res_path = cmd.optionValue("res_path");
-	if(cmd.foundOption("img_res_path"))
-		img_res_path = cmd.optionValue("img_res_path");
-	if(cmd.foundOption("img_ref_path"))
-		img_ref_path = cmd.optionValue("img_ref_path");
-
-	if (cmd.foundOption("gt_type"))
-		gt_type_str = cmd.optionValue("gt_type");
-	if(cmd.foundOption("show"))
-		show_str = cmd.optionValue("show");
-	if(cmd.foundOption("show_ref"))
-		show_ref_str = cmd.optionValue("show_ref");
-	if(cmd.foundOption("idx1"))
-		idx1_str = cmd.optionValue("idx1");
-	if(cmd.foundOption("idx2"))
-		idx2_str = cmd.optionValue("idx2");
-	if(cmd.foundOption("valid_th"))
-	{
-		valid_th_str = cmd.optionValue("valid_th");
-		valid_th = atof(valid_th_str.c_str());
-		if((valid_th > 1.0) || (valid_th < 0.2))
-		{
-			cout << "Validation treshold out of range. Must be between 0.2 and 1.0. Exiting." << endl;
-			exit(1);
-		}
-	}
-	if(cmd.foundOption("inl_rat"))
-	{
-		inl_rat_str = cmd.optionValue("inl_rat");
-		inl_rat = atof(inl_rat_str.c_str());
-		if((inl_rat > 1.0) || (inl_rat < 0.01))
-		{
-			cout << "Inlier ratio out of range. Must be between 0.01 and 1.0. Exiting." << endl;
-			exit(1);
-		}
-	}
-
-	if(cmd.foundOption("threshhTh"))
-	{
-		threshhTh_str = cmd.optionValue("threshhTh");
-		threshhTh = (double)std::atof(threshhTh_str.c_str());
-		if((threshhTh < 5.0) || (threshhTh > 255))
-		{
-			cout << "Threshold for tresholding out of range. Must be between 5.0 and 255.0. Exiting." << endl;
-			exit(1);
-		}
-	}
-
-	if (cmd.foundOption("nmsIdx"))
-	{
-		nmsIdx = cmd.optionValue("nmsIdx");
-		std::replace(nmsIdx.begin(), nmsIdx.end(), '+', '=');
-	}
-	else
-	{
-		nmsIdx = "";
-	}
-
-	if (cmd.foundOption("nmsQry"))
-	{
-		nmsQry = cmd.optionValue("nmsQry");
-		std::replace(nmsQry.begin(), nmsQry.end(), '+', '=');
-	}
-	else
-	{
-		nmsQry = "";
-	}
-
-	if (cmd.foundOption("gtm_path"))
-		gtm_path = cmd.optionValue("gtm_path");
-
-	if (cmd.foundOption("gtm_postf"))
-		gtm_postf = cmd.optionValue("gtm_postf");
-
-	gt_type = atoi(gt_type_str.c_str());
-
-	if(!show_str.empty())
-	{
-		show = atoi(show_str.c_str());
-	}
-	else
-	{
-		show = -1;
-	}
-	if(!show_ref_str.empty())
-	{
-		show_ref = atoi(show_ref_str.c_str());
-	}
-	else
-	{
-		show_ref = -1;
-	}
-	if(!idx1_str.empty())
-	{
-		idx1 = atoi(idx1_str.c_str());
-	}
-	else
-	{
-		idx1 = INT_MAX;
-		if(inl_rat_test)
-		{
-			cout << "Image index 1 must be provided. Exiting." << endl;
-			exit(1);
-		}
-	}
-	if(!idx2_str.empty())
-	{
-		idx2 = atoi(idx2_str.c_str());
-	}
-	else
-	{
-		idx2 = INT_MAX;
-		if(inl_rat_test && (gt_type == 2))
-		{
-			cout << "Image index 2 must be provided. Exiting." << endl;
-			exit(1);
-		}
-	}*/
-
 }
 
 /** @function main */
@@ -349,6 +207,9 @@ int main( int argc, char* argv[])
 int testStereoCamGeneration(int verbose,
 							bool genSequence,
 							bool genMatches,
+                            bool use_kitti,
+							bool use_oxford,
+							bool use_mega,
 							std::string *mainStorePath,
 							std::string *imgPath,
 							std::string *imgPrePostFix,
@@ -364,9 +225,9 @@ int testStereoCamGeneration(int verbose,
 	const bool testGenericAlignment = false;
 
 	//Parameter ranges for tx and ty are down in the for-loop
-	double roll_minmax[2] = { -20.0, 20.0 };
-	double pitch_minmax[2] = { -20.0, 20.0 };
-	double yaw_minmax[2] = { -10.0, 10.0 };
+	double roll_minmax[2] = { -25.0, 25.0 };
+	double pitch_minmax[2] = { -25.0, 25.0 };
+	double yaw_minmax[2] = { -20.0, 20.0 };
 	double tx_minmax_change[2] = { 0.7, 1.3 };
 	double ty_minmax_change[2] = { 0.7, 1.3 };
 	double tz_minmax_change[2] = { 0.7, 1.3 };
@@ -665,6 +526,9 @@ int testStereoCamGeneration(int verbose,
 										 K_2,
 										 imgSize,
 										 genMatches,
+                                         use_kitti,
+                                         use_oxford,
+                                         use_mega,
 										 mainStorePath,
 										 imgPath,
 										 imgPrePostFix,
@@ -690,6 +554,9 @@ int genNewSequence(std::vector<cv::Mat>& Rv,
 				   cv::Mat& K_2,
 				   cv::Size &imgSize,
 				   bool genMatches,
+                   bool use_kitti,
+                   bool use_oxford,
+                   bool use_mega,
 				   std::string *mainStorePath,
 				   std::string *imgPath,
 				   std::string *imgPrePostFix,
@@ -1114,19 +981,22 @@ int genNewSequence(std::vector<cv::Mat>& Rv,
 		}
 		int err = 0;
 		if(!sequLoadFolder) {
-			err = genNewMatches(Rv,
-									tv,
-									K_1,
-									K_2,
-									imgSize,
-									stereoSequPars,
-									*mainStorePath,
-									*imgPath,
-									*imgPrePostFix,
-									"",
-								rwXMLinfo,
-								compressedWrittenInfo,
-									verbose);
+            err = genNewMatches(Rv,
+                                tv,
+                                K_1,
+                                K_2,
+                                imgSize,
+                                stereoSequPars,
+                                *mainStorePath,
+                                *imgPath,
+                                *imgPrePostFix,
+                                "",
+                                rwXMLinfo,
+                                compressedWrittenInfo,
+                                use_kitti,
+                                use_oxford,
+                                use_mega,
+                                verbose);
 		}else{
 			err = genNewMatches(Rv,
 								tv,
@@ -1140,6 +1010,9 @@ int genNewSequence(std::vector<cv::Mat>& Rv,
 								*sequLoadFolder,
 								rwXMLinfo,
 								compressedWrittenInfo,
+                                use_kitti,
+                                use_oxford,
+                                use_mega,
 								verbose);
 		}
 		if(err){
@@ -1162,10 +1035,18 @@ int genNewMatches(std::vector<cv::Mat>& Rv,
 				  const std::string &sequLoadFolder,
 				  bool rwXMLinfo,
 				  bool compressedWrittenInfo,
+                  bool use_kitti,
+                  bool use_oxford,
+                  bool use_mega,
 				  uint32_t verbose){
 	auto seed = std::chrono::system_clock::now().time_since_epoch().count();
 	std::default_random_engine rand_generator(seed);
 	std::mt19937 rand2(seed);
+
+	string execPath;
+    if(!getCurrentExecPath(execPath)){
+        execPath = "";
+    }
 
 	std::string mainStorePath_ = mainStorePath;
 	bool rwXMLinfo_ = rwXMLinfo;
@@ -1201,6 +1082,40 @@ int genNewMatches(std::vector<cv::Mat>& Rv,
 	bool storePtClouds = false;
 
 	bool filter_occluded_points = false;
+
+	bool checkDescriptorDist = true;
+
+    double repeatPatternPortStereo_min = 0;
+    double repeatPatternPortStereo_max = 0.5;
+    std::pair<double, double> repeatPatternPortStereo = std::make_pair(0, 0.5);
+
+    double repeatPatternPortFToF_min = 0;
+    double repeatPatternPortFToF_max = 0.5;
+    std::pair<double, double> repeatPatternPortFToF = std::make_pair(0, 0.5);
+
+    bool distortPatchCam1 = false;
+
+    double oxfordGTMportion = 0;
+    double kittiGTMportion = 0;
+    double megadepthGTMportion = 0;
+    double GTMportion = 0;
+    double WarpedPortionTN = 1.0;
+    double portionGrossTN = 0;
+
+    int nrImgsFromImageNet = 0;
+    bool rand_imagenet = false;
+    string wnids[25] = {"n11530860", "n11531090", "n11837204", "n11926976", "n11966215",
+                        "n03939062", "n04094438", "n03024882", "n03342529", "n03941231",
+                        "n03068707", "n03830835", "n03162080", "n04508804", "n07804771",
+                        "n07565945", "n07591162", "n07583865", "n07873198", "n12560775",
+                        "n11868814", "n09678917", "n10343554", "n07880458", "n06479494"};
+    string words[25] = {"flower", "car", "truck", "sign", "road",
+                        "sports", "chair", "house", "drink", "plant",
+                        "person", "fruit", "shoe", "love", "room",
+                        "table", "food", "door", "cloths", "market",
+                        "instrument", "animal", "water", "liquid", "dance"};
+    std::vector<std::string> imageNetIDs;
+    std::vector<std::string> imageNetBuzzWrds;
 
 	//Repeat generation of matches with the same 3D sequence parameters multiple times
 	GenMatchSequParameters matchPars;
@@ -1247,24 +1162,24 @@ int genNewMatches(std::vector<cv::Mat>& Rv,
 
 			if(sequLoadFolder.empty()) {
 				//Randomly select the storage format
-				/*idx = (int) (rand2() % 4);
+				idx = (int) (rand2() % 4);
 				rwXMLinfo_ = true;
-				if (idx) {*/
+				if (idx) {
 					rwXMLinfo_ = false;
-//				}
+				}
 
 				//Randomly select if the output should be compressed
-//				idx = (int) (rand2() % 6);
+				idx = (int) (rand2() % 6);
 				compressedWrittenInfo_ = true;
-				/*if (idx) {
+				if (idx) {
 					compressedWrittenInfo_ = false;
-				}*/
+				}
 			}
 
-			/*idx = (int)(rand2() % 2);
-			if(idx) {*/
+			idx = (int)(rand2() % 2);
+			if(idx) {
 				storePtClouds = true;
-//			}
+			}
 			if(!sequLoadFolder.empty()){
 				idx = (int)(rand2() % 2);
 				//Resulting matches will either be stored to the location where the sequence is loaded from or to the given store location
@@ -1272,6 +1187,128 @@ int genNewMatches(std::vector<cv::Mat>& Rv,
 					mainStorePath_ = "";
 				}
 			}
+
+            idx = (int)(rand2() % 10);
+            filter_occluded_points = idx == 0;
+
+            idx = (int)(rand2() % 4);
+            checkDescriptorDist = idx != 0;
+
+            //Get parameters for repeated pattern between stereo pairs
+            idx = (int)(rand2() % 4);
+            if(idx){
+                idx = (int)(rand2() % 10);
+                repeatPatternPortStereo_min = getRandDoubleVal(rand_generator, 0, 1.0);
+                if(idx) {
+                    if (repeatPatternPortStereo_min < 0.98) {
+                        repeatPatternPortStereo_max = getRandDoubleVal(rand_generator, repeatPatternPortStereo_min, 1.0);
+                    }else{
+                        repeatPatternPortStereo_max = 1.0;
+                    }
+                }
+            }else{
+                repeatPatternPortStereo_min = 0;
+                repeatPatternPortStereo_max = 0;
+            }
+            repeatPatternPortStereo = std::make_pair(repeatPatternPortStereo_min, repeatPatternPortStereo_max);
+
+            //Get parameters for repeated pattern from frame to frame
+            idx = (int)(rand2() % 4);
+            if(idx){
+                idx = (int)(rand2() % 10);
+                repeatPatternPortFToF_min = getRandDoubleVal(rand_generator, 0, 1.0);
+                if(idx) {
+                    if (repeatPatternPortFToF_min < 0.98) {
+                        repeatPatternPortFToF_max = getRandDoubleVal(rand_generator, repeatPatternPortFToF_min, 1.0);
+                    }else{
+                        repeatPatternPortFToF_max = 1.0;
+                    }
+                }
+            }else{
+                repeatPatternPortFToF_min = 0;
+                repeatPatternPortFToF_max = 0;
+            }
+            repeatPatternPortFToF = std::make_pair(repeatPatternPortFToF_min, repeatPatternPortFToF_max);
+
+            idx = (int)(rand2() % 4);
+            distortPatchCam1 = idx != 0;
+
+            int mult_data = 0;
+            if(use_kitti){
+                idx = (int)(rand2() % 2);
+                if(idx){
+                    kittiGTMportion = getRandDoubleVal(rand_generator, 0, 1.0);
+                    if(!nearZero(kittiGTMportion)) mult_data++;
+                }
+            }
+
+            if(use_oxford){
+                idx = (int)(rand2() % 2);
+                if(idx){
+                    oxfordGTMportion = getRandDoubleVal(rand_generator, 0, 1.0);
+                    if(!nearZero(oxfordGTMportion)) mult_data++;
+                }
+            }
+
+            if(use_mega){
+                idx = (int)(rand2() % 2);
+                if(idx){
+                    megadepthGTMportion = getRandDoubleVal(rand_generator, 0, 1.0);
+                    if(!nearZero(megadepthGTMportion)) mult_data++;
+                }
+            }
+
+            if(mult_data > 1){
+                GTMportion = getRandDoubleVal(rand_generator, 0, 1.0);
+            }
+
+            WarpedPortionTN = getRandDoubleVal(rand_generator, 0, 1.0);
+
+            portionGrossTN = getRandDoubleVal(rand_generator, 0, 1.0);
+
+            idx = (int)(rand2() % 2);
+            imageNetIDs.clear();
+            imageNetBuzzWrds.clear();
+            if(idx == 0) {
+                nrImgsFromImageNet = static_cast<int>(rand2() % 1500);
+                idx = (int)(rand2() % 10);
+                rand_imagenet = idx == 0;
+                if(!rand_imagenet){
+                    idx = (int)(rand2() % 3);
+                    auto nr_entries1 = (size_t)(rand2() % 25);
+                    vector<size_t> index_nr(25);
+                    iota(index_nr.begin(), index_nr.end(), 0);
+                    shuffle(index_nr.begin(), index_nr.end(), rand2);
+                    index_nr.resize(nr_entries1);
+                    switch (idx) {
+                        case 0:
+                            for(auto &nr: index_nr) {
+                                imageNetIDs.push_back(wnids[nr]);
+                            }
+                            break;
+                        case 1:
+                            for(auto &nr: index_nr) {
+                                imageNetBuzzWrds.push_back(words[nr]);
+                            }
+                            break;
+                        default:
+                            auto nr_entries2 = (size_t)(rand2() % 25);
+                            vector<size_t> index_nr1(25);
+                            iota(index_nr1.begin(), index_nr1.end(), 0);
+                            shuffle(index_nr1.begin(), index_nr1.end(), rand2);
+                            index_nr1.resize(nr_entries2);
+                            for(auto &nr: index_nr) {
+                                imageNetIDs.push_back(wnids[nr]);
+                            }
+                            for(auto &nr: index_nr1) {
+                                imageNetBuzzWrds.push_back(words[nr]);
+                            }
+                            break;
+                    }
+                }
+            }else{
+                nrImgsFromImageNet = 0;
+            }
 
 			if(fixpars){
 				fixp = false;
@@ -1288,7 +1325,22 @@ int genNewMatches(std::vector<cv::Mat>& Rv,
 											   storePtClouds,
 											   rwXMLinfo_,
 											   compressedWrittenInfo_,
-											   takeLessFramesIfLessKeyP);
+											   takeLessFramesIfLessKeyP,
+											   checkDescriptorDist,
+                                               repeatPatternPortStereo,
+                                               repeatPatternPortFToF,
+                                               distortPatchCam1,
+                                               oxfordGTMportion,
+                                               kittiGTMportion,
+                                               megadepthGTMportion,
+                                               GTMportion,
+                                               WarpedPortionTN,
+                                               portionGrossTN,
+                                               -1,
+                                               execPath,
+                                               imageNetIDs,
+                                               imageNetBuzzWrds,
+                                               nrImgsFromImageNet);
 		}
 
 		bool matchSucc = true;
