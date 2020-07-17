@@ -2825,6 +2825,9 @@ bool loadConfigFile(const std::string &filename,
         return false;
     }
 
+    size_t posxml = filename.rfind(".xml");
+    bool isxml = posxml != string::npos;
+
     int tmp = 0;
     fs["nrTotalFrames"] >> tmp;
     if((tmp <= 0) || (tmp > 10000)){
@@ -2884,20 +2887,36 @@ bool loadConfigFile(const std::string &filename,
     fs["yawVariable"] >> stereoPars.yawVariable;
     fs["useSpecificCamPars"] >> stereoPars.useSpecificCamPars;
     n = fs["specificCamPars"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "specificCamPars is not a sequence! FAIL" << endl;
-        return false;
-    }
+    FileNodeIterator it, it_end;
     stereoPars.specialCamPars.clear();
-    FileNodeIterator it = n.begin(), it_end = n.end();
-    for (; it != it_end; ++it) {
-        FileNode n1 = *it;
-        specificStereoPars stP;
-        n1["R"] >> stP.R;
-        n1["t"] >> stP.t;
-        n1["K1"] >> stP.K1;
-        n1["K2"] >> stP.K2;
-        stereoPars.specialCamPars.emplace_back(stP);
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                FileNode n1 = n["R"];
+                if(!n1.empty()) {
+                    specificStereoPars stP;
+                    n1 >> stP.R;
+                    n["t"] >> stP.t;
+                    n["K1"] >> stP.K1;
+                    n["K2"] >> stP.K2;
+                    stereoPars.specialCamPars.emplace_back(stP);
+                }
+            } else {
+                cerr << "specificCamPars is not a sequence! FAIL" << endl;
+                return false;
+            }
+        }else {
+            it = n.begin(), it_end = n.end();
+            for (; it != it_end; ++it) {
+                FileNode n1 = *it;
+                specificStereoPars stP;
+                n1["R"] >> stP.R;
+                n1["t"] >> stP.t;
+                n1["K1"] >> stP.K1;
+                n1["K2"] >> stP.K2;
+                stereoPars.specialCamPars.emplace_back(stP);
+            }
+        }
     }
     /*for(auto& i : stereoPars.specialCamPars){
         for (int j = 0; j < 9; ++j) {
@@ -2936,34 +2955,61 @@ bool loadConfigFile(const std::string &filename,
     }
 
     n = fs["corrsPerRegion"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "corrsPerRegion is not a sequence! FAIL" << endl;
-        return false;
-    }
     sequPars.corrsPerRegion.clear();
-    it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        Mat m;
-        it >> m;
-        if((m.rows != 3) || (m.cols != 3)){
-            cerr << "Invalid parameter corrsPerRegion." << endl;
-            return false;
-        }
-        double sumregs = 0;
-        for (int i = 0; i < m.rows; ++i) {
-            for (int j = 0; j < m.cols; ++j) {
-                if(m.at<double>(i,j) < 0){
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                Mat m;
+                n >> m;
+                if ((m.rows != 3) || (m.cols != 3)) {
                     cerr << "Invalid parameter corrsPerRegion." << endl;
                     return false;
                 }
-                sumregs += m.at<double>(i,j);
+                double sumregs = 0;
+                for (int i = 0; i < m.rows; ++i) {
+                    for (int j = 0; j < m.cols; ++j) {
+                        if (m.at<double>(i, j) < 0) {
+                            cerr << "Invalid parameter corrsPerRegion." << endl;
+                            return false;
+                        }
+                        sumregs += m.at<double>(i, j);
+                    }
+                }
+                if (nearZero(sumregs)) {
+                    cerr << "Invalid parameter corrsPerRegion." << endl;
+                    return false;
+                }
+                sequPars.corrsPerRegion.push_back(m.clone());
+            } else {
+                cerr << "corrsPerRegion is not a sequence! FAIL" << endl;
+                return false;
+            }
+        }else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                Mat m;
+                it >> m;
+                if ((m.rows != 3) || (m.cols != 3)) {
+                    cerr << "Invalid parameter corrsPerRegion." << endl;
+                    return false;
+                }
+                double sumregs = 0;
+                for (int i = 0; i < m.rows; ++i) {
+                    for (int j = 0; j < m.cols; ++j) {
+                        if (m.at<double>(i, j) < 0) {
+                            cerr << "Invalid parameter corrsPerRegion." << endl;
+                            return false;
+                        }
+                        sumregs += m.at<double>(i, j);
+                    }
+                }
+                if (nearZero(sumregs)) {
+                    cerr << "Invalid parameter corrsPerRegion." << endl;
+                    return false;
+                }
+                sequPars.corrsPerRegion.push_back(m.clone());
             }
         }
-        if(nearZero(sumregs)){
-            cerr << "Invalid parameter corrsPerRegion." << endl;
-            return false;
-        }
-        sequPars.corrsPerRegion.push_back(m.clone());
     }
 
     fs["corrsPerRegRepRate"] >> tmp;
@@ -2974,83 +3020,96 @@ bool loadConfigFile(const std::string &filename,
     sequPars.corrsPerRegRepRate = (size_t) tmp;
 
     n = fs["depthsPerRegion"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "depthsPerRegion is not a sequence! FAIL" << endl;
-        return false;
-    }
-    it = n.begin(), it_end = n.end();
     size_t idx = 0, x = 0, y = 0;
-    if(it != it_end) {
-        sequPars.depthsPerRegion = vector<vector<depthPortion>>(3, vector<depthPortion>(3));
-        for (; it != it_end; ++it) {
-            y = idx / 3;
-            x = idx % 3;
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            cerr << "depthsPerRegion is not a sequence! FAIL" << endl;
+            return false;
+        }
+        it = n.begin(), it_end = n.end();
+        if (it != it_end) {
+            sequPars.depthsPerRegion = vector<vector<depthPortion>>(3, vector<depthPortion>(3));
+            for (; it != it_end; ++it) {
+                y = idx / 3;
+                x = idx % 3;
 
-            FileNode n1 = *it;
-            n1["near"] >> sequPars.depthsPerRegion[y][x].near;
-            if (sequPars.depthsPerRegion[y][x].near < 0) {
-                cerr << "Invalid parameter depthsPerRegion (near)." << endl;
-                return false;
+                FileNode n1 = *it;
+                n1["near"] >> sequPars.depthsPerRegion[y][x].near;
+                if (sequPars.depthsPerRegion[y][x].near < 0) {
+                    cerr << "Invalid parameter depthsPerRegion (near)." << endl;
+                    return false;
+                }
+                n1["mid"] >> sequPars.depthsPerRegion[y][x].mid;
+                if (sequPars.depthsPerRegion[y][x].mid < 0) {
+                    cerr << "Invalid parameter depthsPerRegion (mid)." << endl;
+                    return false;
+                }
+                n1["far"] >> sequPars.depthsPerRegion[y][x].far;
+                if (sequPars.depthsPerRegion[y][x].far < 0) {
+                    cerr << "Invalid parameter depthsPerRegion (far)." << endl;
+                    return false;
+                }
+                if (idx > 8) {
+                    cerr << "Incorrect # of entries in depthsPerRegion." << endl;
+                    return false;
+                }
+                idx++;
             }
-            n1["mid"] >> sequPars.depthsPerRegion[y][x].mid;
-            if (sequPars.depthsPerRegion[y][x].mid < 0) {
-                cerr << "Invalid parameter depthsPerRegion (mid)." << endl;
-                return false;
-            }
-            n1["far"] >> sequPars.depthsPerRegion[y][x].far;
-            if (sequPars.depthsPerRegion[y][x].far < 0) {
-                cerr << "Invalid parameter depthsPerRegion (far)." << endl;
-                return false;
-            }
-            if (idx > 8) {
-                cerr << "Incorrect # of entries in depthsPerRegion." << endl;
-                return false;
-            }
-            idx++;
         }
     }
 
     n = fs["nrDepthAreasPReg"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "nrDepthAreasPReg is not a sequence! FAIL" << endl;
-        return false;
-    }
     int first_int = 0, second_int = 0;
-    it = n.begin(), it_end = n.end();
-    if(it != it_end) {
-        sequPars.nrDepthAreasPReg = vector<vector<pair<size_t, size_t>>>(3, vector<pair<size_t, size_t>>(3));
-        idx = 0;
-        for (; it != it_end; ++it) {
-            y = idx / 3;
-            x = idx % 3;
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            cerr << "nrDepthAreasPReg is not a sequence! FAIL" << endl;
+            return false;
+        }
+        it = n.begin(), it_end = n.end();
+        if (it != it_end) {
+            sequPars.nrDepthAreasPReg = vector<vector<pair<size_t, size_t>>>(3, vector<pair<size_t, size_t>>(3));
+            idx = 0;
+            for (; it != it_end; ++it) {
+                y = idx / 3;
+                x = idx % 3;
 
-            FileNode n1 = *it;
-            n1["first"] >> first_int;
-            n1["second"] >> second_int;
-            if ((first_int < 1) || ((second_int < 1))) {
-                cerr << "Invalid parameter nrDepthAreasPReg." << endl;
-                return false;
+                FileNode n1 = *it;
+                n1["first"] >> first_int;
+                n1["second"] >> second_int;
+                if ((first_int < 1) || ((second_int < 1))) {
+                    cerr << "Invalid parameter nrDepthAreasPReg." << endl;
+                    return false;
+                }
+                sequPars.nrDepthAreasPReg[y][x] = make_pair((size_t) first_int, (size_t) second_int);
+                if (idx > 8) {
+                    cerr << "Incorrect # of entries in nrDepthAreasPReg." << endl;
+                    return false;
+                }
+                idx++;
             }
-            sequPars.nrDepthAreasPReg[y][x] = make_pair((size_t) first_int, (size_t) second_int);
-            if (idx > 8) {
-                cerr << "Incorrect # of entries in nrDepthAreasPReg." << endl;
-                return false;
-            }
-            idx++;
         }
     }
 
     n = fs["camTrack"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "camTrack is not a sequence! FAIL" << endl;
-        return false;
-    }
     sequPars.camTrack.clear();
-    it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        Mat m;
-        it >> m;
-        sequPars.camTrack.emplace_back(m.clone());
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                Mat m;
+                n >> m;
+                sequPars.camTrack.emplace_back(m.clone());
+            } else {
+                cerr << "camTrack is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                Mat m;
+                it >> m;
+                sequPars.camTrack.emplace_back(m.clone());
+            }
+        }
     }
 
     fs["relCamVelocity"] >> sequPars.relCamVelocity;
@@ -3070,19 +3129,33 @@ bool loadConfigFile(const std::string &filename,
     sequPars.relAreaRangeMovObjs = make_pair(first_dbl, second_dbl);
 
     n = fs["movObjDepth"];
-    if (n.type() != FileNode::SEQ) {
-        cerr << "camTrack is not a sequence! FAIL" << endl;
-        return false;
-    }
     sequPars.movObjDepth.clear();
-    it = n.begin(), it_end = n.end();
-    while (it != it_end) {
-        it >> tmp;
-        if((tmp != (int)depthClass::NEAR) && (tmp != (int)depthClass::MID) && (tmp != (int)depthClass::FAR)){
-            cerr << "Values of depth classes are invalid." << endl;
-            return false;
+    if(!n.empty() && n.size() > 0) {
+        if (n.type() != FileNode::SEQ) {
+            if (isxml) {
+                n >> tmp;
+                if ((tmp != (int) depthClass::NEAR) && (tmp != (int) depthClass::MID) &&
+                    (tmp != (int) depthClass::FAR)) {
+                    cerr << "Values of depth classes are invalid." << endl;
+                    return false;
+                }
+                sequPars.movObjDepth.push_back((depthClass) tmp);
+            } else {
+                cerr << "camTrack is not a sequence! FAIL" << endl;
+                return false;
+            }
+        } else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                it >> tmp;
+                if ((tmp != (int) depthClass::NEAR) && (tmp != (int) depthClass::MID) &&
+                    (tmp != (int) depthClass::FAR)) {
+                    cerr << "Values of depth classes are invalid." << endl;
+                    return false;
+                }
+                sequPars.movObjDepth.push_back((depthClass) tmp);
+            }
         }
-        sequPars.movObjDepth.push_back((depthClass) tmp);
     }
 
     fs["movObjDir"] >> sequPars.movObjDir;
@@ -3315,34 +3388,52 @@ bool loadConfigFile(const std::string &filename,
         n >> matchPars.CeresCPUcnt;
     }
     n = fs["imageNetIDs"];
-    if(!n.empty()){
+    matchPars.imageNetIDs.clear();
+    if(!n.empty() && n.size() > 0){
         if (n.type() != FileNode::SEQ) {
-            cerr << "imageNetIDs is not a sequence! FAIL" << endl;
-            return false;
-        }
-        matchPars.imageNetIDs.clear();
-        it = n.begin(), it_end = n.end();
-        while (it != it_end) {
-            std::string str_tmp;
-            it >> str_tmp;
-            if(!str_tmp.empty()) {
-                matchPars.imageNetIDs.emplace_back(move(str_tmp));
+            if (isxml) {
+                std::string str_tmp;
+                n >> str_tmp;
+                if(!str_tmp.empty()) {
+                    matchPars.imageNetIDs.emplace_back(move(str_tmp));
+                }
+            } else {
+                cerr << "imageNetIDs is not a sequence! FAIL" << endl;
+                return false;
+            }
+        }else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                std::string str_tmp;
+                it >> str_tmp;
+                if (!str_tmp.empty()) {
+                    matchPars.imageNetIDs.emplace_back(move(str_tmp));
+                }
             }
         }
     }
     n = fs["imageNetBuzzWrds"];
-    if(!n.empty()){
+    matchPars.imageNetBuzzWrds.clear();
+    if(!n.empty() && n.size() > 0){
         if (n.type() != FileNode::SEQ) {
-            cerr << "imageNetBuzzWrds is not a sequence! FAIL" << endl;
-            return false;
-        }
-        matchPars.imageNetBuzzWrds.clear();
-        it = n.begin(), it_end = n.end();
-        while (it != it_end) {
-            std::string str_tmp;
-            it >> str_tmp;
-            if(!str_tmp.empty()) {
-                matchPars.imageNetBuzzWrds.emplace_back(move(str_tmp));
+            if (isxml) {
+                std::string str_tmp;
+                n >> str_tmp;
+                if(!str_tmp.empty()) {
+                    matchPars.imageNetBuzzWrds.emplace_back(move(str_tmp));
+                }
+            } else {
+                cerr << "imageNetBuzzWrds is not a sequence! FAIL" << endl;
+                return false;
+            }
+        }else {
+            it = n.begin(), it_end = n.end();
+            while (it != it_end) {
+                std::string str_tmp;
+                it >> str_tmp;
+                if (!str_tmp.empty()) {
+                    matchPars.imageNetBuzzWrds.emplace_back(move(str_tmp));
+                }
             }
         }
     }
