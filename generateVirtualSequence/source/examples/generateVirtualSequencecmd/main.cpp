@@ -27,6 +27,7 @@
 
 #include "io_data.h"
 #include "readPointClouds.h"
+#include "readGTM.h"
 
  using namespace CommandLineProcessing;
 
@@ -38,14 +39,17 @@
      cmd.addErrorCode(0, "Success");
      cmd.addErrorCode(1, "Error");
 
-     cmd.setHelpOption("help", "h","Using option --file and --fileRt is mandatory.");
+     cmd.setHelpOption("help", "h","Example interface for reading data of generated semi-real-world stereo sequences. "
+                                   "It supports reading Ground Truth Matches (GTM) in addition to data of single stereo frames, full "
+                                   "sequences (3D data and correspondence information), and multiple sequences "
+                                   "(3D data and correspondence information based on multiple parameter sets)");
      cmd.defineOption("file", "<Use if you only want to load matches for a single stereo frame. "
                               "Option fileRt must also be provided.\n"
-                              "Path and Filename (including file ending) of single stereo frame matches.>",
+                              "Path and filename (including file ending) of single stereo frame matches.>",
              ArgvParser::OptionRequiresValue);
      cmd.defineOption("fileRt", "<Use if you only want to load matches for a single stereo frame. "
                                 "Option file must also be provided.\n"
-                                "Path and Filename (including file ending) of the sequence data of a single frame.>",
+                                "Path and filename (including file ending) of the sequence data of a single frame.>",
                       ArgvParser::OptionRequiresValue);
      cmd.defineOption("sequPath", "<Use if you want to load a full sequence including 3D data and matches.\n"
                                 "By additionally providing option matchPath, only matches from the given folder are loaded.\n"
@@ -58,6 +62,10 @@
                                   "Option sequPath must also be provided.\n"
                                   "Full path to the matches (last folder corresponds to a hash value and must contain "
                                   "yaml/xml files with matching information)>",
+                      ArgvParser::OptionRequiresValue);
+     cmd.defineOption("gtm_file", "<Use if you only want to load Ground Truth Matches (GTM) of a specific image pair "
+                              "from datasets Oxford, KITTI, or MegaDepth.\n"
+                              "Path and filename (including file ending) must be provided.>",
                       ArgvParser::OptionRequiresValue);
 
      /// finally parse and handle return codes (display help etc...)
@@ -204,7 +212,9 @@ void printDistStat(const double &minDist,
                    const bool &isTP,
                    const size_t &frameNr1,
                    const size_t &frameNr2,
-                   const bool &cam1IsFirstStereo = true){
+                   const bool &cam1IsFirstStereo = true,
+                   const bool &isGTM = false,
+                   const string &gtm_id = ""){
     stringstream text;
     int precimi = 1, precima = 1, precimea = 1, precimed = 1;
     auto a = static_cast<int>(round(1e3 * (minDist - floor(minDist))));
@@ -224,13 +234,17 @@ void printDistStat(const double &minDist,
         precimed = 4;
     }
 
-    text << "Descriptor distances of ";
-    if(isTP){
-        text << "TP ";
-    }else{
-        text << "TN ";
+    if(!isGTM) {
+        text << "Descriptor distances of ";
+        if (isTP) {
+            text << "TP ";
+        } else {
+            text << "TN ";
+        }
     }
-    if(frameNr1 == frameNr2){
+    if(isGTM){
+        text << "Squared distance of GTM correspondences with ID " << gtm_id << " to original GT position: ";
+    }else if(frameNr1 == frameNr2){
         text << "stereo correspondences of frame " << frameNr1 << ": ";
     }else{
         text << "correspondences ";
@@ -254,7 +268,9 @@ void getTNTPDescriptorDistances(const cv::Mat &descr1,
                                 const vector<cv::DMatch> &matches,
                                 const size_t &frameNr1,
                                 const size_t &frameNr2,
-                                const bool &cam1IsFirstStereo = true){
+                                const bool &cam1IsFirstStereo = true,
+                                const bool &isGTM = false,
+                                const string &gtm_id = ""){
      Mat d1p, d2p, d1n, d2n;
      d1p.reserve(descr1.rows);
      d2p.reserve(descr1.rows);
@@ -278,6 +294,29 @@ void getTNTPDescriptorDistances(const cv::Mat &descr1,
          getDescriptorDistStat(d1n, d2n, minDist, maxDist, meanDist, medianDist);
          printDistStat(minDist, maxDist, meanDist, medianDist, false, frameNr1, frameNr2, cam1IsFirstStereo);
      }
+ }
+
+ void getSquaredDistanceGTM_stat(const gtmData &data){
+     vector<double> dists;
+     size_t nr_elems = data.matchesGT.size();
+     dists.reserve(nr_elems);
+     double sum = 0;
+     for(auto &m: data.matchesGT){
+         dists.emplace_back(static_cast<double>(m.distance));
+         sum += dists.back();
+     }
+     sort(dists.begin(), dists.end());
+     double medianDist, minDist, maxDist, meanDist;
+     if(nr_elems % 2){
+         medianDist = dists[(nr_elems - 1) / 2];
+     }else{
+         const size_t nr_elems1 = nr_elems / 2;
+         medianDist = (dists[nr_elems1 - 1] + dists[nr_elems1]) / 2.;
+     }
+     minDist = dists[0];
+     maxDist = dists.back();
+     meanDist = sum / static_cast<double>(dists.size());
+     printDistStat(minDist, maxDist, meanDist, medianDist, false, 0, 0, false, true, data.quality.id);
  }
 
  int main(int argc, char* argv[])
@@ -461,7 +500,20 @@ void getTNTPDescriptorDistances(const cv::Mat &descr1,
                  }
              }
          }
-     }else{
+     } else if(cmd.foundOption("gtm_file")){
+         string gtm_file = cmd.optionValue("gtm_file");
+         if(!checkFileExists(gtm_file)){
+             cerr << "File " << gtm_file << " not found." << endl;
+             return EXIT_FAILURE;
+         }
+         gtmData data;
+         if(readGTMatchesDisk(gtm_file, data) != 0){
+             cerr << "Failed to read GTM data: " << gtm_file << endl;
+             return EXIT_FAILURE;
+         }
+         getSquaredDistanceGTM_stat(data);
+     }
+     else{
          cerr << "Options required. Use -h or --help for addition information." << endl;
          return EXIT_FAILURE;
      }

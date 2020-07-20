@@ -40,6 +40,7 @@
 using namespace std;
 using namespace cv;
 
+//Correspondence data (e.g. feature matches) and additional information of a single stereo pair in a sequence
 struct sequMatches{
     /* Keypoints for the first (left or top) stereo cam (there is no 1:1 correspondence between
      * frameKeypoints1 and frameKeypoints2 as they are shuffled but the keypoint order of each
@@ -137,6 +138,7 @@ struct CorrOrderTP{
     }
 };
 
+//3D data of a single stereo pair in a sequence
 struct data3D{
     /* Frame number*/
     size_t actFrameCnt = 0;
@@ -213,6 +215,7 @@ struct data3D{
     bool combCorrsImg12TNstatFirst = true;
 };
 
+//Absulte camera pose in world coordinates
 struct Poses
 {
     Poses()
@@ -226,6 +229,7 @@ struct Poses
     cv::Mat t;
 };
 
+//3D and correspondence data for frame to frame matches (i.e. frame i-1 to i of first or second stereo camera)
 struct FrameToFrameMatches{
     /* Keypoints in first stereo camera of frame i-1 */
     std::vector<cv::KeyPoint> frameKeypoints_1_1;
@@ -291,6 +295,7 @@ struct FrameToFrameMatches{
     std::vector<bool> isDynamic_2;
 };
 
+//Parameters of generated correspondences
 struct matchSequParameters {
     /* Path containing the images for producing keypoint patches */
     std::string imgPath;
@@ -344,6 +349,7 @@ enum depthClass{
     FAR = 0x04
 };
 
+//Parameters of generated 3D data
 struct sequParameters{
     /* Number of different stereo camera configurations */
     size_t nrStereoConfs = 0;
@@ -488,6 +494,7 @@ FileNodeIterator& operator >> (FileNodeIterator& it, int64_t & value)
     return ++it;
 }
 
+//Read correspondence data of a single stereo pair
 bool readMatchesFromDisk(const std::string &filename,
                          sequMatches &sm){
     FileStorage fs = FileStorage(filename, FileStorage::READ);
@@ -692,6 +699,7 @@ bool readMatchesFromDisk(const std::string &filename,
     return true;
 }
 
+//Read 3D data of a single stereo pair
 bool readCamParsFromDisk(const std::string &filename,
                          data3D &sm){
     FileStorage fs(filename, FileStorage::READ);
@@ -925,6 +933,7 @@ bool readCamParsFromDisk(const std::string &filename,
     return true;
 }
 
+//Read correspondence parameters for multiple sequences using identical 3D data
 bool readMultipleMatchSequencePars(const std::string &filename, std::vector<matchSequParameters> &matchPars){
     FileStorage fs = FileStorage(filename, FileStorage::READ);
     if (!fs.isOpened()) {
@@ -983,6 +992,7 @@ bool readMultipleMatchSequencePars(const std::string &filename, std::vector<matc
     return true;
 }
 
+//Read parameters regarding 3D data of a generated sequence
 bool readSequenceParameters(const std::string &filename, sequParameters &pars) {
     FileStorage fs(filename, FileStorage::READ);
 
@@ -1297,6 +1307,7 @@ bool readSequenceParameters(const std::string &filename, sequParameters &pars) {
     return true;
 }
 
+//Calculate relative pose of first stereo camera from frame i-1 to frame i based on absolute camera poses
 void calcRelPose1(const cv::Mat &R_abs_1,
                   const cv::Mat &R_abs_2,
                   const cv::Mat &t_abs_1,
@@ -1307,6 +1318,7 @@ void calcRelPose1(const cv::Mat &R_abs_1,
     t_rel = R_abs_2.t() * (t_abs_1 - t_abs_2);
 }
 
+//Calculate relative pose of second stereo camera from frame i-1 to frame i based on absolute and relative camera poses
 void calcRelPose2(const cv::Mat &R_rel_1,
                   const cv::Mat &t_rel_1,
                   const cv::Mat &R_stereo_1,
@@ -1319,6 +1331,7 @@ void calcRelPose2(const cv::Mat &R_rel_1,
     t_rel = t_stereo_2 + R_stereo_2 * t_rel_1 - R_rel * t_stereo_1;
 }
 
+//Calculate absolute pose of second stereo camera, frame i-1
 void calcAbsPose2(const cv::Mat &R_abs_1,
                   const cv::Mat &t_abs_1,
                   const cv::Mat &R_stereo_1,
@@ -1329,6 +1342,7 @@ void calcAbsPose2(const cv::Mat &R_abs_1,
     t_stereo_abs_2 = R_stereo_1 * t_abs_1 + t_stereo_1;
 }
 
+//Calculate Essential matrix based on relative pose (R, t)
 cv::Mat getEssentialMat(const cv::Mat &R_rel, const cv::Mat &t_rel){
     cv::Mat E = cv::Mat::zeros(3, 3, CV_64FC1);
     E.at<double>(0, 1) = -1. * t_rel.at<double>(2);
@@ -1341,6 +1355,7 @@ cv::Mat getEssentialMat(const cv::Mat &R_rel, const cv::Mat &t_rel){
     return E.clone();
 }
 
+//Calculate Fundamental matrix based on relative pose (R, t) and camera intrindics ()K1, K2
 cv::Mat getFundamentalMat(const cv::Mat &R_rel, const cv::Mat &t_rel, const cv::Mat &K1, const cv::Mat &K2){
     cv::Mat E = getEssentialMat(R_rel, t_rel);
     return K2.inv().t() * E * K1.inv();
@@ -1369,6 +1384,7 @@ void reOrderDescriptors(cv::Mat &descriptors, const std::vector<T> &idxs){
     descriptor1_tmp.copyTo(descriptors);
 }
 
+//Calculate frame-to-frame (frame i-1 to frame i) correspondences and 3D data of first or second stereo camera
 bool getFrameToFrameMatches(const std::vector<int64_t> &combCorrsImg12TP_IdxWorld2_1,
                             const std::vector<int64_t> &combCorrsImg12TP_IdxWorld2_2,
                             const std::vector<size_t> &idxs_match23D_1,
@@ -1521,6 +1537,7 @@ bool getFrameToFrameMatches(const std::vector<int64_t> &combCorrsImg12TP_IdxWorl
     return true;
 }
 
+//Calculate frame-to-frame (frame i-1 to frame i) correspondences and 3D data of first and second stereo camera of a full sequence
 bool getMultFrameToFrameMatches(const sequParameters &sequPars,
                                 const std::vector<data3D> &sequData,
                                 const std::vector<sequMatches> &matchData1,
@@ -1655,6 +1672,7 @@ bool getMultFrameToFrameMatches(const sequParameters &sequPars,
     return !f2f_matches.empty();
 }
 
+//Get a local 3D point cloud for a stereo pair in world coordinates and relative to the camera center of the first stereo camera
 void get3DpointsForMatches(const std::vector<cv::Point3d> &comb3DPts,
                            const Poses &absCamCoordinate,
                            const std::vector<bool> &frameInliers,
@@ -1681,6 +1699,7 @@ void get3DpointsForMatches(const std::vector<cv::Point3d> &comb3DPts,
     }
 }
 
+//Get local 3D point clouds for multiple stereo pairs in world coordinates and relative to camera center of the first stereo camera
 void getFull3Ddata(const std::vector<data3D> &sequData, const sequParameters &sequPars, std::vector<sequMatches> &matchData1){
     for(size_t i = 0; i < sequPars.totalNrFrames; ++i) {
         get3DpointsForMatches(sequData[i].comb3DPts,
@@ -1692,6 +1711,7 @@ void getFull3Ddata(const std::vector<data3D> &sequData, const sequParameters &se
     }
 }
 
+//Extract information about 3D points, if they are static or dynamic based on 3D data only
 void getDynamic3Dpoints(const data3D &data, const std::vector<size_t> &idxs_match23D1, std::vector<bool> &dynamicElems){
     std::vector<bool> tn, tpls, tplm, tpns, tpnm, tnp;
     dynamicElems.clear();
@@ -1741,6 +1761,7 @@ void getDynamic3Dpoints(const data3D &data, const std::vector<size_t> &idxs_matc
     }
 }
 
+//Extract information about 3D points, if they are static or dynamic based on data provided with correspondence information
 void getDynamic3Dpoints(sequMatches &data){
     data.isDynamic.clear();
     size_t nr_Corrs = data.frameKeypoints1.size();
@@ -1770,6 +1791,7 @@ void getDynamic3Dpoints(sequMatches &data){
     }
 }
 
+//Extract information about 3D points, if they are static or dynamic for a full sequence
 void getAllDynamic3Dpoints(std::vector<sequMatches> &matchData1){
     for(auto &data: matchData1) {
         getDynamic3Dpoints(data);
