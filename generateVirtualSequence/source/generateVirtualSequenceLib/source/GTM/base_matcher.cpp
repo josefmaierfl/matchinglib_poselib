@@ -51,6 +51,7 @@
 #include "GTM/inscribeRectangle.h"
 
 #include "imgFeatures.h"
+#include "GTM/nanoflannInterface.h"
 
 #if __linux__
 #if defined(USE_MANUAL_ANNOTATION)
@@ -2695,6 +2696,7 @@ bool baseMatcher::testGTmatches(int & samples, std::vector<std::pair<cv::Point2f
 	vector<std::pair<int,double>> wrongGTidxDist;
 	vector<Mat> channelsFlow(3);
 	static bool autoHestiSift = true;
+	const bool useKpSearch = true;
 	maxSampleSize = samples > GTsi ? GTsi:samples;
 
 	CV_Assert(!(patchsizeOrig % 16));
@@ -2799,6 +2801,23 @@ bool baseMatcher::testGTmatches(int & samples, std::vector<std::pair<cv::Point2f
 		cout << "Cannot create descriptor extractor!" << endl;
 		return false; //Cannot create descriptor extractor
 	}
+	vector<KeyPoint> kp1_all, kp2_all;
+	Mat descr1_all, descr2_all;
+	const float radius_kd = 1.414214f * halfpatch;
+    keyPointTreeInterface kdtree1, kdtree2;
+    KeypointDescriptorIndexer descrSearch1, descrSearch2;
+    if(flowGtIsUsed && autoHestiSift && useKpSearch){
+        detector->detect(img_tmp[0], kp1_all);//extract keypoints in the left patch
+        detector->detect(img_tmp[1], kp2_all);//extract keypoints in the right patch
+        extractor->compute(img_tmp[0], kp1_all, descr1_all);//compute descriptors for the keypoints
+        extractor->compute(img_tmp[1], kp2_all, descr2_all);//compute descriptors for the keypoints
+        kdtree1 = keyPointTreeInterface(&kp1_all);
+        kdtree1.buildInitialTree();
+        kdtree2 = keyPointTreeInterface(&kp2_all);
+        kdtree2.buildInitialTree();
+        descrSearch1 = KeypointDescriptorIndexer(kp1_all, descr1_all);
+        descrSearch2 = KeypointDescriptorIndexer(kp2_all, descr2_all);
+    }
 
 	if(maxSampleSize < GTsi) {
         srand(time(nullptr));
@@ -2841,23 +2860,50 @@ bool baseMatcher::testGTmatches(int & samples, std::vector<std::pair<cv::Point2f
 				vector<cv::KeyPoint> lkpSift, rkpSift;
 				double angle_rot = 0, scale = 1.;
 				Mat D = Mat::ones(2,1, CV_64F), Rrot, Rdeform = Mat::eye(2,2,CV_64F);
-				mask = Mat::zeros(img_tmp[0].rows + patchsizeOrig, img_tmp[0].cols + patchsizeOrig, CV_8UC1);
-				mask(Rect(lkp.x, lkp.y, patchsizeOrig, patchsizeOrig)) = Mat::ones(patchsizeOrig, patchsizeOrig, CV_8UC1); //generate a mask to detect keypoints only within the image roi for the selected match
-				mask = mask(Rect(halfpatch, halfpatch, img_tmp[0].cols, img_tmp[0].rows));
-				detector->detect(img_tmp[0], lkpSift, mask);//extract SIFT keypoints in the left patch
+				if(!useKpSearch) {
+                    mask = Mat::zeros(img_tmp[0].rows + patchsizeOrig, img_tmp[0].cols + patchsizeOrig, CV_8UC1);
+                    mask(Rect(lkp.x, lkp.y, patchsizeOrig, patchsizeOrig)) = Mat::ones(patchsizeOrig, patchsizeOrig,
+                                                                                       CV_8UC1); //generate a mask to detect keypoints only within the image roi for the selected match
+                    mask = mask(Rect(halfpatch, halfpatch, img_tmp[0].cols, img_tmp[0].rows));
+                    detector->detect(img_tmp[0], lkpSift, mask);//extract SIFT keypoints in the left patch
+                }else{
+                    lkpSift.clear();
+                    std::vector<std::pair<size_t, float>> kd_result;
+                    kdtree1.radiusSearch(lkp, radius_kd, kd_result);
+                    for(auto &kdr: kd_result){
+                        lkpSift.push_back(kp1_all[kdr.first]);
+                    }
+				}
 				if(!lkpSift.empty())
 				{
-					mask = Mat::zeros(img_tmp[1].rows + patchsizeOrig, img_tmp[1].cols + patchsizeOrig, CV_8UC1);
-					mask(Rect(rkp.x, rkp.y, patchsizeOrig, patchsizeOrig)) = Mat::ones(patchsizeOrig, patchsizeOrig, CV_8UC1);
-					mask = mask(Rect(halfpatch, halfpatch, img_tmp[1].cols, img_tmp[1].rows));
-					detector->detect(img_tmp[1], rkpSift, mask);//extract SIFT keypoints in the right patch
+                    if(!useKpSearch) {
+                        mask = Mat::zeros(img_tmp[1].rows + patchsizeOrig, img_tmp[1].cols + patchsizeOrig, CV_8UC1);
+                        mask(Rect(rkp.x, rkp.y, patchsizeOrig, patchsizeOrig)) = Mat::ones(patchsizeOrig, patchsizeOrig,
+                                                                                           CV_8UC1);
+                        mask = mask(Rect(halfpatch, halfpatch, img_tmp[1].cols, img_tmp[1].rows));
+                        detector->detect(img_tmp[1], rkpSift, mask);//extract SIFT keypoints in the right patch
+                    }else{
+                        rkpSift.clear();
+                        std::vector<std::pair<size_t, float>> kd_result;
+                        kdtree2.radiusSearch(rkp, radius_kd, kd_result);
+                        for(auto &kdr: kd_result){
+                            rkpSift.push_back(kp2_all[kdr.first]);
+                        }
+                    }
 					if(!rkpSift.empty())
 					{
 						Mat ldescSift, rdescSift;
 						vector<vector<cv::DMatch>> matchesBf;
 						vector<cv::DMatch> matchesBfTrue;
-						extractor->compute(img_tmp[0], lkpSift, ldescSift);//compute descriptors for the SIFT keypoints
-						extractor->compute(img_tmp[1], rkpSift, rdescSift);//compute descriptors for the SIFT keypoints
+                        if(!useKpSearch) {
+                            extractor->compute(img_tmp[0], lkpSift,
+                                               ldescSift);//compute descriptors for the SIFT keypoints
+                            extractor->compute(img_tmp[1], rkpSift,
+                                               rdescSift);//compute descriptors for the SIFT keypoints
+                        }else{
+                            ldescSift = descrSearch1.getDescriptors(lkpSift);
+                            rdescSift = descrSearch2.getDescriptors(rkpSift);
+                        }
 						if(!lkpSift.empty() && !rkpSift.empty())
 						{
 							cv::BFMatcher matcher(NORM_L2, false);

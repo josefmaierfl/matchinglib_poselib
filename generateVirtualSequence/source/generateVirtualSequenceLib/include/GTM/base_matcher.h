@@ -283,7 +283,7 @@ struct kittiFolders{
 
 class KeypointDescriptorIndexer{
 public:
-    explicit KeypointDescriptorIndexer(const std::vector<cv::KeyPoint> &keypoints, const cv::Mat &descriptors_):
+    KeypointDescriptorIndexer(const std::vector<cv::KeyPoint> &keypoints, const cv::Mat &descriptors_):
             descriptors(descriptors_.clone()){
         int nrRows = descriptors_.rows;
         CV_Assert(keypoints.size() == static_cast<size_t>(nrRows));
@@ -291,6 +291,8 @@ public:
             kpDescrMap.emplace(keypoints[i].pt, i);
         }
     }
+
+    KeypointDescriptorIndexer() = default;
 
     cv::Mat getDescriptors(const std::vector<cv::KeyPoint> &keypoints){
         std::unordered_map<cv::Point2f, int, KeyHasher, EqualTo>::iterator got;

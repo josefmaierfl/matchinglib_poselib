@@ -109,7 +109,8 @@ set(sources
 	${source_path}/GTM/colmap/point3d.cc
 	${source_path}/GTM/colmap/track.cc
 	${source_path}/GTM/colmapBase.cpp
-	${source_path}/GTM/prepareMegaDepth.cpp)
+	${source_path}/GTM/prepareMegaDepth.cpp
+	${source_path}/GTM/nanoflannInterface.cpp)
 
 # Group source files
 set(header_group "Header Files (API)")

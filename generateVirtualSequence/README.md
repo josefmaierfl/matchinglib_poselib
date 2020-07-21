@@ -30,6 +30,8 @@ This repository includes a [library for integrating the framework](#library) int
 Generated data is stored in YAML or XML format which can be specified by the user.
 For easy data interfacing, we provide a [C++ and Python interface](#read-data).
 
+The software is tested on Ubuntu 18.04 but we provide a Docker-file for operating system independent usage.
+
 cmake-init is a copy and paste template, that provides the following features:
  * Cross Platform
   * Windows
