@@ -2782,7 +2782,7 @@ bool baseMatcher::testGTmatches(int & samples, std::vector<std::pair<cv::Point2f
     if(featureType == "SIFT"){
         detector = xfeatures2d::SIFT::create();
     }else if(featureType == "ORB"){
-        detector = cv::ORB::create(500, 1.2, 8, 31, 0, 4);
+        detector = cv::ORB::create(5000, 1.2, 8, 31, 0, 4);
     }else{
         cerr << "Only SIFT and ORB features are supported for refining GTM." << endl;
         return false;
@@ -2796,7 +2796,7 @@ bool baseMatcher::testGTmatches(int & samples, std::vector<std::pair<cv::Point2f
     if(featureType == "SIFT"){
         extractor = xfeatures2d::SIFT::create();
     }else{
-        extractor = cv::ORB::create(500, 1.2, 8, 31, 0, 4);
+        extractor = cv::ORB::create(5000, 1.2, 8, 31, 0, 4);
     }
 	if(extractor.empty())
 	{
@@ -2805,18 +2805,18 @@ bool baseMatcher::testGTmatches(int & samples, std::vector<std::pair<cv::Point2f
 	}
 	vector<KeyPoint> kp1_all, kp2_all;
 	Mat descr1_all, descr2_all;
-	const float radius_kd = 1.414214f * halfpatch;
-    keyPointTreeInterface kdtree1, kdtree2;
+	const float radius_kd = 2 * halfpatch * halfpatch;//1.414214f * halfpatch;
+    keyPointTreeInterface kdtree1(&kp1_all), kdtree2(&kp2_all);
     KeypointDescriptorIndexer descrSearch1, descrSearch2;
     if(flowGtIsUsed && autoHestiSift && useKpSearch){
+        kdtree1.buildInitialTree();
+        kdtree2.buildInitialTree();
         detector->detect(img_tmp[0], kp1_all);//extract keypoints in the left patch
         detector->detect(img_tmp[1], kp2_all);//extract keypoints in the right patch
         extractor->compute(img_tmp[0], kp1_all, descr1_all);//compute descriptors for the keypoints
         extractor->compute(img_tmp[1], kp2_all, descr2_all);//compute descriptors for the keypoints
-        kdtree1 = keyPointTreeInterface(&kp1_all);
-        kdtree1.buildInitialTree();
-        kdtree2 = keyPointTreeInterface(&kp2_all);
-        kdtree2.buildInitialTree();
+        kdtree1.addElements(0, kp1_all.size());
+        kdtree2.addElements(0, kp2_all.size());
         descrSearch1 = KeypointDescriptorIndexer(kp1_all, descr1_all);
         descrSearch2 = KeypointDescriptorIndexer(kp2_all, descr2_all);
     }

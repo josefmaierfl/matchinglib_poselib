@@ -46,10 +46,21 @@ class keyPointTreeInterface
 {
 private:
     void *treePtr;
+    bool delWhenDestruct = true;
 public:
-    keyPointTreeInterface(const std::vector<cv::KeyPoint> *featuresPtr_);
+    keyPointTreeInterface(const std::vector<cv::KeyPoint> *featuresPtr_, bool delWhenDestruct_ = true);
 
-    keyPointTreeInterface(): treePtr(nullptr){}
+    keyPointTreeInterface(): treePtr(nullptr), delWhenDestruct(true){}
+
+    keyPointTreeInterface& operator=(const keyPointTreeInterface& gss){
+        treePtr = gss.treePtr;
+        delWhenDestruct = true;
+//        gss.treePtr = nullptr;
+    }
+
+    keyPointTreeInterface(keyPointTreeInterface& gss): treePtr(gss.treePtr){
+        gss.treePtr = nullptr;
+    }
 
     virtual ~keyPointTreeInterface();
 
@@ -62,6 +73,10 @@ public:
     size_t knnSearch(const cv::Point2f &queryPt, size_t knn, std::vector<std::pair<size_t, float>> & result);
 
     size_t radiusSearch(const cv::Point2f &queryPt, float radius, std::vector<std::pair<size_t, float>> & result);
+
+    int addElements(size_t firstIdx, size_t length);
+
+    void removeElements(size_t idx);
 };
 
 

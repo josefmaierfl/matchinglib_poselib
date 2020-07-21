@@ -95,9 +95,9 @@ private:
     std::unique_ptr<coordinateKDTree> index;
 public:
 
-    keyPointTree(const std::vector<cv::KeyPoint> *featuresPtr_)
+    keyPointTree(const std::vector<cv::KeyPoint> *featuresPtr_): coordInteraface(featuresPtr_)
     {
-        coordInteraface = featuresPtr_;
+//        coordInteraface = featuresPtr_;
         pc2kd.reset(new PC2KD(*coordInteraface));
     }
 
@@ -105,7 +105,7 @@ public:
     {
         try
         {
-            index.reset(new coordinateKDTree(2 /*dim*/, *pc2kd, KDTreeSingleIndexAdaptorParams(20 /* max leaf */)));
+            index.reset(new coordinateKDTree(2 /*dim*/, *pc2kd.get(), KDTreeSingleIndexAdaptorParams(20 /* max leaf */)));
         }
         catch (std::exception const& ex)
         {
@@ -214,6 +214,31 @@ public:
         }
         return result.size();
     }
+
+    int addElements(size_t firstIdx, size_t length)
+    {
+        //The indices within this range must be continous and stored in the correspondence pool and the index map(poolIdxIt_) must be valid
+        try
+        {
+            index->addPoints(firstIdx, firstIdx + length - 1);
+        }
+        catch (std::exception const& ex)
+        {
+            std::cerr << "std::exception: " << ex.what() << std::endl;
+            throw;
+        }
+        catch (...)
+        {
+            std::cerr << "Unknown Exception!" << std::endl;
+            throw;
+        }
+        return 0;
+    }
+
+    void removeElements(size_t idx)
+    {
+        index->removePoint(idx);
+    }
 };
 
 /* --------------------- Function prototypes --------------------- */
@@ -221,7 +246,7 @@ public:
 
 /* -------------------------- Functions -------------------------- */
 
-keyPointTreeInterface::keyPointTreeInterface(const std::vector<cv::KeyPoint> *featuresPtr_)
+keyPointTreeInterface::keyPointTreeInterface(const std::vector<cv::KeyPoint> *featuresPtr_, bool delWhenDestruct_): delWhenDestruct(delWhenDestruct_)
 {
     treePtr = new keyPointTree(featuresPtr_);
 }
@@ -265,9 +290,19 @@ size_t keyPointTreeInterface::radiusSearch(const cv::Point2f &queryPt, float rad
     return ((keyPointTree*)treePtr)->radiusSearch(queryPt, radius, result);
 }
 
+int keyPointTreeInterface::addElements(size_t firstIdx, size_t length)
+{
+    return ((keyPointTree*)treePtr)->addElements(firstIdx, length);
+}
+
+void keyPointTreeInterface::removeElements(size_t idx)
+{
+    ((keyPointTree*)treePtr)->removeElements(idx);
+}
+
 keyPointTreeInterface::~keyPointTreeInterface()
 {
-    if(treePtr) {
+    if(treePtr && delWhenDestruct) {
         killTree();
     }
 }

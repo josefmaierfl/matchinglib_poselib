@@ -270,7 +270,7 @@ namespace poselib
         {
             // Unsorted radius search:
             result.clear();
-            RadiusResultSet<float, size_t> resultSet(radius, result);
+            RadiusResultSet<float, size_t> resultSet(radius * radius, result);
             float queryPt_[2];
             queryPt_[0] = queryPt.x;
             queryPt_[1] = queryPt.y;
