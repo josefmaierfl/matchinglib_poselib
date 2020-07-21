@@ -350,7 +350,8 @@ public:
 
 	//Constructor
     baseMatcher(std::string _featuretype, std::string _imgsPath, std::string _descriptortype,
-                uint32_t verbose_ = 0, std::mt19937 *rand2_ = nullptr, bool refineGTM_ = true);
+                uint32_t verbose_ = 0, std::mt19937 *rand2_ = nullptr, bool refineGTM_ = true,
+                bool only_MD_flow_ = false, bool noPool_ = false);
 
     GTMdata &&moveGTMdata(){
         return std::move(gtmdata);
@@ -380,6 +381,8 @@ private:
         std::string flowSub = "flow";//flow -> in depthImgPart
     } mdFolders;
     bool refineGTM = true;
+    bool only_MD_flow = false;
+    bool noPool = false;
     annotImgPars quality;
     bool refinedGTMAvailable = false;
     std::mt19937 *rand2ptr;
@@ -434,6 +437,8 @@ private:
                             std::string &imgName1, std::string &imgName2);
     //Adds GTM from a single image pair to gtmdata (gtmdata.imgNamesAll is not added)
     void addGTMdataToPool();
+    //Clears all vectors in the GTM data pool "gtmdata"
+    void clearPoolVecs();
     //Checks if GTM for the Oxford dataset are available and if not calculates them
     bool getOxfordGTM(const std::string &path, size_t &min_nrTP);
     //Load image names of corresponding images and their homographies

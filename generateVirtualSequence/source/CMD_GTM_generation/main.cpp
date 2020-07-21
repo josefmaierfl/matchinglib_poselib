@@ -53,7 +53,8 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
                               "MegaDepth, Oxford, and KITTI.>", ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
     cmd.defineOption("kitti", "<If provided, GTM for KITTI are calculated.>", ArgvParser::NoOptionAttribute);
     cmd.defineOption("oxford", "<If provided, GTM for Oxford are calculated.>", ArgvParser::NoOptionAttribute);
-    cmd.defineOption("mega", "<If provided, GTM and flow for the MegaDepth dataset are calculated.>", ArgvParser::NoOptionAttribute);
+    cmd.defineOption("mega", "<If provided, GTM and flow for the MegaDepth dataset are calculated.>",
+            ArgvParser::NoOptionAttribute);
     cmd.defineOption("nr_kitti", "<If provided, only as many matches as specified here are calculated from the KITTI dataset. "
                                  "Otherwise, the full dataset is processed.>", ArgvParser::OptionRequiresValue);
     cmd.defineOption("nr_oxford", "<If provided, only as many matches as specified here are calculated from the Oxford dataset. "
@@ -77,7 +78,13 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
                           "0x10\t print Ceres result summaries of refined MegaDepth poses and intrinsics\n"
                           "0x20\t show matches on distorted image pairs of the MegaDepth dataset\n"
                           "0x40\t show matches on undistorted image pairs of the MegaDepth dataset\n"
-                          "0x80\t show matches on undistorted image pairs of the MegaDepth dataset with refined poses and intrinsics.>", ArgvParser::OptionRequiresValue);
+                          "0x80\t show matches on undistorted image pairs of the MegaDepth dataset with refined poses and intrinsics.>",
+                          ArgvParser::OptionRequiresValue);
+    cmd.defineOption("only_mega_flow", "<If provided, flow for the MegaDepth dataset is calculated and "
+                                       "calculation of GTM is skipped.>",ArgvParser::NoOptionAttribute);
+    cmd.defineOption("del_pool", "<If provided, all internal variables holding GTM information are "
+                                 "cleared after each iteration to save memory (RAM).>",ArgvParser::NoOptionAttribute);
+    cmd.defineOption("skip_gtm_refine", "<If provided, GTM refinement step is skipped.>",ArgvParser::NoOptionAttribute);
 
 	/// finally parse and handle return codes (display help etc...)
 	int result = -1;
@@ -94,8 +101,9 @@ int startCalculation(ArgvParser& cmd)
     bool use_kitti = cmd.foundOption("kitti");
     bool use_oxf = cmd.foundOption("oxford");
     bool use_mega = cmd.foundOption("mega");
-	if(!(use_kitti | use_oxf | use_mega)){
-		cerr << "At least one of options kitti, oxford, or mega must be provided." << endl;
+    bool only_mega_flow = cmd.foundOption("only_mega_flow");
+	if(!(use_kitti | use_oxf | use_mega | only_mega_flow)){
+		cerr << "At least one of options kitti, oxford, mega, or only_mega_flow must be provided." << endl;
 		return -1;
 	}
 	size_t nr_kitti = 0, nr_oxford = 0, nr_mega = 0;
@@ -154,9 +162,12 @@ int startCalculation(ArgvParser& cmd)
         if(verbose0 & 0x40) verbose |= vorboseType::SHOW_MEGADEPTH_MATCHES_UNDISTORTED;
         if(verbose0 & 0x80) verbose |= vorboseType::SHOW_MEGADEPTH_MATCHES_REFINED;
     }
+    bool del_pool = cmd.foundOption("del_pool");
+    bool skip_gtm_refine = cmd.foundOption("skip_gtm_refine");
+
     std::random_device rd;
     std::mt19937 rand2(rd());
-    baseMatcher bm(keyPointType, img_path, descriptorType, verbose, &rand2);
+    baseMatcher bm(keyPointType, img_path, descriptorType, verbose, &rand2, !skip_gtm_refine, only_mega_flow, del_pool);
     int err = 0;
     if(use_oxf){
         if(!bm.calcGTM_Oxford(nr_oxford)){
@@ -170,7 +181,7 @@ int startCalculation(ArgvParser& cmd)
             err += 2;
         }
     }
-    if(use_mega){
+    if(use_mega || only_mega_flow){
         if(!bm.calcGTM_MegaDepth(nr_mega)){
             cerr << "Error at MegaDepth GTM calculation" << endl;
             err += 4;

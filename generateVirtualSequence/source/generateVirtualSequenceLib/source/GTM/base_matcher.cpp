@@ -117,8 +117,10 @@ void findLocalMin(const Mat& patchL, const Mat& patchR, float quarterpatch, floa
  *
  */
 baseMatcher::baseMatcher(std::string _featuretype, std::string _imgsPath, std::string _descriptortype,
-                         uint32_t verbose_, std::mt19937 *rand2_, bool refineGTM_) :
+                         uint32_t verbose_, std::mt19937 *rand2_, bool refineGTM_, bool only_MD_flow_, bool noPool_) :
         refineGTM(refineGTM_),
+        only_MD_flow(only_MD_flow_),
+        noPool(noPool_),
         rand2ptr(rand2_),
         verbose(verbose_),
         inlRatio(0),
@@ -5224,6 +5226,7 @@ bool baseMatcher::calcGTM_MegaDepth(size_t &min_nrTP, int CeresCPUcnt){
         bool calcGTM = false;
         std::vector<std::pair<std::string, std::string>> imgNames_tmp;
         if(checkPathExists(gtm_path)){
+            if(only_MD_flow) continue;
             std::vector<std::string> gtm_filenames;
             if(!loadImageSequenceNew(gtm_path, "*" + gtm_ending, gtm_filenames, true)){
                 calcGTM = true;
@@ -5280,33 +5283,40 @@ bool baseMatcher::calcGTM_MegaDepth(size_t &min_nrTP, int CeresCPUcnt){
                 cerr << e.what() << endl;
                 return false;
             }
-            const string sub_dense = getFilenameFromPath(md_sub_parentP);
-            const string md_sub_parentP1 = getParentPath(md_sub_parentP);
-            const string sub_folders = getFilenameFromPath(md_sub_parentP1) + "/" + sub_dense;
-            size_t nrGts = data.size();
-            size_t idx = 0;
-            for(auto &md: data){
-                std::pair<std::string, std::string> imageNames = make_pair(md.img1_name, md.img2_name);
-                std::tuple<std::string, std::string, std::string> fileNames = make_tuple(md.img1_name, md.img2_name, "");
-                if(!calcRefineStoreGTM_KITTI_MD(fileNames, true, gtm_path, sub_folders,
-                                                static_cast<int>(nrGts - idx++), save_it, "MegaDepth", md.flow)){
-                    continue;
+            if(!only_MD_flow) {
+                const string sub_dense = getFilenameFromPath(md_sub_parentP);
+                const string md_sub_parentP1 = getParentPath(md_sub_parentP);
+                const string sub_folders = getFilenameFromPath(md_sub_parentP1) + "/" + sub_dense;
+                size_t nrGts = data.size();
+                size_t idx = 0;
+                for (auto &md: data) {
+                    std::pair<std::string, std::string> imageNames = make_pair(md.img1_name, md.img2_name);
+                    std::tuple<std::string, std::string, std::string> fileNames = make_tuple(md.img1_name, md.img2_name,
+                                                                                             "");
+                    if (!calcRefineStoreGTM_KITTI_MD(fileNames, true, gtm_path, sub_folders,
+                                                     static_cast<int>(nrGts - idx++), save_it, "MegaDepth", md.flow)) {
+                        continue;
+                    }
+                    addGTMdataToPool();
+                    gtmdata.sum_TP_MegaDepth += positivesGT;
+                    gtmdata.sum_TN_MegaDepth += negativesGT;
+                    imgNames_tmp.emplace_back(move(imageNames));
                 }
-                addGTMdataToPool();
-                gtmdata.sum_TP_MegaDepth += positivesGT;
-                gtmdata.sum_TN_MegaDepth += negativesGT;
-                imgNames_tmp.emplace_back(move(imageNames));
+                if (imgNames_tmp.empty()) {
+                    cerr << "Unable to calculate GTM for MegaDepth subset " << i.mdDepth << endl;
+                    return false;
+                }
+                gtmdata.sourceGT.insert(gtmdata.sourceGT.end(), imgNames_tmp.size(), 'M');
+                gtmdata.imgNamesAll.insert(gtmdata.imgNamesAll.end(),
+                                           make_move_iterator(imgNames_tmp.begin()),
+                                           make_move_iterator(imgNames_tmp.end()));
             }
-            if(imgNames_tmp.empty()){
-                cerr << "Unable to calculate GTM for MegaDepth subset " << i.mdDepth << endl;
-                return false;
-            }
-            gtmdata.sourceGT.insert(gtmdata.sourceGT.end(), imgNames_tmp.size(), 'M');
-            gtmdata.imgNamesAll.insert(gtmdata.imgNamesAll.end(),
-                                       make_move_iterator(imgNames_tmp.begin()), make_move_iterator(imgNames_tmp.end()));
         }
         if(gtmdata.sum_TP_MegaDepth >= min_nrTP){
             break;
+        }
+        if(noPool){
+            clearPoolVecs();
         }
     }
     gtmdata.vecIdxRng_MegaDepth.second = static_cast<int>(gtmdata.matchesGTAll.size());
@@ -5444,6 +5454,9 @@ bool baseMatcher::calcGTM_KITTI(size_t &min_nrTP){
         }
         if(gtmdata.sum_TP_KITTI >= min_nrTP){
             break;
+        }
+        if(noPool){
+            clearPoolVecs();
         }
     }
     gtmdata.vecIdxRng_KITTI.second = static_cast<int>(gtmdata.matchesGTAll.size());
@@ -6003,6 +6016,9 @@ bool baseMatcher::getOxfordGTM(const std::string &path, size_t &min_nrTP){
         if(gtmdata.sum_TP_Oxford >= min_nrTP){
             break;
         }
+        if(noPool){
+            clearPoolVecs();
+        }
     }
     gtmdata.vecIdxRng_Oxford.second = static_cast<int>(gtmdata.matchesGTAll.size());
     if(min_nrTP > gtmdata.sum_TP_Oxford){
@@ -6022,6 +6038,16 @@ void baseMatcher::addGTMdataToPool(){
     gtmdata.leftInlierAll.emplace_back(std::move(leftInlier));
     gtmdata.rightInlierAll.emplace_back(std::move(rightInlier));
     gtmdata.matchesGTAll.emplace_back(std::move(matchesGT));
+}
+
+void baseMatcher::clearPoolVecs(){
+    gtmdata.keypLAll.clear();
+    gtmdata.keypRAll.clear();
+    gtmdata.leftInlierAll.clear();
+    gtmdata.rightInlierAll.clear();
+    gtmdata.matchesGTAll.clear();
+    gtmdata.sourceGT.clear();
+    gtmdata.imgNamesAll.clear();
 }
 
 int baseMatcher::loadGTM(const std::string &gtm_path, const std::pair<std::string, std::string> &imageNames){
