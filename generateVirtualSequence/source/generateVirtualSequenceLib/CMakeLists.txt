@@ -6,6 +6,15 @@
 option(USE_NON_FREE_CODE "use non free keypoint and descriptor types in the OpenCV library." ON)
 option(USE_MANUAL_ANNOTATION "Manual annotate GTM for detected inaccuracies."         OFF)
 
+if(USE_MANUAL_ANNOTATION)
+	ADD_DEFINITIONS(-DUSE_MANUAL_ANNOTATION)
+	message(STATUS "Using application in annotation mode!")
+endif()
+
+if(USE_NON_FREE_CODE)
+	ADD_DEFINITIONS(-DUSE_NON_FREE_CODE)
+endif()
+
 if(OPENMP_ENABLED)
 	find_package(OpenMP QUIET)
 endif()

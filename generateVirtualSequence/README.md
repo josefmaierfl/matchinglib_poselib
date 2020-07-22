@@ -32,6 +32,16 @@ For easy data interfacing, we provide a [C++ and Python interface](#read-data).
 
 The software is tested on Ubuntu 18.04 but we provide a Docker-file for operating system independent usage.
 
+##Installation
+
+We provide multiple possibilities to use this software:
+* Stand-alone executables for 
+    * generating semi-real-world stereo sequences based on configuration files, 
+    * calculation of Ground Truth Matches (GTM) for datasets [Oxford](http://www.robots.ox.ac.uk/~vgg/research/affine/), [KITTI](http://www.cvlibs.net/datasets/kitti/eval_stereo_flow.php), and [MegaDepth](https://research.cs.cornell.edu/megadepth/), in addition to optical flow for the MegaDepth dataset, and for
+    * annotating GTM and mentioned datasets.
+* Docker for afore mentioned executables
+* A library for generating semi-real-world stereo sequences that can be integrated into your own application
+
 cmake-init is a copy and paste template, that provides the following features:
  * Cross Platform
   * Windows
