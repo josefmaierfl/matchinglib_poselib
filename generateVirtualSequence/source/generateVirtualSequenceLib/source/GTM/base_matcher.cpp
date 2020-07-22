@@ -5277,7 +5277,7 @@ bool baseMatcher::calcGTM_MegaDepth(size_t &min_nrTP, int CeresCPUcnt){
             try {
                 if (!convertMegaDepthData(i, mdFolders.flowSub, data, verbose, CeresCPUcnt)) {
                     cerr << "Unable to calculate GTM for MegaDepth subset " << i.mdDepth << endl;
-                    return false;
+                    continue;
                 }
             }catch (Exception &e) {
                 cerr << e.what() << endl;
@@ -5304,7 +5304,7 @@ bool baseMatcher::calcGTM_MegaDepth(size_t &min_nrTP, int CeresCPUcnt){
                 }
                 if (imgNames_tmp.empty()) {
                     cerr << "Unable to calculate GTM for MegaDepth subset " << i.mdDepth << endl;
-                    return false;
+                    continue;
                 }
                 gtmdata.sourceGT.insert(gtmdata.sourceGT.end(), imgNames_tmp.size(), 'M');
                 gtmdata.imgNamesAll.insert(gtmdata.imgNamesAll.end(),
