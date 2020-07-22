@@ -167,7 +167,7 @@ int startCalculation(ArgvParser& cmd)
 
     std::random_device rd;
     std::mt19937 rand2(rd());
-    baseMatcher bm(keyPointType, img_path, descriptorType, verbose, &rand2, !skip_gtm_refine, only_mega_flow, del_pool);
+    baseMatcher bm(keyPointType, img_path, descriptorType, false, verbose, &rand2, !skip_gtm_refine, only_mega_flow, del_pool);
     int err = 0;
     if(use_oxf){
         if(!bm.calcGTM_Oxford(nr_oxford)){

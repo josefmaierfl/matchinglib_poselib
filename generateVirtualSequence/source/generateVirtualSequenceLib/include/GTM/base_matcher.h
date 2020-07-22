@@ -349,7 +349,7 @@ public:
 	//FUNCTION PROTOTYPES ----------------------------------------
 
 	//Constructor
-    baseMatcher(std::string _featuretype, std::string _imgsPath, std::string _descriptortype,
+    baseMatcher(std::string _featuretype, std::string _imgsPath, std::string _descriptortype, bool randGTMfolders_ = false,
                 uint32_t verbose_ = 0, std::mt19937 *rand2_ = nullptr, bool refineGTM_ = true,
                 bool only_MD_flow_ = false, bool noPool_ = false);
 
@@ -383,6 +383,7 @@ private:
     bool refineGTM = true;
     bool only_MD_flow = false;
     bool noPool = false;
+    bool randGTMfolders = false;
     annotImgPars quality;
     bool refinedGTMAvailable = false;
     std::mt19937 *rand2ptr;

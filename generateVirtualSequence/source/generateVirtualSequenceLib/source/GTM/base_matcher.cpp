@@ -116,11 +116,12 @@ void findLocalMin(const Mat& patchL, const Mat& patchR, float quarterpatch, floa
  * string _imgsPath				Input  -> Path to the images which is necessary for loading and storing the ground truth matches
  *
  */
-baseMatcher::baseMatcher(std::string _featuretype, std::string _imgsPath, std::string _descriptortype,
+baseMatcher::baseMatcher(std::string _featuretype, std::string _imgsPath, std::string _descriptortype, bool randGTMfolders_,
                          uint32_t verbose_, std::mt19937 *rand2_, bool refineGTM_, bool only_MD_flow_, bool noPool_) :
         refineGTM(refineGTM_),
         only_MD_flow(only_MD_flow_),
         noPool(noPool_),
+        randGTMfolders(randGTMfolders_),
         rand2ptr(rand2_),
         verbose(verbose_),
         inlRatio(0),
@@ -5220,6 +5221,9 @@ bool baseMatcher::calcGTM_MegaDepth(size_t &min_nrTP, int CeresCPUcnt){
         return false;
     }
     gtmdata.vecIdxRng_MegaDepth.first = static_cast<int>(gtmdata.matchesGTAll.size());
+    if(randGTMfolders){
+        std::shuffle(all_folders.begin(), all_folders.end(), *rand2ptr);
+    }
     for(auto &i: all_folders){
         const string md_sub_parentP = getParentPath(i.mdImgF);
         const string gtm_path = concatPath(md_sub_parentP, gtm_sub_folder);
@@ -5379,7 +5383,11 @@ bool baseMatcher::calcGTM_KITTI(size_t &min_nrTP){
     gtmdata.sum_TN_KITTI = 0;
     flowGtIsUsed = true;
     gtmdata.vecIdxRng_KITTI.first = static_cast<int>(gtmdata.matchesGTAll.size());
-    for(auto &i: GetKITTISubDirs()){
+    std::vector<kittiFolders> kittiSubDirs = GetKITTISubDirs();
+    if(randGTMfolders){
+        std::shuffle(kittiSubDirs.begin(), kittiSubDirs.end(), *rand2ptr);
+    }
+    for(auto &i: kittiSubDirs){
         string img1_path = concatPath(path, i.img1.sub_folder);
         if(!checkPathExists(img1_path)){
             cerr << "No folder " << img1_path << " found" << endl;
@@ -5957,7 +5965,11 @@ bool baseMatcher::getOxfordGTM(const std::string &path, size_t &min_nrTP){
     gtmdata.sum_TP_Oxford = 0;
     gtmdata.sum_TN_Oxford = 0;
     gtmdata.vecIdxRng_Oxford.first = static_cast<int>(gtmdata.matchesGTAll.size());
-    for(auto &sub: GetOxfordSubDirs()){
+    std::vector<std::string> oxfSubDirs = GetOxfordSubDirs();
+    if(randGTMfolders){
+        std::shuffle(oxfSubDirs.begin(), oxfSubDirs.end(), *rand2ptr);
+    }
+    for(auto &sub: oxfSubDirs){
         const string sub_path = concatPath(path, sub);
         const string gtm_path = concatPath(sub_path, gtm_sub_folder);
         std::vector<std::pair<std::string, std::string>> imgNames, imgNames_tmp;

@@ -2804,6 +2804,13 @@ bool genTemplateFile(const std::string &filename){
     fs << "]";
     fs.writeComment("Number of images that should be downloaded and used from ImageNet.");
     fs << "nrImgsFromImageNet" << 0;
+    fs.writeComment("If 1, GT folders (subsets) of datasets Oxford, KITTI, and MegaDepth are chosen randomly.\n"
+                    "This on the one hand allows to use different GT data for every execution of this software but on "
+                    "the other hand needs additional time (not only for the first execution) for calculating GTM "
+                    "except all GTM are already available on disk.\n"
+                    "This might be problematic, if no GTM data is available on disk and this software is executed in parallel.\n"
+                    "If 0, alphanumerically sorted folders (subsets) are selected.");
+    fs << "randGTMfolders" << 0;
 
     fs.release();
 
@@ -3440,6 +3447,10 @@ bool loadConfigFile(const std::string &filename,
     n = fs["nrImgsFromImageNet"];
     if(!n.empty()){
         n >> matchPars.nrImgsFromImageNet;
+    }
+    n = fs["randGTMfolders"];
+    if(!n.empty()){
+        n >> matchPars.randGTMfolders;
     }
 
     fs.release();

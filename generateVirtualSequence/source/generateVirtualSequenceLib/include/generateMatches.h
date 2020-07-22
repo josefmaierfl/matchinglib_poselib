@@ -62,6 +62,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
     std::vector<std::string> imageNetIDs;//List of WNIDs from ImageNet to use for download
     std::vector<std::string> imageNetBuzzWrds;//List of buzzwords to search for on ImageNet
     int nrImgsFromImageNet;//Number of images that should be downloaded from ImageNet
+    bool randGTMfolders;//If true, GTM folders (subsets) from datasets Oxford, KITTI, and MegaDepth are selected randomly
     bool parsValid;//Specifies, if the stored values within this struct are valid
 
     GenMatchSequParameters(std::string mainStorePath_,
@@ -91,7 +92,8 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
                            std::string execPath_ = "",
                            std::vector<std::string> imageNetIDs_ = std::vector<std::string>(),
                            std::vector<std::string> imageNetBuzzWrds_ = std::vector<std::string>(),
-                           int nrImgsFromImageNet_ = 0):
+                           int nrImgsFromImageNet_ = 0,
+                           bool randGTMfolders_ = false):
             mainStorePath(std::move(mainStorePath_)),
             imgPath(std::move(imgPath_)),
             imgPrePostFix(std::move(imgPrePostFix_)),
@@ -120,6 +122,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             imageNetIDs(std::move(imageNetIDs_)),
             imageNetBuzzWrds(std::move(imageNetBuzzWrds_)),
             nrImgsFromImageNet(nrImgsFromImageNet_),
+            randGTMfolders(randGTMfolders_),
             parsValid(true){
         keypErrDistr.first = abs(keypErrDistr.first);
         keypErrDistr.second = abs(keypErrDistr.second);
@@ -161,6 +164,7 @@ struct GENERATEVIRTUALSEQUENCELIB_API GenMatchSequParameters {
             imageNetIDs(std::vector<std::string>()),
             imageNetBuzzWrds(std::vector<std::string>()),
             nrImgsFromImageNet(0),
+            randGTMfolders(false),
             parsValid(false){}
 
     bool checkParameters(){

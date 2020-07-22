@@ -1262,7 +1262,12 @@ bool genMatchSequ::calcGTM(){
     try {
         named_mutex mutex(open_or_create, "get_gtm");
         scoped_lock<named_mutex> lock(mutex);
-        baseMatcher bm(parsMtch.keyPointType, parsMtch.imgPath, parsMtch.descriptorType, verbose, &rand2);
+        baseMatcher bm(parsMtch.keyPointType,
+                       parsMtch.imgPath,
+                       parsMtch.descriptorType,
+                       parsMtch.randGTMfolders,
+                       verbose,
+                       &rand2);
         bool data_av = false;
         if (use_3dPrtyGT & GT_DATASETS::OXFORD) {
             auto min_nrTP = static_cast<size_t>(round(parsMtch.oxfordGTMportion * static_cast<double>(nrTPFullSequ)));
@@ -5025,6 +5030,7 @@ size_t genMatchSequ::hashFromMtchPars() {
         }
     }
     ss << parsMtch.nrImgsFromImageNet;
+    ss << parsMtch.randGTMfolders;
 
     strFromPars = ss.str();
 
