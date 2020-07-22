@@ -2816,9 +2816,6 @@ bool baseMatcher::testGTmatches(int & samples, std::vector<std::pair<cv::Point2f
 		maxHorImgSize = imgSize.width;
 		maxVerImgSize = imgSize.height;
     }
-    vector<int> shuffledIdx(GTsi);
-    iota(shuffledIdx.begin(), shuffledIdx.end(), 0);
-    std::shuffle(shuffledIdx.begin(), shuffledIdx.end(), *rand2ptr);
 #endif
 
 	//SIFT features & descriptors used for generating local homographies
@@ -2865,6 +2862,10 @@ bool baseMatcher::testGTmatches(int & samples, std::vector<std::pair<cv::Point2f
         descrSearch2 = KeypointDescriptorIndexer(kp2_all, descr2_all);
     }
 
+    vector<int> shuffledIdx(GTsi);
+    iota(shuffledIdx.begin(), shuffledIdx.end(), 0);
+    std::shuffle(shuffledIdx.begin(), shuffledIdx.end(), *rand2ptr);
+
 	if(maxSampleSize < GTsi) {
         srand(time(nullptr));
     }
@@ -2885,7 +2886,7 @@ bool baseMatcher::testGTmatches(int & samples, std::vector<std::pair<cv::Point2f
 //                }
 //            }
             used_matches.push_back(idx);
-        } 
+        }
 
 #if LEFT_TO_RIGHT
 		cv::Point2f lkp = keypL[matchesGT[idx].queryIdx].pt;
