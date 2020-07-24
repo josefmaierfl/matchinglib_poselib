@@ -202,6 +202,8 @@ int baseMatcher::filterInitFeaturesGT()
 	vector<size_t> border_dellistL; //Indices of keypoints in the left image that are too near at the border
 	auto h = static_cast<float>(flowGT.rows);
 	auto w = static_cast<float>(flowGT.cols);
+    auto h21 = static_cast<float>(imgs[1].rows);
+    auto w21 = static_cast<float>(imgs[1].cols);
 	vector<Mat> channelsFlow(3);
 	vector<std::pair<size_t, float>> nearest_dist, second_nearest_dist;
     leftInlier.clear();
@@ -722,9 +724,9 @@ int baseMatcher::filterInitFeaturesGT()
     {
         int x, y;
         float nfx, nfy;
-        channels21.emplace_back(Mat(flowGT.rows, flowGT.cols, CV_32FC1, -1.0));
-        channels21.emplace_back(Mat(flowGT.rows, flowGT.cols, CV_32FC1, -1.0));
-        channels21.emplace_back(Mat(flowGT.rows, flowGT.cols, CV_32FC1, -1.0));
+        channels21.emplace_back(Mat(imgs[1].rows, imgs[1].cols, CV_32FC1, -1.0));
+        channels21.emplace_back(Mat(imgs[1].rows, imgs[1].cols, CV_32FC1, -1.0));
+        channels21.emplace_back(Mat(imgs[1].rows, imgs[1].cols, CV_32FC1, -1.0));
         for(int v = 0; v < flowGT.rows; v++)
         {
             for(int u = 0; u < flowGT.cols; u++)
@@ -735,7 +737,7 @@ int baseMatcher::filterInitFeaturesGT()
                     nfy = channelsFlow[1].at<float>(v, u);
                     x = static_cast<int>(floor(static_cast<float>(u) + nfx + 0.5f));
                     y = static_cast<int>(floor(static_cast<float>(v) + nfy + 0.5f));
-                    if((x > 0) && (static_cast<float>(x) < w) && (y > 0) && (static_cast<float>(y) < h))
+                    if((x > 0) && (static_cast<float>(x) < w21) && (y > 0) && (static_cast<float>(y) < h21))
                     {
                         channels21[0].at<float>(static_cast<int>(y), static_cast<int>(x)) = -1.0f * nfx;
                         channels21[1].at<float>(static_cast<int>(y), static_cast<int>(x)) = -1.0f * nfy;
@@ -759,7 +761,7 @@ int baseMatcher::filterInitFeaturesGT()
                         {
                             x = u + dx;
                             y = v + dy;
-                            if((x > 0) && (static_cast<float>(x) < w) && (y > 0) && (static_cast<float>(y) < h))
+                            if((x > 0) && (static_cast<float>(x) < w21) && (y > 0) && (static_cast<float>(y) < h21))
                             {
                                 if(channels21[2].at<float>(y, x) > 0)
                                 {
@@ -923,7 +925,7 @@ int baseMatcher::filterInitFeaturesGT()
                     //		{
                     //			xd = hlp.x + dx;
                     //			yd = hlp.y + dy;
-                    //			if((xd > 0) && (xd < (int)w) && (yd > 0) && (yd < (int)h))
+                    //			if((xd > 0) && (xd < (int)w21) && (yd > 0) && (yd < (int)h21))
                     //			{
                     //				if(channels21[2].at<float>(yd, xd) == 0)
                     //					break;
@@ -2823,7 +2825,7 @@ bool baseMatcher::testGTmatches(int & samples, std::vector<std::pair<cv::Point2f
     if(featureType == "SIFT"){
         detector = xfeatures2d::SIFT::create();
     }else if(featureType == "ORB"){
-        detector = cv::ORB::create(5000, 1.2, 8, 31, 0, 4);
+        detector = cv::ORB::create(5000, 1.1, 24, 31, 0, 4);
     }else{
         cerr << "Only SIFT and ORB features are supported for refining GTM." << endl;
         return false;
@@ -2837,7 +2839,7 @@ bool baseMatcher::testGTmatches(int & samples, std::vector<std::pair<cv::Point2f
     if(featureType == "SIFT"){
         extractor = xfeatures2d::SIFT::create();
     }else{
-        extractor = cv::ORB::create(5000, 1.2, 8, 31, 0, 4);
+        extractor = cv::ORB::create(5000, 1.1, 24, 31, 0, 4);
     }
 	if(extractor.empty())
 	{
@@ -3018,6 +3020,7 @@ bool baseMatcher::testGTmatches(int & samples, std::vector<std::pair<cv::Point2f
 										rps.push_back(rkpSift[matchesBfTrue[k].trainIdx].pt);
 									}
 
+									bool additionalFilter = false;
 									if(matchesBfTrue.size() > 7) //Estimate a projective homography with RANSAC and remove outliers
 									{
 										Mat Hprmask;
@@ -3041,6 +3044,7 @@ bool baseMatcher::testGTmatches(int & samples, std::vector<std::pair<cv::Point2f
 												lps = lps_tmp;
 												rps = rps_tmp;
 												msize = static_cast<int>(matchesBfTrue.size());
+                                                additionalFilter = true;
 											}
 										}
 									}
@@ -3090,17 +3094,23 @@ bool baseMatcher::testGTmatches(int & samples, std::vector<std::pair<cv::Point2f
 											angle_rot = -1.0 * std::atan2(Rrot.at<double>(1,0), Rrot.at<double>(0,0)) * 180.0 / 3.14159265; //As sin, cos are defined counterclockwise, but cv::keypoint::angle is clockwise, multiply it with -1
 											double scalechange = scales_med / scale;
 											double rotchange = abs(angles_med - angle_rot);
-											if((scalechange > 1.1) || (1. / scalechange > 1.1))//Check the correctness of the scale and angle using the values from the homography and the SIFT keypoints
+                                            //Check the correctness of the scale and angle using the values from the homography and the SIFT keypoints
+											if((!additionalFilter && ((scalechange > 1.2) || (1. / scalechange > 1.2))) ||
+                                                    (additionalFilter && ((scalechange > 1.5) || (1. / scalechange > 1.5))))
 											{
 												if(rotchange < 11.25)
 												{
-													if((scale < 2.) && (scalechange < 2.))
-														scale = abs(1. - scale) < abs(1. - scales_med) ? scale : scales_med;
-													scale = (scale > 1.2) || (scale < 0.8) ? 1.0:scale;
+													if(scalechange < 2.) {
+                                                        scale = abs(1. - scale) < abs(1. - scales_med) ? scale
+                                                                                                       : scales_med;
+                                                    }else {
+                                                        scale = 1.;
+                                                    }
+//													scale = (scale > 1.2) || (scale < 0.8) ? 1.0:scale;
 
-													if(angles_med * angle_rot > 0)//angles should have the same direction
+													if(angles_med * angle_rot > 0 || (nearZero(angles_med, 5.) && nearZero(angle_rot, 5.)))//angles should have the same direction
 													{
-														if(abs(angle_rot) > abs(angles_med))
+														if(abs(angle_rot) > 1.2 * abs(angles_med))
 															angle_rot = (angle_rot + angles_med) / 2.0;
 													}
 													else

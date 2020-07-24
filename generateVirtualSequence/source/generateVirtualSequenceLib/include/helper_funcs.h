@@ -184,10 +184,9 @@ GENERATEVIRTUALSEQUENCELIB_API cv::FileNodeIterator& operator >> (cv::FileNodeIt
 /* -------------------------- Functions -------------------------- */
 
 //Checks, if determinants, etc. are too close to 0
-inline bool nearZero(double d)
+inline bool nearZero(double d, const double EPSILON = 1e-4)
 {
 	//Decide if determinants, etc. are too close to 0 to bother with
-	const double EPSILON = 1e-4;
 	return (d<EPSILON) && (d>-EPSILON);
 }
 
