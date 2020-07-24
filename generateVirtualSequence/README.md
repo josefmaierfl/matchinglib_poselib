@@ -41,7 +41,7 @@ The software is tested on Ubuntu 18.04 but we provide a Docker-file for operatin
 
 ## Different Scene Properties
 
-SemiRealSequence supports to specify different scene and camera pose pose properties:
+SemiRealSequence supports to specify different scene and camera pose properties:
 * Virtual image size
 * Stereo poses:
     * Specific and/or variation of values or intervals for 6DOF relative poses (i.e. rotation angles and translation)
@@ -52,13 +52,23 @@ SemiRealSequence supports to specify different scene and camera pose pose proper
     * A specific trajectory providing node coordinates,
     * a flag for utilizing a random trajectory optionally specifying a main direction, or
     * a function (currently only ellipsoids) can be provided.
+    * Camera orientation of first stereo cameras relative to camera movement
+    * Camera velocity
 * Static 3D point clouds and geometric matches:
     * A desired inlier ratio or interval
-    * a relative inlier ratio variation rate
-    * number or interval of true positive (TP) stereo correspondences
-    * a relative variation rate for number of TP
-    * a minimum distance between correspondences in the first stereo image
-    * global depth ratios with respect to stereo cameras
+    * A relative inlier ratio variation rate
+    * Number or interval of true positive (TP) stereo correspondences
+    * A relative variation rate for number of TP
+    * A minimum distance between correspondences in the first stereo image
+    * Global depth ratios with respect to stereo cameras
+* Dynamic 3D point clouds and geometric matches:
+    * Initial and minimal (throughout the whole sequence) number of dynamic objects
+    * Valid starting positions for initializing dynamic objects
+    * Initial depths or distributions thereof
+    * Movement directions
+    * Velocities relative to camera movements (currently only straight moving objects are supported)
+    * Relative occupied image area
+    * Relative portion of geometric matches or intervals thereof compared to static scene elements
 
 Most parameters can be initialized randomly.
 
