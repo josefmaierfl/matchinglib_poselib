@@ -84,7 +84,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
                                        "calculation of GTM is skipped.>",ArgvParser::NoOptionAttribute);
     cmd.defineOption("del_pool", "<If provided, all internal variables holding GTM information are "
                                  "cleared after each iteration to save memory (RAM).>",ArgvParser::NoOptionAttribute);
-    cmd.defineOption("skip_gtm_refine", "<If provided, GTM refinement step is skipped.>",ArgvParser::NoOptionAttribute);
+    cmd.defineOption("skip_gtm_refine", "<If provided, GTM refinement or annotation step is skipped.>",ArgvParser::NoOptionAttribute);
 
 	/// finally parse and handle return codes (display help etc...)
 	int result = -1;
