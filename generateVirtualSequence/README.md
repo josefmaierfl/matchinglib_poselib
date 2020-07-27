@@ -80,9 +80,10 @@ SemiRealSequence supports to specify different scene and camera pose properties:
         * [Oxford](http://www.robots.ox.ac.uk/~vgg/research/affine/)
         * [KITTI](http://www.cvlibs.net/datasets/kitti/eval_stereo_flow.php)
         * [MegaDepth](https://research.cs.cornell.edu/megadepth/)
+    * Number if images to use from [ImageNet](http://www.image-net.org/) (supports filtering by IDs and buzzwords)
     * Amount of Gaussian intensity noise to add to matching image patches
     * Portion of gross error True Negative (TN) matches
-    * repeated pattern portions separately for stereo pairs and from frame to frame along the trajectory
+    * Repeated pattern portions separately for stereo pairs and from frame to frame along the trajectory
     * Keypoint and descriptor type (All available within OpenCV in addition to BOLD and RIFF)
 
 Most parameters can be initialized randomly.
@@ -289,7 +290,7 @@ A ***Python interface*** and example on how to generate and convert data for tra
 
 ## Interfacing the Library
 
-If you installed on your system as described [here](#library), you can integrate it into your own application.
+If you installed SemiRealSequence on your system as described [here](#library), you can integrate it into your own application.
 
 Generating semi-real-world sequences is split into 3 parts:
 * [Calculation of stereo poses](#interface-stereo): `./generateVirtualSequence/source/generateVirtualSequenceLib/include/getStereoCameraExtr.h`
@@ -309,6 +310,7 @@ When creating an object of class `GenStereoPars` (within `./generateVirtualSeque
 * Ranges for rotation about z-axis (`std::vector<std::vector<double>>(n, std::vector<double>(2))`) of relative stereo rotation
 * Desired image overlap
 * Virtual image size
+
 Afterwards member function `optimizeRtf()` can be called to estimate stereo poses followed by reading calculated values (`getEulerAngles, getCamPars`).
 
 ### Generation of Synthetic Static and Dynamic Scene Structure
@@ -316,6 +318,7 @@ Afterwards member function `optimizeRtf()` can be called to estimate stereo pose
 If only synthetic static and dynamic scene structure in addition to camera poses (no feature matches) should be generated, create an object of class `genStereoSequ` (within `./generateVirtualSequence/source/generateVirtualSequenceLib/include/generateSequence.h`) and provide:
 * struct `StereoSequParameters` (detailed descriptions of every member can be found in `./generateVirtualSequence/source/generateVirtualSequenceLib/include/generateSequence.h`)
 * Camera matrices of first and second cameras in addition to user-specified or estimated (see [above](#interface-stereo)) relative stereo poses R & t (`std::vector<cv::Mat>`)
+
 Afterwards member function `startCalc()` can be called to generate 3D data.
 
 Otherwise, see [Generation of Feature Matches](#interface-matches).
@@ -326,11 +329,13 @@ To generate synthetic static and dynamic scene structure in addition to camera p
 * struct `StereoSequParameters` (detailed descriptions of every member can be found in `./generateVirtualSequence/source/generateVirtualSequenceLib/include/generateSequence.h`)
 * Camera matrices of first and second cameras in addition to user-specified or estimated (see [above](#interface-stereo)) relative stereo poses R & t (`std::vector<cv::Mat>`)
 * struct `GenMatchSequParameters` (detailed descriptions of every member can be found in `./generateVirtualSequence/source/generateVirtualSequenceLib/include/generateMatches.h`)
+
 Afterwards member function `generateMatches()` can be called to generate 3D data and feature matches.
 
 To load synthetic static and dynamic scene structure in addition to camera poses generated earlier and generate feature matches using loaded data, create an object of class `genMatchSequ` (within `./generateVirtualSequence/source/generateVirtualSequenceLib/include/generateMatches.h`) and provide:
 * struct `GenMatchSequParameters` (detailed descriptions of every member can be found in `./generateVirtualSequence/source/generateVirtualSequenceLib/include/generateMatches.h`)
 * Path (`string`) to the stored 3D data (`[previous output path of generated data]/[hash value corresponding to folder name of generated 3D data]`)
+
 Afterwards member function `generateMatches()` can be called to generate feature matches.
 
 ## Calculation of GTM and GT Optical Flow
