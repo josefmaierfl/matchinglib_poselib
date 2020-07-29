@@ -18,13 +18,13 @@ fi
 #-----------------------------------
 # Boost
 #-----------------------------------
-cd ${root_dir}
-./build_boost.sh
-
-if [ $? -ne 0 ]; then
-    exit 1
-fi
-ldconfig
+# cd ${root_dir}
+# ./build_boost.sh
+#
+# if [ $? -ne 0 ]; then
+#     exit 1
+# fi
+# ldconfig
 
 #-----------------------------------
 # Clapack 3.2.1
@@ -43,46 +43,6 @@ fi
 
 cd ${thirdparty_dir}/sba-1.6/build/generic
 ./build.sh
-
-if [ $? -ne 0 ]; then
-    exit 1
-fi
-
-#-----------------------------------
-# Copy necessary files of Clapack 3.2.1 and SBA 1.6
-#-----------------------------------
-
-# cd ${root_dir} && ./copy_thirdparty.sh
-
-#-----------------------------------
-# VTK
-#-----------------------------------
-
-cd ${root_dir}
-./build_vtk.sh
-
-if [ $? -ne 0 ]; then
-    exit 1
-fi
-ldconfig
-
-#-----------------------------------
-# PCL
-#-----------------------------------
-
-cd ${root_dir}
-./build_pcl.sh
-
-if [ $? -ne 0 ]; then
-    exit 1
-fi
-
-#-----------------------------------
-# Ceres
-#-----------------------------------
-
-cd ${root_dir}
-./build_ceres.sh
 
 if [ $? -ne 0 ]; then
     exit 1
