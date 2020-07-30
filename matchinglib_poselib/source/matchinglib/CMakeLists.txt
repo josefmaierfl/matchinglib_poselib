@@ -242,6 +242,10 @@ install(DIRECTORY
     ${CMAKE_CURRENT_SOURCE_DIR}/include DESTINATION ${INSTALL_INCLUDE}/${target}
     COMPONENT dev
 )
+install(DIRECTORY
+		${Nanoflann_INCLUDE_DIR} DESTINATION ${INSTALL_INCLUDE}/${target}
+		COMPONENT dev
+		)
 
 # Generated header files
 install(DIRECTORY
