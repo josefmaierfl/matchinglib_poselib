@@ -22,22 +22,10 @@
 //
 //Author: Josef Maier (josefjohann-dot-maier-at-gmail-dot-at)
 
-/*#if 0
-
-#include <gmock/gmock.h>
-
-int main(int argc, char* argv[])
-{
-    ::testing::InitGoogleMock(&argc, argv);
-    return RUN_ALL_TESTS();
-}
-
-#else*/
 
 #define TESTOUT 0
 #define FAIL_SKIP_REST 0
 
-// ideal case
 #include "matchinglib/matchinglib.h"
 #include "matchinglib/vfcMatches.h"
 #include "matchinglib/gms.h"
@@ -46,8 +34,6 @@ int main(int argc, char* argv[])
 #include "poselib/pose_homography.h"
 #include "poselib/pose_linear_refinement.h"
 #include "poselib/stereo_pose_refinement.h"
-
-#include "load_py_ngransac.hpp"
 // ---------------------
 
 #include "opencv2/imgproc/imgproc.hpp"
@@ -65,12 +51,6 @@ int main(int argc, char* argv[])
 #include <boost/interprocess/sync/scoped_lock.hpp>
 #include <boost/interprocess/sync/named_mutex.hpp>
 #include <boost/filesystem.hpp>
-/*#if defined(__linux__)
-
-#include "unistd.h"
-#include "thread"
-//#include "sys/file.h"
-#endif*/
 
 using namespace std;
 using namespace cv;

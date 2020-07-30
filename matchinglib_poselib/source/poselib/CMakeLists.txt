@@ -9,21 +9,19 @@ find_package(OpenCV 4.2.0 REQUIRED)
 
 find_package(Clapack REQUIRED)
 if (CLAPACK_FOUND STREQUAL "YES")
-  message("Clapack found!")
+  message(STATUS "Clapack found!")
 else()
   message(FATAL_ERROR "Clapack not found!")
 endif()
 
 find_package(SBA REQUIRED)
 if (SBA_FOUND STREQUAL "YES")
-  message("SBA found!")
+  message(STATUS "SBA found!")
 else()
   message(FATAL_ERROR "SBA not found!")
 endif()
 
 SET( Nanoflann_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nanoflann-1.3.0/include")
-
-add_subdirectory(thirdparty/opengv)
 
 #
 # Library name and options
@@ -34,6 +32,9 @@ set(target poselib)
 
 # Exit here if required dependencies are not met
 message(STATUS "Lib ${target}")
+
+set(MAINTARGET ${target})
+add_subdirectory(thirdparty/opengv)
 
 # Set API export file and macro
 string(TOUPPER ${target} target_upper)
@@ -46,7 +47,6 @@ set(export_macro "${target_upper}_API")
 # Sources
 #
 
-#set(include_path "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}")
 set(include_path "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(source_path  "${CMAKE_CURRENT_SOURCE_DIR}/source")
 
@@ -77,18 +77,15 @@ set(headers
   ${include_path}/HomographyAlignment.h
   ${include_path}/${target}/pose_homography.h
 
-  #${include_path}/usac/config/ConfigFileReader.h
   ${include_path}/usac/config/ConfigParams.h
   ${include_path}/usac/config/ConfigParamsFundmatrix.h
   ${include_path}/usac/config/ConfigParamsHomog.h
   ${include_path}/usac/config/ConfigParamsEssentialMat.h
   ${include_path}/usac/config/ConfigParamsRotationMat.h
-  #${include_path}/usac/config/ConfigParamsNoMotion.h
   ${include_path}/usac/estimators/FundmatrixEstimator.h
   ${include_path}/usac/estimators/HomogEstimator.h
   ${include_path}/usac/estimators/EssentialMatEstimator.h
   ${include_path}/usac/estimators/RotationMatEstimator.h
-  #${include_path}/usac/estimators/NoMotionEstimator.h
   ${include_path}/usac/estimators/USAC.h
   ${include_path}/usac/utils/FundmatrixFunctions.h
   ${include_path}/usac/utils/PoseFunctions.h
@@ -117,10 +114,6 @@ set(sources
   ${source_path}/HomographyAlignment.cpp
   ${source_path}/pose_homography.cpp
 
-  #${source_path}/usac/config/ConfigFileReader.cpp
-  #${source_path}/usac/config/ConfigParams.cpp
-  #${source_path}/usac/config/ConfigParamsFundmatrix.cpp
-  #${source_path}/usac/config/ConfigParamsHomog.cpp
   ${source_path}/usac/utils/FundmatrixFunctions.cpp
   ${source_path}/usac/utils/HomographyFunctions.cpp
   ${source_path}/usac/utils/PoseFunctions.cpp
@@ -191,24 +184,21 @@ target_include_directories(${target}
     ${PROJECT_BINARY_DIR}/source/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_BINARY_DIR}/include
-    # ${EIGEN3_INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/opengv/include
-  ${Nanoflann_INCLUDE_DIR}
+    ${Nanoflann_INCLUDE_DIR}
 
     PUBLIC
     ${DEFAULT_INCLUDE_DIRECTORIES}
-    #${FLANN_INCLUDE_DIRS}
-    #${Nanoflann_INCLUDE_DIR}
-    #${FLANN_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
     ${CLAPACK_INCLUDE_DIR}
     ${SBA_INCLUDE_DIR}
-    #${OPENGV_INCLUDE_DIR}
 
     INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
-    $<INSTALL_INTERFACE:include>
+    #$<INSTALL_INTERFACE:include>
+    $<INSTALL_INTERFACE:${INSTALL_INCLUDE}/${target}/include> # for client in install mode
+    $<INSTALL_INTERFACE:${INSTALL_LIB}/${target}>
 )
 
 
@@ -224,12 +214,10 @@ target_link_libraries(${target}
 
     PUBLIC
     ${DEFAULT_LIBRARIES}
-    #${FLANN_LIBRARIES}
     ${OpenCV_LIBS}
     ${CLAPACK_LIBRARIES}
     ${SBA_LIBRARIES}
     ${CLAPACK_LIBRARIES}
-    #${OPENGV_LIBRARIES}
     Eigen
 
     INTERFACE
@@ -246,7 +234,6 @@ target_compile_definitions(${target}
     PUBLIC
     $<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:${target_upper}_STATIC_DEFINE>
     ${DEFAULT_COMPILE_DEFINITIONS}
-    #${FLANN_DEFINITIONS}
 
     INTERFACE
 )
@@ -286,21 +273,25 @@ target_link_libraries(${target}
 
 # Library
 install(TARGETS ${target}
-    EXPORT  "${target}-export"            COMPONENT dev
-    RUNTIME DESTINATION ${INSTALL_BIN}    COMPONENT runtime
-    LIBRARY DESTINATION ${INSTALL_SHARED} COMPONENT runtime
-    ARCHIVE DESTINATION ${INSTALL_LIB}    COMPONENT dev
+    EXPORT  "${target}-export"                      COMPONENT dev
+    RUNTIME DESTINATION ${INSTALL_BIN}/${target}    COMPONENT runtime
+    LIBRARY DESTINATION ${INSTALL_SHARED}/${target} COMPONENT runtime
+    ARCHIVE DESTINATION ${INSTALL_LIB}/${target}    COMPONENT dev
 )
 
 # Header files
 install(DIRECTORY
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/${target} DESTINATION ${INSTALL_INCLUDE}
+    ${CMAKE_CURRENT_SOURCE_DIR}/include DESTINATION ${INSTALL_INCLUDE}/${target}
     COMPONENT dev
 )
+install(DIRECTORY
+        ${Nanoflann_INCLUDE_DIR} DESTINATION ${INSTALL_INCLUDE}/${target}
+        COMPONENT dev
+        )
 
 # Generated header files
 install(DIRECTORY
-    ${CMAKE_CURRENT_BINARY_DIR}/include/${target} DESTINATION ${INSTALL_INCLUDE}
+    ${CMAKE_CURRENT_BINARY_DIR}/include/${target} DESTINATION ${INSTALL_INCLUDE}/${target}
     COMPONENT dev
 )
 

@@ -9,7 +9,7 @@ if(NOT OPTION_BUILD_TESTS)
 endif()
 
 # DISABLE CMP0037: Target names should not be reserved and should match a validity pattern.
-set_policy(CMP0037 OLD)
+#set_policy(CMP0037 OLD)
 
 # Function: Build test and add command to execute it via target 'test'
 function(add_test_without_ctest target)
@@ -19,8 +19,8 @@ function(add_test_without_ctest target)
         return()
     endif()
 
-    add_dependencies(test ${target})
-    add_custom_command(TARGET test POST_BUILD
+    add_dependencies(testg ${target})
+    add_custom_command(TARGET testg POST_BUILD
         COMMAND $<TARGET_FILE:${target}> --gtest_output=xml:gtests-${target}.xml)
 endfunction()
 
@@ -53,8 +53,8 @@ target_link_libraries(gmock-dev
 # Target 'test'
 #
 
-add_custom_target(test)
-set_target_properties(test PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD 1)
+add_custom_target(testg)
+set_target_properties(testg PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD 1)
 
 
 #

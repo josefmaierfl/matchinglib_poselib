@@ -3,9 +3,7 @@
 # External dependencies
 #
 
-
 option(USE_NON_FREE_CODE "use non free keypoint and descriptor types in the library." OFF)
-#option(DISABLE_ITERATOR_DEBUG "Set _ITERATOR_DEBUG_LEVEL=0 to be able to run the annoy matcher in Debug mode." OFF)
 
 find_package(Eigen REQUIRED)
 
@@ -19,11 +17,6 @@ if (OPENMP_FOUND)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
-#SET( GMS_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gms-1.0/include")
-add_subdirectory(thirdparty/gms-1.0)
-
-add_subdirectory(similarity_search)
-
 #
 # Library name and options
 #
@@ -33,6 +26,12 @@ set(target matchinglib)
 
 # Exit here if required dependencies are not met
 message(STATUS "Lib ${target}")
+
+set(MAINTARGET ${target})
+
+add_subdirectory(thirdparty/gms-1.0)
+
+add_subdirectory(similarity_search)
 
 # Set API export file and macro
 string(TOUPPER ${target} target_upper)
@@ -64,7 +63,6 @@ set(headers
 )
 
 set(sources
-    # ${source_path}/test.cpp
     ${source_path}/matchers.cpp
     ${source_path}/correspondences.cpp
     ${source_path}/features.cpp
@@ -151,20 +149,18 @@ target_include_directories(${target}
     ${CMAKE_CURRENT_BINARY_DIR}/include
     ${EIGEN3_INCLUDE_DIR}
     ${Nanoflann_INCLUDE_DIR}
-	#${GMS_INCLUDE_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gms-1.0/include
 
     PUBLIC
     ${DEFAULT_INCLUDE_DIRECTORIES}
-    #${FLANN_INCLUDE_DIRS}
-    #${FLANN_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
-    #${EIGEN3_INCLUDE_DIR}
 
     INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
-    $<INSTALL_INTERFACE:include>
+    #$<INSTALL_INTERFACE:include>
+	$<INSTALL_INTERFACE:${INSTALL_INCLUDE}/${target}/include> # for client in install mode
+	$<INSTALL_INTERFACE:${INSTALL_LIB}/${target}>
 )
 
 #message(STATUS "=====NonMetricSpaceLib ${NonMetricSpaceLib_LIBRARIES}")
@@ -177,9 +173,7 @@ target_link_libraries(${target}
 	gms-feature-matching
 
     PUBLIC
-
     ${DEFAULT_LIBRARIES}
-    #${FLANN_LIBRARIES}
     ${OpenCV_LIBS}
     Eigen
 
@@ -194,13 +188,10 @@ target_link_libraries(${target}
 target_compile_definitions(${target}
     PRIVATE
     $<$<BOOL:${USE_NON_FREE_CODE}>:USE_NON_FREE_CODE>
-    #$<$<BOOL:${DISABLE_ITERATOR_DEBUG}>:_ITERATOR_DEBUG_LEVEL=0>
 
     PUBLIC
     $<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:${target_upper}_STATIC_DEFINE>
     ${DEFAULT_COMPILE_DEFINITIONS}
-    #${FLANN_DEFINITIONS}
-
 
     INTERFACE
 )
@@ -215,7 +206,6 @@ target_compile_options(${target}
 
     PUBLIC
     ${DEFAULT_COMPILE_OPTIONS}
-
 
     INTERFACE
 )
@@ -241,21 +231,21 @@ target_link_libraries(${target}
 
 # Library
 install(TARGETS ${target}
-    EXPORT  "${target}-export"            COMPONENT dev
-    RUNTIME DESTINATION ${INSTALL_BIN}    COMPONENT runtime
-    LIBRARY DESTINATION ${INSTALL_SHARED} COMPONENT runtime
-    ARCHIVE DESTINATION ${INSTALL_LIB}    COMPONENT dev
+    EXPORT  "${target}-export"            			COMPONENT dev
+    RUNTIME DESTINATION ${INSTALL_BIN}/${target}    COMPONENT runtime
+    LIBRARY DESTINATION ${INSTALL_SHARED}/${target} COMPONENT runtime
+    ARCHIVE DESTINATION ${INSTALL_LIB}/${target}    COMPONENT dev
 )
 
 # Header files
 install(DIRECTORY
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/${target} DESTINATION ${INSTALL_INCLUDE}
+    ${CMAKE_CURRENT_SOURCE_DIR}/include DESTINATION ${INSTALL_INCLUDE}/${target}
     COMPONENT dev
 )
 
 # Generated header files
 install(DIRECTORY
-    ${CMAKE_CURRENT_BINARY_DIR}/include/${target} DESTINATION ${INSTALL_INCLUDE}
+    ${CMAKE_CURRENT_BINARY_DIR}/include/${target} DESTINATION ${INSTALL_INCLUDE}/${target}
     COMPONENT dev
 )
 

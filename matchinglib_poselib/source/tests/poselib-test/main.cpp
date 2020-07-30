@@ -22,19 +22,6 @@
 //
 //Author: Josef Maier (josefjohann-dot-maier-at-gmail-dot-at)
 
-#if 0
-
-#include <gmock/gmock.h>
-
-int main(int argc, char* argv[])
-{
-    ::testing::InitGoogleMock(&argc, argv);
-    return RUN_ALL_TESTS();
-}
-
-#else
-
-// ideal case
 #include "matchinglib/matchinglib.h"
 #include "matchinglib/vfcMatches.h"
 #include "matchinglib/gms.h"
@@ -2164,5 +2151,3 @@ int main( int argc, char* argv[])
 
     return 0;
 }
-
-#endif

@@ -6,15 +6,6 @@
 # CMake version
 cmake_minimum_required(VERSION 3.2 FATAL_ERROR)
 
-
-#if("$ENV{THIRDPARTYROOT}" STREQUAL "")
-#  message(ERROR "Not able to build lib: Thirdpartyroot not found! set THIRDPARTYROOT")
-#endif()
-#include($ENV{THIRDPARTYROOT}/_buildtools/CMakeModules/TPMacros.cmake)
-
-# Include cmake modules
-# list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-
 set(CMAKE_MODULE_PATH  "${CMAKE_CURRENT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -36,19 +27,19 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive")
 #
 
 # Get git revision
-# get_git_head_revision(GIT_REFSPEC GIT_SHA1)
-# string(SUBSTRING "${GIT_SHA1}" 0 12 GIT_REV)
+ get_git_head_revision(GIT_REFSPEC GIT_SHA1)
+ string(SUBSTRING "${GIT_SHA1}" 0 12 GIT_REV)
 
 # Meta information about the project
-set(META_PROJECT_NAME        "matching")
-set(META_PROJECT_DESCRIPTION "AIT feature matching algorithms")
+set(META_PROJECT_NAME        "matchinglib_poselib")
+set(META_PROJECT_DESCRIPTION "Feature matching and pose estimation algorithms")
 set(META_AUTHOR_ORGANIZATION "Austrian Institute of Technology GmbH")
-set(META_AUTHOR_DOMAIN       "https://redmine.ait.ac.at/SAS")
-set(META_AUTHOR_MAINTAINER   "martin.humenberger@ait.ac.at")
+set(META_AUTHOR_DOMAIN       "https://github.com/josefmaierfl/matchinglib_poselib")
+set(META_AUTHOR_MAINTAINER   "josefjohann-dot-maier-at-gmail-dot-at")
 set(META_VERSION_MAJOR       "1")
 set(META_VERSION_MINOR       "0")
 set(META_VERSION_PATCH       "0")
-# set(META_VERSION_REVISION    "${GIT_REV}")
+set(META_VERSION_REVISION    "${GIT_REV}")
 set(META_VERSION             "${META_VERSION_MAJOR}.${META_VERSION_MINOR}.${META_VERSION_PATCH}")
 set(META_NAME_VERSION        "${META_PROJECT_NAME} v${META_VERSION} (${META_VERSION_REVISION})")
 

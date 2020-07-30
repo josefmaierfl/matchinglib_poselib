@@ -22,19 +22,6 @@
 //
 //Author: Josef Maier (josefjohann-dot-maier-at-gmail-dot-at)
 
-#if 0
-
-#include <gmock/gmock.h>
-
-int main(int argc, char* argv[])
-{
-  ::testing::InitGoogleMock(&argc, argv);
-  return RUN_ALL_TESTS();
-}
-
-#else
-
-// ideal case
 #include "matchinglib/matchinglib.h"
 // ---------------------
 
@@ -52,10 +39,10 @@ bool test_supportedFeatureTypes()
   bool res = true;
   std::cout << __FUNCTION__ <<  " - supported key types: \n";
 
-  for(size_t i = 0; i < var.size(); i++)
+  for(auto & i : var)
   {
-    std::cout << var[i] << ",";
-    res &= matchinglib::IsKeypointTypeSupported(var[i]);
+    std::cout << i << ",";
+    res &= matchinglib::IsKeypointTypeSupported(i);
   }
 
   std::cout << std::endl << std::endl;
@@ -68,10 +55,10 @@ bool test_supportedExtractorTypes()
   bool res = true;
   std::cout << __FUNCTION__ <<  " - supported descriptor types: \n";
 
-  for(size_t i = 0; i < var.size(); i++)
+  for(auto & i : var)
   {
-    std::cout << var[i] << ",";
-    res &= matchinglib::IsDescriptorTypeSupported(var[i]);
+    std::cout << i << ",";
+    res &= matchinglib::IsDescriptorTypeSupported(i);
   }
 
   std::cout << std::endl << std::endl;
@@ -84,10 +71,10 @@ bool test_supportedMatcherTypes()
   bool res = true;
   std::cout << __FUNCTION__ <<  " - supported matcher types: \n";
 
-  for(size_t i = 0; i < var.size(); i++)
+  for(auto & i : var)
   {
-    std::cout << var[i] << ",";
-    res &= matchinglib::IsMatcherSupported(var[i]);
+    std::cout << i << ",";
+    res &= matchinglib::IsMatcherSupported(i);
   }
 
   std::cout << std::endl << std::endl;
@@ -171,8 +158,10 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 
       newargs[0] = argv[0];
       newargs[1] = (char*)arg1str.c_str();
-      newargs[2] = "--l_img_pref=left_";
-      newargs[3] = "--r_img_pref=right_";
+      string tmp1 = "--l_img_pref=left_";
+      string tmp2 = "--r_img_pref=right_";
+      newargs[2] = (char*)tmp1.c_str();
+      newargs[3] = (char*)tmp2.c_str();
 
       int result = -1;
       result = cmd.parse(4, newargs);
@@ -282,7 +271,7 @@ void startEvaluation(ArgvParser& cmd)
 
   if(cmd.foundOption("f_nr"))
   {
-    f_nr = stoi(cmd.optionValue("f_nr").c_str());
+    f_nr = stoi(cmd.optionValue("f_nr"));
 
     if(f_nr <= 10)
     {
@@ -297,7 +286,7 @@ void startEvaluation(ArgvParser& cmd)
 
   if(cmd.foundOption("v"))
   {
-    verbose = stoi(cmd.optionValue("v").c_str());
+    verbose = stoi(cmd.optionValue("v"));
   }
   else
   {
@@ -350,7 +339,7 @@ void startEvaluation(ArgvParser& cmd)
 
   if(!show_str.empty())
   {
-    showNr = stoi(show_str.c_str());
+    showNr = stoi(show_str);
 
     drawSingleKps = false;
     if(showNr == -2)
@@ -522,5 +511,3 @@ int main( int argc, char* argv[])
 
   return 0;
 }
-
-#endif

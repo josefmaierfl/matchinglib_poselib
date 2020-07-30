@@ -7,6 +7,19 @@
 set(target poselib-test)
 message(STATUS "Test ${target}")
 
+find_package(Clapack REQUIRED)
+if (CLAPACK_FOUND STREQUAL "YES")
+	message(STATUS "Clapack found!")
+else()
+	message(FATAL_ERROR "Clapack not found!")
+endif()
+
+find_package(SBA REQUIRED)
+if (SBA_FOUND STREQUAL "YES")
+	message(STATUS "SBA found!")
+else()
+	message(FATAL_ERROR "SBA not found!")
+endif()
 
 #
 # Sources
@@ -17,9 +30,6 @@ set(sources
 	io_data.cpp
 	argvparser.cpp
 )
-
-#find_package(Clapack REQUIRED)
-#SET( Nanoflann_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/source/poselib/thirdparty/nanoflann-1.3.0/include")
 
 #
 # Create executable
@@ -55,7 +65,6 @@ target_include_directories(${target}
     ${PROJECT_BINARY_DIR}/source/include
     ${CLAPACK_INCLUDE_DIR}
     ${SBA_INCLUDE_DIR}
-	#${Nanoflann_INCLUDE_DIR}
 )
 
 
@@ -67,12 +76,10 @@ target_link_libraries(${target}
     PRIVATE
     ${DEFAULT_LIBRARIES}
     ${META_PROJECT_NAME}::matchinglib
-    #${CLAPACK_LIBRARIES}
     ${META_PROJECT_NAME}::poselib
     gmock-dev
     ${SBA_LIBRARIES}
     ${CLAPACK_LIBRARIES}
-#    blas
 )
 
 
@@ -104,3 +111,13 @@ target_link_libraries(${target}
     PRIVATE
     ${DEFAULT_LINKER_OPTIONS}
 )
+
+#
+# Deployment
+#
+
+# Executable
+install(TARGETS ${target}
+		RUNTIME DESTINATION ${INSTALL_BIN}/${META_PROJECT_NAME} COMPONENT bin
+		BUNDLE  DESTINATION ${INSTALL_BIN}/${META_PROJECT_NAME} COMPONENT bin
+		)

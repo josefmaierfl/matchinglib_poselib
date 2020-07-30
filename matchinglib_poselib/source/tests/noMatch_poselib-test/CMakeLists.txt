@@ -15,23 +15,21 @@ message(STATUS "Test ${target}")
 set(sources
     main.cpp
 	io_data.cpp
-	argvparser.cpp
-    load_py_ngransac.cpp)
+	argvparser.cpp)
 
 #find_package(Clapack REQUIRED)
-find_package(Boost COMPONENTS filesystem system date_time python36 REQUIRED)
-message("Include dirs of boost: " ${Boost_INCLUDE_DIRS} )
-message("Libs of boost: " ${Boost_LIBRARIES} )
+#find_package(Boost COMPONENTS filesystem system date_time python36 REQUIRED)
+find_package(Boost COMPONENTS filesystem system date_time REQUIRED)
+#message("Include dirs of boost: " ${Boost_INCLUDE_DIRS} )
+#message("Libs of boost: " ${Boost_LIBRARIES} )
 
 #find_package(Python 3.6 COMPONENTS Interpreter REQUIRED)
-find_package(PythonLibs REQUIRED)
-message("Include dirs of Python: " ${PYTHON_INCLUDE_DIRS} )
-message("Libs of Python: " ${PYTHON_LIBRARIES} )
+#find_package(PythonLibs REQUIRED)
+#message("Include dirs of Python: " ${PYTHON_INCLUDE_DIRS} )
+#message("Libs of Python: " ${PYTHON_LIBRARIES} )
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules (deps REQUIRED IMPORTED_TARGET glib-2.0>=2.2.5)
-
-#SET( Nanoflann_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/source/poselib/thirdparty/nanoflann-1.3.0/include")
+#find_package(PkgConfig REQUIRED)
+#pkg_check_modules (deps REQUIRED IMPORTED_TARGET glib-2.0>=2.2.5)
 
 #
 # Create executable
@@ -44,7 +42,6 @@ add_executable(${target}
 
 # Create namespaced alias
 add_executable(${META_PROJECT_NAME}::${target} ALIAS ${target})
-
 
 #
 # Project options
@@ -68,8 +65,7 @@ target_include_directories(${target}
     ${CLAPACK_INCLUDE_DIR}
     ${SBA_INCLUDE_DIR}
 	${Boost_INCLUDE_DIRS}
-	${PYTHON_INCLUDE_DIRS}
-	#${Nanoflann_INCLUDE_DIR}
+	#${PYTHON_INCLUDE_DIRS}
 )
 
 
@@ -81,15 +77,13 @@ target_link_libraries(${target}
     PRIVATE
     ${DEFAULT_LIBRARIES}
     ${META_PROJECT_NAME}::matchinglib
-    #${CLAPACK_LIBRARIES}
     ${META_PROJECT_NAME}::poselib
     gmock-dev
     ${SBA_LIBRARIES}
     ${CLAPACK_LIBRARIES}
 	${Boost_LIBRARIES}
-	${PYTHON_LIBRARIES}
-	PkgConfig::deps
-#    blas
+#	${PYTHON_LIBRARIES}
+#	PkgConfig::deps
 )
 
 
@@ -121,3 +115,13 @@ target_link_libraries(${target}
     PRIVATE
     ${DEFAULT_LINKER_OPTIONS}
 )
+
+#
+# Deployment
+#
+
+# Executable
+install(TARGETS ${target}
+		RUNTIME DESTINATION ${INSTALL_BIN}/${META_PROJECT_NAME} COMPONENT bin
+		BUNDLE  DESTINATION ${INSTALL_BIN}/${META_PROJECT_NAME} COMPONENT bin
+		)

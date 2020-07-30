@@ -15,7 +15,7 @@ include(${PROJECT_SOURCE_DIR}/cmake/RuntimeDependencies.cmake)
 # Packages
 #
 
-include(packages/pack-matching.cmake)
+include(packages/pack-matchinglib_poselib.cmake)
 
 
 #
