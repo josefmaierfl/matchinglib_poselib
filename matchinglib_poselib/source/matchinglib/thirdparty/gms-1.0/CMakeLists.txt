@@ -90,7 +90,7 @@ target_link_libraries(${target}
 )
 
 # Header files
-install(DIRECTORY
-        ${CMAKE_CURRENT_SOURCE_DIR}/include DESTINATION ${INSTALL_INCLUDE}/${MAINTARGET}
-        COMPONENT dev
-        )
+#install(DIRECTORY
+#        ${CMAKE_CURRENT_SOURCE_DIR}/include DESTINATION ${INSTALL_INCLUDE}/${MAINTARGET}
+#        COMPONENT dev
+#        )
