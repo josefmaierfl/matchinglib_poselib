@@ -48,6 +48,8 @@
 #include <opencv2/calib3d.hpp>
 #include <opencv2/imgproc.hpp>
 #include <string>
+#include <chrono>
+#include <thread>
 
 using namespace cv;
 using namespace std;
@@ -86,9 +88,9 @@ void cvStereoRectify2( const cv::Mat* _cameraMatrix1, const cv::Mat* _cameraMatr
                       cv::Mat* matQ, int flags, double alpha, cv::Size newImgSize,
                       cv::Rect* roi1, cv::Rect* roi2 );
 //Slightly changed version of the OpenCV undistortion function cvUndistortPoints.
-void cvUndistortPoints2( const cv::Mat& _src, cv::Mat& _dst, const cv::Mat& _cameraMatrix,
-                   const cv::Mat* _distCoeffs,
-                   const cv::Mat* matR, const cv::Mat* matP, cv::OutputArray mask );
+void cvUndistortPoints2(const cv::Mat& src_, cv::Mat& dst_, const cv::Mat& cameraMatrix_,
+                        const cv::Mat* distCoeffs_,
+                        const cv::Mat* matR, const cv::Mat* matP, cv::OutputArray mask );
 // Estimates the inner rectangle of a distorted image containg only valid/available image information and an outer rectangle countaing all image information
 void icvGetRectanglesV0( const cv::Mat* cameraMatrix, const cv::Mat* distCoeffs,
                  const cv::Mat* R, const cv::Mat* newCameraMatrix, cv::Size imgSize,
@@ -1672,16 +1674,16 @@ int rectifyFusiello(cv::InputArray K1, cv::InputArray K2, cv::InputArray R, cv::
 //    CvPoint2D64f cc_tmp = {DBL_MAX, DBL_MAX};
     cv::Mat _cameraMatrix1 = K1_, _cameraMatrix2 = K2_;
     cv::Mat _distCoeffs1 = dk1_, _distCoeffs2 = dk2_;
-    double _z[3] = {0,0,0}, _pp[3][3];
-    cv::Mat Z   = cv::Mat(3, 1, CV_64F, _z);
+    double _z[3] = {0,0,0}, _pp[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
+    cv::Mat Z = cv::Mat(3, 1, CV_64FC1, _z);
     cv::Rect_<float> inner1, inner2, outer1, outer2;
-    cv::Mat pp  = cv::Mat(3, 3, CV_64F, _pp);
+    cv::Mat pp  = cv::Mat(3, 3, CV_64FC1, _pp);
     double cx1_0, cy1_0, cx1, cy1, s;
 
     vector<cv::Point2f> _pts1 = vector<cv::Point2f>(4, cv::Point2f(0, 0));
     vector<cv::Point2f> _pts2 = vector<cv::Point2f>(4, cv::Point2f(0, 0));
-    cv::Mat pts1 = cv::Mat(_pts1);
-    cv::Mat pts2 = cv::Mat(_pts2);
+    cv::Mat pts1 = cv::Mat(_pts1, false);
+    cv::Mat pts2 = cv::Mat(_pts2, false);
     for(int k = 0; k < 2; k++ )
     {
         const cv::Mat A = k == 0 ? _cameraMatrix1 : _cameraMatrix2;
@@ -1733,25 +1735,26 @@ int rectifyFusiello(cv::InputArray K1, cv::InputArray K2, cv::InputArray R, cv::
         }
     }
 
-    cv::Mat _R1 = Rect1_, _R2 = Rect2_;
+    cv::Mat R1_ = Rect1_.clone(), R2_ = Rect2_.clone();
     for(int k = 0; k < 2; k++ )
     {
-        vector<cv::Point2f> _pts_3(4);
-        vector<cv::Point2f> _pts_tmp(4);
-        cv::Mat pts_3 = cv::Mat(_pts_3);
+//        vector<cv::Point3f> _pts_3 = vector<cv::Point3f>(4, cv::Point3f(0, 0, 0));
+//        vector<cv::Point2f> _pts_tmp = vector<cv::Point2f>(4, cv::Point2f(0, 0));
+        cv::Mat pts_3, pts12; //= cv::Mat(_pts_3, false);
         cv::Mat& pts = k == 0 ? pts1 : pts2;
-        cv::Mat pts_tmp = cv::Mat(_pts_tmp);
-
-        cv::convertPointsHomogeneous( pts, pts_3 );
+        cv::Mat pts_tmp;// = cv::Mat(_pts_tmp, false);
+        pts.convertTo(pts12, CV_64FC1);
+        cv::convertPointsToHomogeneous( pts12, pts_3 );
 
         //Change camera matrix to have cc=[0,0] and fc = fc_new
-        double _a_tmp[3][3];
-        cv::Mat A_tmp  = cv::Mat(3, 3, CV_64F, _a_tmp);
+        double _a_tmp[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
+        cv::Mat A_tmp  = cv::Mat(3, 3, CV_64FC1, _a_tmp);
         _a_tmp[0][0]=fc_new;
         _a_tmp[1][1]=fc_new;
         _a_tmp[0][2]=0.0;
         _a_tmp[1][2]=0.0;
-        cv::projectPoints( pts_3, k == 0 ? _R1 : _R2, Z, A_tmp, 0, pts_tmp );
+        _a_tmp[2][2]=1.0;
+        cv::projectPoints(pts_3, k == 0 ? R1_ : R2_, Z, A_tmp, cv::noArray(), pts_tmp );
         cv::Scalar avg = cv::mean(pts_tmp);
         cc_new[k].x = (nx-1)/2 - avg[0];
         cc_new[k].y = (ny-1)/2 - avg[1];
@@ -1770,8 +1773,8 @@ int rectifyFusiello(cv::InputArray K1, cv::InputArray K2, cv::InputArray R, cv::
 
     alpha = std::min(alpha, 1.);
 
-    icvGetRectanglesV0( &_cameraMatrix1, &_distCoeffs1, &_R1, &pp, imageSize, inner1, outer1 );
-    icvGetRectanglesV0( &_cameraMatrix2, &_distCoeffs2, &_R2, &pp, imageSize, inner2, outer2 );
+    icvGetRectanglesV0(&_cameraMatrix1, &_distCoeffs1, &R1_, &pp, imageSize, inner1, outer1 );
+    icvGetRectanglesV0(&_cameraMatrix2, &_distCoeffs2, &R2_, &pp, imageSize, inner2, outer2 );
 
     cx1_0 = cc_new[0].x;
     cy1_0 = cc_new[0].y;
@@ -2257,7 +2260,7 @@ void cvStereoRectify2( const cv::Mat* _cameraMatrix1, const cv::Mat* _cameraMatr
  * which marks coordinates for which the undistortion was not possible due to a too large error.
  *
  * CvMat* _src							Input  -> Observed point coordinates (distorted), 1xN or Nx1 2-channel (CV_32FC2 or CV_64FC2).
- * CvMat* _dst							Output -> Output ideal point coordinates after undistortion and reverse perspective
+ * CvMat* dst_							Output -> Output ideal point coordinates after undistortion and reverse perspective
  *												  transformation. If matrix P is identity or omitted, dst will contain normalized
  *												  point coordinates.
  * CvMat* _cameraMatrix					Input  -> Camera matrix
@@ -2275,81 +2278,65 @@ void cvStereoRectify2( const cv::Mat* _cameraMatrix1, const cv::Mat* _cameraMatr
  *
  * Return value:						none
  */
-void cvUndistortPoints2( const cv::Mat& _src, cv::Mat& _dst, const cv::Mat& _cameraMatrix,
-                   const cv::Mat* _distCoeffs,
-                   const cv::Mat* matR, const cv::Mat* matP, cv::OutputArray mask ) //the mask was added here
+void cvUndistortPoints2(const cv::Mat& src_, cv::Mat& dst_, const cv::Mat& cameraMatrix_,
+                        const cv::Mat* distCoeffs_,
+                        const cv::Mat* matR, const cv::Mat* matP, cv::OutputArray mask ) //the mask was added here
 {
-    double A[3][3], RR[3][3], k[8]={0,0,0,0,0,0,0,0}, fx, fy, ifx, ify, cx, cy;
-    cv::Mat matA=cv::Mat(3, 3, CV_64F, A), _Dk;
-    cv::Mat _RR=cv::Mat(3, 3, CV_64F, RR);
-//    const CvPoint2D32f* srcf;
-//    const CvPoint2D64f* srcd;
-//    CvPoint2D32f* dstf;
-//    CvPoint2D64f* dstd;
-    std::vector<cv::Point2f> srcf;
+    double A[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, RR[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, k[8]={0,0,0,0,0,0,0,0}, fx, fy, ifx, ify, cx, cy;
+    cv::Mat matA=cv::Mat(3, 3, CV_64F, A), Dk_;
+    cv::Mat RR_ =cv::Mat(3, 3, CV_64F, RR);
     std::vector<cv::Point2d> srcd;
-    std::vector<cv::Point2f> dstf;
-    std::vector<cv::Point2d> dstd;
     int stype, dtype;
-    int sstep, dstep;
+    int sstep;
     int i, j, n, iters = 1;
 
-    CV_Assert( (_src.rows == 1 || _src.cols == 1) &&
-        (_dst.rows == 1 || _dst.cols == 1) &&
-        _src.cols + _src.rows - 1 == _dst.rows + _dst.cols - 1 &&
-        (_src.type() == CV_32FC2 || _src.type() == CV_64FC2) &&
-        (_dst.type() == CV_32FC2 || _dst.type() == CV_64FC2));
+    CV_Assert((src_.rows == 1 || src_.cols == 1) &&
+              (dst_.rows == 1 || dst_.cols == 1) &&
+              src_.cols + src_.rows - 1 == dst_.rows + dst_.cols - 1 &&
+              (src_.type() == CV_32FC2 || src_.type() == CV_64FC2) &&
+              (dst_.type() == CV_32FC2 || dst_.type() == CV_64FC2));
 
-    CV_Assert( _cameraMatrix.rows == 3 && _cameraMatrix.cols == 3 );
+    CV_Assert(cameraMatrix_.rows == 3 && cameraMatrix_.cols == 3 );
 
-//    cv::ConvertScale( _cameraMatrix, &matA );
-    _cameraMatrix.convertTo(matA, CV_64F);
+    cameraMatrix_.convertTo(matA, CV_64F);
 
-    if( _distCoeffs )
-    {
-        CV_Assert( (_distCoeffs->rows == 1 || _distCoeffs->cols == 1) &&
-            (_distCoeffs->rows*_distCoeffs->cols == 4 ||
-             _distCoeffs->rows*_distCoeffs->cols == 5 ||
-             _distCoeffs->rows*_distCoeffs->cols == 8));
+    if( distCoeffs_ ){
+        CV_Assert((distCoeffs_->rows == 1 || distCoeffs_->cols == 1) &&
+                  (distCoeffs_->rows * distCoeffs_->cols == 4 ||
+                   distCoeffs_->rows * distCoeffs_->cols == 5 ||
+                   distCoeffs_->rows * distCoeffs_->cols == 8));
 
-        _Dk = cv::Mat( _distCoeffs->rows, _distCoeffs->cols, CV_64FC(_distCoeffs->channels()), k);
+        Dk_ = cv::Mat(distCoeffs_->rows, distCoeffs_->cols, CV_64FC(distCoeffs_->channels()), k);
 
-//        cvConvert( _distCoeffs, &_Dk );
-        _distCoeffs->convertTo(_Dk, CV_64F);
+        distCoeffs_->convertTo(Dk_, CV_64F);
         iters = 5;
     }
 
-    if( matR )
-    {
+    if( matR ){
         CV_Assert( matR->rows == 3 && matR->cols == 3 );
-//        cvConvert( matR, &_RR );
-        matR->convertTo(_RR, CV_64F);
+        matR->convertTo(RR_, CV_64F);
     }
     else{
-        _RR = cv::Mat::eye(3,3,CV_64FC1);
+        RR_ = cv::Mat::eye(3, 3, CV_64FC1);
     }
 
-    if( matP )
-    {
+    if( matP ){
         double PP[3][3];
-        cv::Mat _PP=cv::Mat(3, 3, CV_64F, PP);
+        cv::Mat PP_=cv::Mat(3, 3, CV_64F, PP);
         CV_Assert( matP->rows == 3 && (matP->cols == 3 || matP->cols == 4));
-//        cvConvert( cvGetCols(matP, &_P3x3, 0, 3), &_PP );
-        matP->colRange(0,3).convertTo(_PP, CV_64F);
-//        cvMatMul( &_PP, &_RR, &_RR );
-        _RR = _PP * _RR;
+        matP->colRange(0,3).convertTo(PP_, CV_64F);
+        RR_ = PP_ * RR_;
     }
 
-    srcf = (std::vector<cv::Point2f>)_src.reshape(2);
-    srcd = (std::vector<cv::Point2d>)_src.reshape(2);
-    dstf = (std::vector<cv::Point2f>)_dst.reshape(2);
-    dstd = (std::vector<cv::Point2d>)_dst.reshape(2);
-    stype = _src.type();
-    dtype = _dst.type();
-    sstep = _src.rows == 1 ? 1 : _src.step/CV_ELEM_SIZE(stype);
-    dstep = _dst.rows == 1 ? 1 : _dst.step/CV_ELEM_SIZE(dtype);
+    stype = src_.type();
+    sstep = src_.rows == 1 ? 1 : src_.step / CV_ELEM_SIZE(stype);
+    src_.reshape(2).convertTo(srcd, CV_64F);
+    if(dst_.empty()){
+        src_.copyTo(dst_);
+    }
+    dtype = dst_.type();
 
-    n = _src.rows + _src.cols - 1;
+    n = static_cast<int>(srcd.size());
 
     fx = A[0][0];
     fy = A[1][1];
@@ -2366,16 +2353,8 @@ void cvUndistortPoints2( const cv::Mat& _src, cv::Mat& _dst, const cv::Mat& _cam
     for( i = 0; i < n; i++ )
     {
         double x, y, x0, y0;
-        if( stype == CV_32FC2 )
-        {
-            x = srcf[i*sstep].x;
-            y = srcf[i*sstep].y;
-        }
-        else
-        {
-            x = srcd[i*sstep].x;
-            y = srcd[i*sstep].y;
-        }
+        x = srcd[i].x;
+        y = srcd[i].y;
 
         x0 = x = (x - cx)*ifx;
         y0 = y = (y - cy)*ify;
@@ -2412,13 +2391,13 @@ void cvUndistortPoints2( const cv::Mat& _src, cv::Mat& _dst, const cv::Mat& _cam
 
         if( dtype == CV_32FC2 )
         {
-            dstf[i*dstep].x = (float)x;
-            dstf[i*dstep].y = (float)y;
+            dst_.at<float>(i * 2) = static_cast<float>(x);
+            dst_.at<float>(i * 2 + 1) = static_cast<float>(y);
         }
         else
         {
-            dstd[i*dstep].x = x;
-            dstd[i*dstep].y = y;
+            dst_.at<double>(i * 2) = x;
+            dst_.at<double>(i * 2 + 1) = y;
         }
     }
 }
@@ -2746,13 +2725,6 @@ int ShowRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray
     cv::waitKey(0);
     cv::destroyWindow("Rectification");
 
-    for(int i=0;i<2;i++)
-        show_rect[i].release();
-
-    //cv::destroyWindow("Rectification");
-    composed.release();
-    comCopy.release();
-
     return 0;
 }
 
@@ -2811,7 +2783,11 @@ void on_mouse_move(int event, int x, int y, int flags, void* param)
     cv::line(tmpCopy, cv::Point2d(0, y), cv::Point2d(tmpCopy.cols, y), cv::Scalar(0, 0, 255));
     cv::line(tmpCopy, cv::Point2d(x, 0), cv::Point2d(x, tmpCopy.rows), cv::Scalar(0, 0, 255));
     cv::imshow("Rectification", tmpCopy);
-    cv::waitKey(4);
+    bool isAlive = cv::getWindowProperty("Rectification", WND_PROP_VISIBLE) >= 1. - DBL_EPSILON;
+    if(isAlive) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(33));
+    }
+//    cv::waitKey(4);
 }
 
 /* This function estimates an initial delta value for the SPRT test used within USAC.

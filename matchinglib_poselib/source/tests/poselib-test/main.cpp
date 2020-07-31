@@ -226,7 +226,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 {
     testing::internal::FilePath program(argv[0]);
     testing::internal::FilePath program_dir = program.RemoveFileName();
-    testing::internal::FilePath data_path = testing::internal::FilePath::ConcatPaths(program_dir,testing::internal::FilePath("imgs//stereo"));
+    testing::internal::FilePath data_path = testing::internal::FilePath::ConcatPaths(program_dir,testing::internal::FilePath("imgs/stereo"));
 
     cmd.setIntroductoryDescription("Interface for testing various keypoint detectors, descriptor extractors, and matching algorithms.\n Example of usage:\n" + std::string(argv[0]) + " --img_path=" + data_path.string() + " --l_img_pref=left_ --r_img_pref=right_ --DynKeyP --subPixRef --c_file=calib_cam_to_cam.txt --autoTH --BART=1");
     //define error codes
@@ -365,11 +365,12 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 	cmd.defineOption("maxDist3DPtsZ", "<Maximum value for the z-coordinates of 3D points [Default=50.0] to be included into BA. Moreover, this value influences the decision if a pose is marked as stable during stereo refinement (see maxRat3DPtsFar).>", ArgvParser::OptionRequiresValue);
 
     /// finally parse and handle return codes (display help etc...)
+    testing::InitGoogleTest(&argc, argv);
     if(argc <= 1)
     {
         if(data_path.DirectoryExists())
         {
-            char *newargs[10];
+            char *newargs[9];
             string arg1str = "--img_path=" + data_path.string();
 
             if(!cmd.isDefinedOption("img_path") || !cmd.isDefinedOption("l_img_pref") || !cmd.isDefinedOption("r_img_pref")
@@ -381,18 +382,20 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
             }
 
             newargs[0] = argv[0];
-            strcpy(newargs[1], arg1str.c_str());
-            strcpy(newargs[2], string("--l_img_pref=left_").c_str());
-            strcpy(newargs[3], string("--r_img_pref=right_").c_str());
-            strcpy(newargs[4], string("--DynKeyP").c_str());
-            strcpy(newargs[5], string("--subPixRef=1").c_str());
-            strcpy(newargs[6], string("--c_file=calib_cam_to_cam.txt").c_str());
-            strcpy(newargs[7], string("--autoTH").c_str());
-            strcpy(newargs[8], string("--BART=1").c_str());
-            strcpy(newargs[9], string("--showRect").c_str());
+            newargs[1] = (char*)arg1str.c_str();
+            string tmp1[7] = {"--l_img_pref=left_",
+                              "--r_img_pref=right_",
+                              "--DynKeyP",
+                              "--subPixRef=1",
+                              "--c_file=calib_cam_to_cam.txt",
+                              "--BART=1",
+                              "--showRect"};
+            for (int i = 0; i < 7; ++i) {
+                newargs[i + 2] = (char*)tmp1[i].c_str();
+            }
 
             int result = -1;
-            result = cmd.parse(10, newargs);
+            result = cmd.parse(9, newargs);
             if (result != ArgvParser::NoParserError)
             {
                 std::cout << cmd.parseErrorDescription(result);
@@ -417,6 +420,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
         if (result != ArgvParser::NoParserError)
         {
             std::cout << cmd.parseErrorDescription(result);
+            exit(1);
         }
     }
 }
