@@ -1,4 +1,4 @@
-set(MISC 
+set(MISC
   f77vers.c i77vers.c main.c s_rnge.c abort_.c exit_.c getarg_.c iargc_.c
   getenv_.c signal_.c s_stop.c s_paus.c system_.c cabs.c ctype.c
 # derf_.c derfc_.c erf_.c erfc_.c sig_die.c uninit.c)
@@ -15,7 +15,7 @@ set(DBL	d_abs.c d_acos.c d_asin.c d_atan.c d_atn2.c
   d_imag.c d_int.c d_lg10.c d_log.c d_mod.c
   d_nint.c d_prod.c d_sign.c d_sin.c d_sinh.c
   d_sqrt.c d_tan.c d_tanh.c)
-set(INT i_abs.c 
+set(INT i_abs.c
   i_dim.c i_dnnt.c i_indx.c i_len.c i_len_trim.c i_mod.c i_nint.c i_sign.c
   lbitbits.c lbitshft.c i_ceiling.c)
 set(HALF h_abs.c h_dim.c h_dnnt.c h_indx.c h_len.c h_mod.c h_nint.c h_sign.c)
@@ -43,7 +43,7 @@ add_executable(arithchk arithchk.c)
 if(UNIX)
   target_link_libraries(arithchk m)
 endif()
-set_target_properties(arithchk PROPERTIES COMPILE_DEFINITIONS 
+set_target_properties(arithchk PROPERTIES COMPILE_DEFINITIONS
   "NO_FPINIT;NO_LONG_LONG")
 ADD_CUSTOM_COMMAND(
    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/arith.h
@@ -52,13 +52,15 @@ ADD_CUSTOM_COMMAND(
    )
 
 
-set(OFILES  ${MISC} ${POW} ${CX} ${DCX} ${REAL} ${DBL} ${INT} 
+set(OFILES  ${MISC} ${POW} ${CX} ${DCX} ${REAL} ${DBL} ${INT}
   ${HALF} ${CMP} ${EFL} ${CHAR} ${I77} ${TIME})
 if(WIN32)
   add_definitions(-D_COMPLEX_DEFINED)
 endif()
 include_directories(${CLAPACK_SOURCE_DIR}/F2CLIBS/libf2c)
 include_directories(${CLAPACK_BINARY_DIR}/F2CLIBS/libf2c)
-add_library(f2c STATIC ${OFILES} ${CMAKE_CURRENT_BINARY_DIR}/arith.h)
+add_library(f2c #STATIC 
+  ${OFILES}
+  ${CMAKE_CURRENT_BINARY_DIR}/arith.h)
 set_property(TARGET f2c PROPERTY PREFIX lib)
 install_library(f2c)

@@ -77,7 +77,20 @@ export(TARGETS ${target} NAMESPACE ${META_PROJECT_NAME}:: FILE ${PROJECT_BINARY_
 
 # file(GLOB SOURCE_FILES "src/*.cpp" "include/*.h")
 
-include_directories(include ${OpenCV_INCLUDE_DIRS})
+target_include_directories(${target}
+  PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+
+  PUBLIC
+  ${DEFAULT_INCLUDE_DIRECTORIES}
+  ${OpenCV_INCLUDE_DIRS}
+
+  INTERFACE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+  $<INSTALL_INTERFACE:${INSTALL_INCLUDE}/${target}/include> # for client in install mode
+  $<INSTALL_INTERFACE:${INSTALL_LIB}/${target}>
+  )
 
 # add_executable(gms-feature-matching ${SOURCE_FILES})
 
@@ -89,8 +102,23 @@ target_link_libraries(${target}
   ${OpenCV_LIBS}
 )
 
+# Library
+install(TARGETS ${target}
+    EXPORT  "${target}-export"            			     COMPONENT dev
+    RUNTIME DESTINATION ${INSTALL_BIN}/${target}     COMPONENT runtime
+    LIBRARY DESTINATION ${INSTALL_SHARED}/${target}  COMPONENT runtime
+    ARCHIVE DESTINATION ${INSTALL_LIB}/${target}     COMPONENT dev
+)
+
 # Header files
-#install(DIRECTORY
-#        ${CMAKE_CURRENT_SOURCE_DIR}/include DESTINATION ${INSTALL_INCLUDE}/${MAINTARGET}
-#        COMPONENT dev
-#        )
+install(DIRECTORY
+        ${CMAKE_CURRENT_SOURCE_DIR}/include DESTINATION ${INSTALL_INCLUDE}/${target}
+        COMPONENT dev
+        )
+
+# CMake config
+install(EXPORT ${target}-export
+    NAMESPACE   ${META_PROJECT_NAME}::
+    DESTINATION ${INSTALL_CMAKE}/${target}
+    COMPONENT   dev
+)

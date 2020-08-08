@@ -55,13 +55,15 @@ ENDIF()
 # get eigen (under windows)
 IF(WIN32)
   find_package(Eigen REQUIRED)
-  set(ADDITIONAL_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR}
-      ${EIGEN3_INCLUDE_DIR}/unsupported )
+  set(ADDITIONAL_INCLUDE_DIRS
+          ${EIGEN_INCLUDE_DIR}
+          ${EIGEN_INCLUDE_DIR}/unsupported )
 ELSE()
 #  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/modules/")
   find_package(Eigen REQUIRED)
-  set(ADDITIONAL_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR}
-      ${EIGEN3_INCLUDE_DIR}/unsupported )
+  set(ADDITIONAL_INCLUDE_DIRS
+          ${EIGEN_INCLUDE_DIR}
+          ${EIGEN_INCLUDE_DIR}/unsupported )
 ENDIF()
 
 # compile with /bigobj under Windows
@@ -69,7 +71,7 @@ IF(WIN32)
 	add_definitions( /bigobj )
 ENDIF()
 
-include_directories(${ADDITIONAL_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_SOURCE_DIR}/include ${ADDITIONAL_INCLUDE_DIRS})
 
 set( OPENGV_SOURCE_FILES
   src/absolute_pose/modules/main.cpp
@@ -198,7 +200,48 @@ ELSE()
   add_library( random_generators STATIC test/random_generators.cpp test/random_generators.hpp test/experiment_helpers.cpp test/experiment_helpers.hpp test/time_measurement.cpp test/time_measurement.hpp )
   target_link_libraries(random_generators opengv)
 ENDIF()
-target_link_libraries(opengv Eigen)
+
+# Create namespaced alias
+add_library(${META_PROJECT_NAME}::opengv ALIAS opengv)
+add_library(${META_PROJECT_NAME}::random_generators ALIAS random_generators)
+
+# Export library for downstream projects
+export(TARGETS opengv random_generators NAMESPACE ${META_PROJECT_NAME}:: FILE ${PROJECT_BINARY_DIR}/cmake/opengv/opengv-export.cmake)
+
+target_include_directories(opengv
+  PRIVATE
+  #${PROJECT_SOURCE_DIR}/include
+
+  PUBLIC
+  ${ADDITIONAL_INCLUDE_DIRS}
+
+  INTERFACE
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+  $<INSTALL_INTERFACE:${INSTALL_INCLUDE}/opengv/include> # for client in install mode
+  $<INSTALL_INTERFACE:${INSTALL_LIB}/opengv>
+  )
+
+target_include_directories(random_generators
+  PRIVATE
+  #${PROJECT_SOURCE_DIR}/include
+
+  PUBLIC
+  ${ADDITIONAL_INCLUDE_DIRS}
+
+  INTERFACE
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+  $<INSTALL_INTERFACE:${INSTALL_INCLUDE}/opengv/include> # for client in install mode
+  $<INSTALL_INTERFACE:${INSTALL_LIB}/opengv>
+  )
+
+target_link_libraries(opengv
+  PUBLIC
+  #Eigen
+
+  INTERFACE
+  )
 
 
 IF (BUILD_TESTS)
@@ -314,16 +357,31 @@ IF (BUILD_TESTS)
 
 ENDIF()
 
-IF (INSTALL_OPENGV)
-  install(
-    TARGETS opengv
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib
-    COMPONENT library
-  )
-ENDIF()
+#IF (INSTALL_OPENGV)
+#  install(
+#    TARGETS opengv
+#    ARCHIVE DESTINATION lib
+#    LIBRARY DESTINATION lib
+#    COMPONENT library
+#  )
+#ENDIF()
 
-#install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include DESTINATION ${INSTALL_INCLUDE}/${MAINTARGET} COMPONENT dev FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
+# Library
+install(TARGETS opengv random_generators
+    EXPORT  "opengv-export"            			     COMPONENT dev
+    RUNTIME DESTINATION ${INSTALL_BIN}/opengv    COMPONENT runtime
+    LIBRARY DESTINATION ${INSTALL_SHARED}/opengv COMPONENT runtime
+    ARCHIVE DESTINATION ${INSTALL_LIB}/opengv    COMPONENT dev
+)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include DESTINATION ${INSTALL_INCLUDE}/opengv COMPONENT dev FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
+
+# CMake config
+install(EXPORT opengv-export
+    NAMESPACE   ${META_PROJECT_NAME}::
+    DESTINATION ${INSTALL_CMAKE}/opengv
+    COMPONENT   dev
+)
 
 if (BUILD_PYTHON)
   add_subdirectory( python )

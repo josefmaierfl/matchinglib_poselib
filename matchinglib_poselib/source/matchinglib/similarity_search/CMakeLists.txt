@@ -18,7 +18,8 @@ set(WITHOUT_TESTS ON)
 endif()
 
 
-project (NonMetricSpaceLib)
+project (non_metric_space_lib)
+
 #
 # Runs compiler with "-dumpversion" and parses major/minor
 # version with a regex.
@@ -76,9 +77,9 @@ elseif(${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
 elseif(WIN32)
     # TODO how can we add support for later versions? There seems to be no flag with the semantics "version x or higher"
     if(NOT MSVC12 AND NOT MSVC14)
-         message(FATAL_ERROR "On Windows, only MSVC version 12 and 14 are supported!") 
+         message(FATAL_ERROR "On Windows, only MSVC version 12 and 14 are supported!")
     endif()
-	
+
 	#set(CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE}
         #/MP           # -> build with multiple processes
         #/W4           # -> warning level 4
@@ -88,16 +89,16 @@ elseif(WIN32)
         #/wd4592       # -> disable warning: 'identifier': symbol will be dynamically initialized (implementation limitation)
         ## /wd4201     # -> disable warning: nonstandard extension used: nameless struct/union (caused by GLM)
         ## /wd4127     # -> disable warning: conditional expression is constant (caused by Qt)
-        
+
         ## $<$<CONFIG:Debug>:
         ## /RTCc         # -> value is assigned to a smaller data type and results in a data loss
         ## >
 
         ## /Gw           # -> whole program global optimization
-        #/GS-          # -> buffer security check: no 
+        #/GS-          # -> buffer security check: no
         ## /GL           # -> whole program optimization: enable link-time code generation (disables Zi)
         #/GF           # -> enable string pooling
-		
+
 		## /O2-		  # -> disable maximize speed
 		## /TP			  # -> Compile as C++ Code
 		## /W3			  # -> Warning level 3
@@ -122,7 +123,7 @@ elseif(WIN32)
 		## /EHsc
 		## /nologo
 		#/Ot
-       
+
     #)
 else ()
     message(FATAL_ERROR "Unrecognized compiler (use GCC, Clang, Intel compiler, or MSVC (on Windows)!")
@@ -165,13 +166,13 @@ if (WITH_EXTRAS)
   include_directories (${PROJECT_SOURCE_DIR}/lshkit/include)
   add_subdirectory (lshkit)
 
-  find_package(Eigen3 3 REQUIRED)
-  if (EIGEN3_FOUND)
-    message (STATUS "Found Eigen3.")
-    include_directories (${EIGEN3_INCLUDE_DIR})
-  else ()
-    message (FATAL_ERROR "Could not locate Eigen3.")
-  endif ()
+  find_package(Eigen REQUIRED)
+#  if (EIGEN3_FOUND)
+#    message (STATUS "Found Eigen3.")
+#    include_directories (${EIGEN3_INCLUDE_DIR})
+#  else ()
+#    message (FATAL_ERROR "Could not locate Eigen3.")
+#  endif ()
 
   # Can be used to hardwire boost location.
   #set (BOOST_ROOT $ENV{HOME}/boost_1_48_0)
@@ -193,7 +194,7 @@ if (WITH_EXTRAS)
     message (FATAL_ERROR "Could not locate BOOST.")
   endif ()
 endif()
-set(NonMetricSpaceLib_LIBRARIES ${NonMetricSpaceLib_LIBRARIES} PARENT_SCOPE)
+set(non_metric_space_lib_LIBRARIES ${non_metric_space_lib_LIBRARIES} PARENT_SCOPE)
 
 add_subdirectory (src)
 if (NOT WITHOUT_TESTS)
@@ -203,7 +204,14 @@ endif()
 message (STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID} ${CXX_COMPILER_VERSION}")
 
 # Header files
-#install(DIRECTORY
-#        ${CMAKE_CURRENT_SOURCE_DIR}/include DESTINATION ${INSTALL_INCLUDE}/${MAINTARGET}
-#        COMPONENT dev
-#        )
+install(DIRECTORY
+        ${CMAKE_CURRENT_SOURCE_DIR}/include DESTINATION ${INSTALL_INCLUDE}/non_metric_space_lib
+        COMPONENT dev
+        )
+
+# CMake config
+install(EXPORT non_metric_space_lib-export
+    NAMESPACE   ${META_PROJECT_NAME}::
+    DESTINATION ${INSTALL_CMAKE}/non_metric_space_lib
+    COMPONENT   dev
+)

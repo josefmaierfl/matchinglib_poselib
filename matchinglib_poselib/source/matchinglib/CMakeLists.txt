@@ -147,19 +147,20 @@ target_include_directories(${target}
 
     ${CMAKE_CURRENT_SOURCE_DIR}/include/${target}
     ${CMAKE_CURRENT_BINARY_DIR}/include
-    ${EIGEN3_INCLUDE_DIR}
     ${Nanoflann_INCLUDE_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gms-1.0/include
 
     PUBLIC
     ${DEFAULT_INCLUDE_DIRECTORIES}
     ${OpenCV_INCLUDE_DIRS}
+	${EIGEN_INCLUDE_DIR}
 
     INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
     #$<INSTALL_INTERFACE:include>
 	$<INSTALL_INTERFACE:${INSTALL_INCLUDE}/${target}/include> # for client in install mode
+	$<INSTALL_INTERFACE:${INSTALL_INCLUDE}/${target}>
 	$<INSTALL_INTERFACE:${INSTALL_LIB}/${target}>
 )
 
@@ -169,13 +170,13 @@ target_include_directories(${target}
 #
 target_link_libraries(${target}
     PRIVATE
-    NonMetricSpaceLib
-	gms-feature-matching
+    non_metric_space_lib
+	  gms-feature-matching
 
     PUBLIC
     ${DEFAULT_LIBRARIES}
     ${OpenCV_LIBS}
-    Eigen
+    #Eigen
 
     INTERFACE
 )

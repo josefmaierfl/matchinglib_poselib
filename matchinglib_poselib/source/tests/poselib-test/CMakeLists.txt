@@ -10,18 +10,18 @@ message(STATUS "Test ${target}")
 option(COPY_TEST_POSE_IMGS  "Copy images for testing to binary dir" ON)
 
 find_package(Clapack REQUIRED)
-if (CLAPACK_FOUND STREQUAL "YES")
-	message(STATUS "Clapack found!")
-else()
-	message(FATAL_ERROR "Clapack not found!")
-endif()
+#if (CLAPACK_FOUND STREQUAL "YES")
+#	message(STATUS "Clapack found!")
+#else()
+#	message(FATAL_ERROR "Clapack not found!")
+#endif()
 
 find_package(SBA REQUIRED)
-if (SBA_FOUND STREQUAL "YES")
-	message(STATUS "SBA found!")
-else()
-	message(FATAL_ERROR "SBA not found!")
-endif()
+#if (SBA_FOUND STREQUAL "YES")
+#	message(STATUS "SBA found!")
+#else()
+#	message(FATAL_ERROR "SBA not found!")
+#endif()
 
 #
 # Sources
@@ -68,8 +68,10 @@ target_include_directories(${target}
     PRIVATE
     ${DEFAULT_INCLUDE_DIRECTORIES}
     ${PROJECT_BINARY_DIR}/source/include
-    ${CLAPACK_INCLUDE_DIR}
-    ${SBA_INCLUDE_DIR}
+
+		PUBLIC
+		${CLAPACK_INCLUDE_DIRS}
+    #${SBA_INCLUDE_DIR}
 )
 
 
@@ -78,13 +80,15 @@ target_include_directories(${target}
 #
 
 target_link_libraries(${target}
+		PUBLIC
+		sba
+		${CLAPACK_LIBRARIES}
+
     PRIVATE
     ${DEFAULT_LIBRARIES}
     ${META_PROJECT_NAME}::matchinglib
     ${META_PROJECT_NAME}::poselib
     gmock-dev
-    ${SBA_LIBRARIES}
-    ${CLAPACK_LIBRARIES}
 )
 
 

@@ -8,18 +8,18 @@ find_package(Eigen REQUIRED)
 find_package(OpenCV 4.2.0 REQUIRED)
 
 find_package(Clapack REQUIRED)
-if (CLAPACK_FOUND STREQUAL "YES")
-  message(STATUS "Clapack found!")
-else()
-  message(FATAL_ERROR "Clapack not found!")
-endif()
+#if (CLAPACK_FOUND STREQUAL "YES")
+#  message(STATUS "Clapack found!")
+#else()
+#  message(FATAL_ERROR "Clapack not found!")
+#endif()
 
 find_package(SBA REQUIRED)
-if (SBA_FOUND STREQUAL "YES")
-  message(STATUS "SBA found!")
-else()
-  message(FATAL_ERROR "SBA not found!")
-endif()
+#if (SBA_FOUND STREQUAL "YES")
+#  message(STATUS "SBA found!")
+#else()
+#  message(FATAL_ERROR "SBA not found!")
+#endif()
 
 SET( Nanoflann_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nanoflann-1.3.0/include")
 
@@ -178,7 +178,7 @@ set_target_properties(${target}
 #
 # Include directories
 #
-
+message(STATUS "clapack: ${CLAPACK_INCLUDE_DIRS}")
 target_include_directories(${target}
     PRIVATE
     ${PROJECT_BINARY_DIR}/source/include
@@ -190,14 +190,15 @@ target_include_directories(${target}
     PUBLIC
     ${DEFAULT_INCLUDE_DIRECTORIES}
     ${OpenCV_INCLUDE_DIRS}
-    ${CLAPACK_INCLUDE_DIR}
-    ${SBA_INCLUDE_DIR}
+    ${EIGEN_INCLUDE_DIR}
+        ${CLAPACK_INCLUDE_DIRS}
 
     INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
     #$<INSTALL_INTERFACE:include>
     $<INSTALL_INTERFACE:${INSTALL_INCLUDE}/${target}/include> # for client in install mode
+    $<INSTALL_INTERFACE:${INSTALL_INCLUDE}/${target}>
     $<INSTALL_INTERFACE:${INSTALL_LIB}/${target}>
 )
 
@@ -205,10 +206,11 @@ target_include_directories(${target}
 #
 # Libraries
 #
-
+message(STATUS "clapack: ${CLAPACK_LIBRARIES}")
 target_link_libraries(${target}
     PRIVATE
-
+        #${SBA_LIBRARIES}
+        #${CLAPACK_LIBRARIES}
 
     opengv
 
@@ -216,9 +218,8 @@ target_link_libraries(${target}
     ${DEFAULT_LIBRARIES}
     ${OpenCV_LIBS}
     ${CLAPACK_LIBRARIES}
-    ${SBA_LIBRARIES}
-    ${CLAPACK_LIBRARIES}
-    Eigen
+        sba
+    #Eigen
 
     INTERFACE
 )

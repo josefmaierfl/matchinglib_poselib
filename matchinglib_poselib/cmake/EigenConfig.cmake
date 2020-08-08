@@ -1,28 +1,41 @@
-#include(${CMAKE_CURRENT_LIST_DIR}/CrossCompile.cmake)
-include(ExternalProject)
+###############################################################################
+# Find Eigen3
+#
+# This sets the following variables:
+# EIGEN_FOUND - True if Eigen was found.
+# EIGEN_INCLUDE_DIRS - Directories containing the Eigen include files.
+# EIGEN_DEFINITIONS - Compiler flags for Eigen.
+# EIGEN_VERSION - Package version
 
-if(NOT Eigen_VERSION)
-  set( Eigen_VERSION "3.2" )
+find_package(PkgConfig QUIET)
+pkg_check_modules(PC_EIGEN eigen3)
+set(EIGEN_DEFINITIONS ${PC_EIGEN_CFLAGS_OTHER})
+
+find_path(EIGEN_INCLUDE_DIR Eigen/Core
+    HINTS "${EIGEN_ROOT}" "$ENV{EIGEN_ROOT}" ${PC_EIGEN_INCLUDEDIR} ${PC_EIGEN_INCLUDE_DIRS}
+    PATHS "$ENV{PROGRAMFILES}/Eigen" "$ENV{PROGRAMW6432}/Eigen"
+          "$ENV{PROGRAMFILES}/Eigen3" "$ENV{PROGRAMW6432}/Eigen3"
+    PATH_SUFFIXES eigen3 include/eigen3 include)
+
+if(EIGEN_INCLUDE_DIR)
+  file(READ "${EIGEN_INCLUDE_DIR}/Eigen/src/Core/util/Macros.h" _eigen_version_header)
+
+  string(REGEX MATCH "define[ \t]+EIGEN_WORLD_VERSION[ \t]+([0-9]+)" _eigen_world_version_match "${_eigen_version_header}")
+  set(EIGEN_WORLD_VERSION "${CMAKE_MATCH_1}")
+  string(REGEX MATCH "define[ \t]+EIGEN_MAJOR_VERSION[ \t]+([0-9]+)" _eigen_major_version_match "${_eigen_version_header}")
+  set(EIGEN_MAJOR_VERSION "${CMAKE_MATCH_1}")
+  string(REGEX MATCH "define[ \t]+EIGEN_MINOR_VERSION[ \t]+([0-9]+)" _eigen_minor_version_match "${_eigen_version_header}")
+  set(EIGEN_MINOR_VERSION "${CMAKE_MATCH_1}")
+  set(EIGEN_VERSION ${EIGEN_WORLD_VERSION}.${EIGEN_MAJOR_VERSION}.${EIGEN_MINOR_VERSION})
 endif()
 
-if (NOT TARGET Eigen)
-  include(ExternalProject)
-  externalproject_add(Eigen-ext
-      PREFIX ${CMAKE_BINARY_DIR}/Eigen
-      URL http://bitbucket.org/eigen/eigen/get/${Eigen_VERSION}.tar.bz2
-      CMAKE_ARGS
-      ${CROSS_COMPILE}
-      -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/Eigen
-      -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-      )
-  add_library(Eigen INTERFACE IMPORTED GLOBAL)
-  add_dependencies(Eigen Eigen-ext)
-  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/Eigen/include/eigen3)
-  set_property(TARGET Eigen PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-      ${CMAKE_BINARY_DIR}/Eigen/include/eigen3
-      )
-endif()
+set(EIGEN_INCLUDE_DIRS ${EIGEN_INCLUDE_DIR})
 
-set(EIGEN3_INCLUDE_DIR ${CMAKE_BINARY_DIR}/Eigen/include/eigen3)
-# for g2on
-set(EIGEN_INCLUDE_DIR ${CMAKE_BINARY_DIR}/Eigen/include/eigen3)
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(Eigen DEFAULT_MSG EIGEN_INCLUDE_DIR)
+
+mark_as_advanced(EIGEN_INCLUDE_DIR)
+
+if(EIGEN_FOUND)
+  message(STATUS "Eigen found (include: ${EIGEN_INCLUDE_DIRS}, version: ${EIGEN_VERSION})")
+endif()

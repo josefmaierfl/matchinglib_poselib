@@ -4,7 +4,9 @@
 # 
 
 # Install 3rd-party runtime dependencies into runtime-component
-# install(FILES ... COMPONENT runtime)
+#find_package(Clapack REQUIRED)
+#message(STATUS "Installing: ${CLAPACK_INCLUDE_DIR}")
+#install(FILES ${CLAPACK_INCLUDE_DIR}/blaswrap.h COMPONENT runtime)
 
 
 # 

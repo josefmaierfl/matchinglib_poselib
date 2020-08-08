@@ -8,6 +8,7 @@ build_dir=${autocalib_dir}/build
 mkdir ${build_dir}
 cd ${build_dir}
 FLAGS="-DCMAKE_BUILD_TYPE=Release"
+#FLAGS="-DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DOPTION_BUILD_TESTS=OFF"
 cmake ../ ${FLAGS}
 if [ $? -ne 0 ]; then
     exit 1
@@ -16,7 +17,7 @@ make -j "$(nproc)"
 if [ $? -ne 0 ]; then
     exit 1
 fi
-make install
+#make install
 
 copy_dir=${root_dir}/tmp/matchinglib_poselib/build
 mkdir -p ${copy_dir}

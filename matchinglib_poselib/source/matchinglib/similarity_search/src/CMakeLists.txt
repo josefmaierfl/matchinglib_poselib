@@ -43,15 +43,27 @@ else (Threads_FOUND)
     message (STATUS "Could not locate Threads.")
 endif (Threads_FOUND)
 
-add_library (NonMetricSpaceLib STATIC ${SRC_FILES} ${HDR_FILES})
+add_library (non_metric_space_lib STATIC ${SRC_FILES} ${HDR_FILES})
 
-target_include_directories(NonMetricSpaceLib
+# Create namespaced alias
+add_library(${META_PROJECT_NAME}::non_metric_space_lib ALIAS non_metric_space_lib)
+
+# Export library for downstream projects
+export(TARGETS non_metric_space_lib NAMESPACE ${META_PROJECT_NAME}:: FILE ${PROJECT_BINARY_DIR}/cmake/non_metric_space_lib/non_metric_space_lib-export.cmake)
+
+target_include_directories(non_metric_space_lib
 PUBLIC
- ${PROJECT_SOURCE_DIR}/include
+ #${PROJECT_SOURCE_DIR}/include
+
+ INTERFACE
+ $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+ $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+$<INSTALL_INTERFACE:${INSTALL_INCLUDE}/non_metric_space_lib/include> # for client in install mode
+$<INSTALL_INTERFACE:${INSTALL_LIB}/non_metric_space_lib>
  )
 
 if (WITH_EXTRAS)
-  add_dependencies (NonMetricSpaceLib lshkit)
+  add_dependencies (non_metric_space_lib lshkit)
   set(LSHKIT_LIB "lshkit")
 endif()
 
@@ -61,12 +73,12 @@ add_executable (tune_vptree tune_vptree.cc)
 # The following line is necessary to create an executable for the dummy application:
 add_executable (dummy_app dummy_app.cc)
 
-target_link_libraries (experiment NonMetricSpaceLib ${LSHKIT_LIB} ${Boost_LIBRARIES} ${GSL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries (tune_vptree NonMetricSpaceLib ${LSHKIT_LIB} ${Boost_LIBRARIES} ${GSL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries (experiment non_metric_space_lib ${LSHKIT_LIB} ${Boost_LIBRARIES} ${GSL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries (tune_vptree non_metric_space_lib ${LSHKIT_LIB} ${Boost_LIBRARIES} ${GSL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 # What are the libraries that we need to link with for dummy_app?
-target_link_libraries (dummy_app NonMetricSpaceLib ${LSHKIT_LIB} 
-                                                          ${Boost_LIBRARIES} 
-                                                          ${GSL_LIBRARIES} 
+target_link_libraries (dummy_app non_metric_space_lib ${LSHKIT_LIB}
+                                                          ${Boost_LIBRARIES}
+                                                          ${GSL_LIBRARIES}
                                                           ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
@@ -78,21 +90,29 @@ else ()
     set (EXECUTABLE_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/debug/")
 endif ()
 
-# string(LENGTH ${PROJECT_SOURCE_DIR} PREFIX_LEN) 
+# string(LENGTH ${PROJECT_SOURCE_DIR} PREFIX_LEN)
 # MATH(EXPR PREFIX_LEN "${PREFIX_LEN}+1")
-# foreach(F ${PROJ_HDR_FILES}) 
+# foreach(F ${PROJ_HDR_FILES})
   # GET_FILENAME_COMPONENT(FP ${F} PATH)
   # string(SUBSTRING ${FP} ${PREFIX_LEN} -1 FS)
   ##message(${PREFIX_LEN} ":" ${FS})
   # install(FILES "${F}" DESTINATION ${FS})
 # endforeach(F)
 
-#install(TARGETS NonMetricSpaceLib   
+#install(TARGETS non_metric_space_lib
  # ARCHIVE DESTINATION lib
   #LIBRARY DESTINATION lib
   #COMPONENT library
 #)
 
-set(NonMetricSpaceLib_LIBRARIES NonMetricSpaceLib ${LSHKIT_LIB} ${GSL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-message(STATUS "NonMetricSpaceLib_LIBRARIES: ${NonMetricSpaceLib_LIBRARIES}")
-set(NonMetricSpaceLib_LIBRARIES ${NonMetricSpaceLib_LIBRARIES} PARENT_SCOPE)
+# Library
+install(TARGETS non_metric_space_lib
+    EXPORT  "non_metric_space_lib-export"            			      COMPONENT dev
+    RUNTIME DESTINATION ${INSTALL_BIN}/non_metric_space_lib     COMPONENT runtime
+    LIBRARY DESTINATION ${INSTALL_SHARED}/non_metric_space_lib  COMPONENT runtime
+    ARCHIVE DESTINATION ${INSTALL_LIB}/non_metric_space_lib     COMPONENT dev
+)
+
+set(non_metric_space_lib_LIBRARIES non_metric_space_lib ${LSHKIT_LIB} ${GSL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+message(STATUS "non_metric_space_lib_LIBRARIES: ${non_metric_space_lib_LIBRARIES}")
+set(non_metric_space_lib_LIBRARIES ${non_metric_space_lib_LIBRARIES} PARENT_SCOPE)

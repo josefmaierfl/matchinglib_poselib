@@ -1,7 +1,8 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.2)
 project(CLAPACK C)
 
 option(CLAPACK_BUILD_TESTING "Build CLAPACK tests" ON)
+option(BUILD_SHARED_LIBS     "Build shared instead of static libraries."              ON)
 
 include(CTest)
 
@@ -27,8 +28,8 @@ endif()
 # lib install macro
 macro( install_library TARGET_NAME )
     install(TARGETS ${TARGET_NAME}
-        EXPORT ${PROJECT_NAME} 
-        ARCHIVE DESTINATION ${CLAPACK_INSTALL_LIB_DIR} 
+        EXPORT ${PROJECT_NAME}
+        ARCHIVE DESTINATION ${CLAPACK_INSTALL_LIB_DIR}
         LIBRARY DESTINATION ${CLAPACK_INSTALL_LIB_DIR}
         RUNTIME DESTINATION bin
         )
@@ -103,5 +104,5 @@ configure_file(${CLAPACK_SOURCE_DIR}/clapack-config.cmake.in
 
 install(EXPORT ${PROJECT_NAME} DESTINATION ${INSTALL_CMAKE_DIR})
 
-install(FILES ${CLAPACK_BINARY_DIR}/clapack-config.cmake 
+install(FILES ${CLAPACK_BINARY_DIR}/clapack-config.cmake
     DESTINATION ${INSTALL_CMAKE_DIR})
