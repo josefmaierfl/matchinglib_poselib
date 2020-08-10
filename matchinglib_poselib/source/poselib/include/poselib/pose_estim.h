@@ -56,7 +56,7 @@ namespace poselib
 #define PIX_TH_START 0.5 //Start value of the pixel treshold for all algorithms
 #define MIN_PIX_TH ((0.25 < PIX_TH_START) ? 0.25:PIX_TH_START) //Minimal inlier/ooutlier threshold in pixels (image coordinate system)
 #define MAX_PIX_TH 2.0 //Maximal inlier/ooutlier threshold in pixels (image coordinate system)
-#define PIX_MIN_GOOD_TH 0.8 //If the pixel start threshold chosen is too small to give a result this is checked by this "normal" pixel threshold
+#define PIX_MIN_GOOD_TH 1.6 //If the pixel start threshold chosen is too small to give a result this is checked by this "normal" pixel threshold
 
 	enum POSELIB_API UsacChkDegenType { DEGEN_NO_CHECK, DEGEN_QDEGSAC, DEGEN_USAC_INTERNAL };
 

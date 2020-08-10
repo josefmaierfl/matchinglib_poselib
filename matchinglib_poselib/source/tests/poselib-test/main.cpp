@@ -433,11 +433,11 @@ void startEvaluation(ArgvParser& cmd)
     string cfgUSAC;
     string refineRT, refineRT_stereo;
     double th_pix_user = 0;
-    int showNr = 0, f_nr = 8000;
+    int showNr = 0, f_nr = 5000;
     bool noRatiot = false, refineVFC = false, refineSOF = false, refineGMS = false, DynKeyP = true, drawSingleKps = false;
     int subPixRef = 1;
     bool noPoseDiff = false, autoTH = false, absCoord = false, histEqual = true, refineRTold = false, refineRTold_stereo = false;
-	int USACInlratFilt = 1;
+	int USACInlratFilt = 0;
     bool showRect = false;
     int Halign = 0;
     int BART = 0, BART_stereo = 0;
@@ -449,30 +449,30 @@ void startEvaluation(ArgvParser& cmd)
     std::vector<cv::KeyPoint> kp1;
     std::vector<cv::KeyPoint> kp2;
     int distcoeffNr = 5;
-    double USACdegenTh = 0.85;
-    int cfgUSACnr[6] = {3,1,1,2,2,5};
-    int refineRTnr[2] = { 0,0 }, refineRTnr_stereo[2] = { 4,2 };
+    double USACdegenTh = 1.65;
+    int cfgUSACnr[6] = {3,1,1,2,2,0};
+    int refineRTnr[2] = { 2, 2 }, refineRTnr_stereo[2] = { 5, 2 };
     bool kneipInsteadBA = false, kneipInsteadBA_stereo = false;
 	bool stereoRef = false;
 	int evStepStereoStable = 0;
 	bool useOnlyStablePose = false;
 	bool useMostLikelyPose = false;
 	double minStartAggInlRat = 0.2, 
-	relInlRatThLast = 0.35, 
-	relInlRatThNew = 0.2, 
-	minInlierRatSkip = 0.38, 
-	relMinInlierRatSkip = 0.7, 
-	minInlierRatioReInit = 0.6, 
-	absThRankingStable = 0.075, 
-	minNormDistStable = 0.5;
-	size_t maxPoolCorrespondences = 30000, maxSkipPairs = 5, minContStablePoses = 3, checkPoolPoseRobust = 3;
-	float minPtsDistance = 3.f;
+	relInlRatThLast = 0.308,
+	relInlRatThNew = 0.306,
+	minInlierRatSkip = 0.264,
+	relMinInlierRatSkip = 0.592,
+	minInlierRatioReInit = 0.541,
+	absThRankingStable = 0.293205,
+	minNormDistStable = 0.48087;
+	size_t maxPoolCorrespondences = 4486, maxSkipPairs = 5, minContStablePoses = 4, checkPoolPoseRobust = 2;
+	float minPtsDistance = 3.523f;
 	bool useRANSAC_fewMatches = false;
 	bool compInitPose = false;
 	string raiseSkipCnt = "00";
 	int raiseSkipCntnr[2] = { 0,0 };
-	double maxRat3DPtsFar = 0.5;
-	double maxDist3DPtsZ = 50.0;
+	double maxRat3DPtsFar = 0.4;
+	double maxDist3DPtsZ = 130.0;
 	
     noRatiot = cmd.foundOption("noRatiot");
     refineVFC = cmd.foundOption("refineVFC");
@@ -560,11 +560,11 @@ void startEvaluation(ArgvParser& cmd)
 		if (maxDist3DPtsZ < 5.0 || maxDist3DPtsZ > 1000.0)
 		{
 			std::cout << "Value for maxDist3DPtsZ out of range. Using default value." << endl;
-			maxDist3DPtsZ = 50.0;
+			maxDist3DPtsZ = 130.0;
 		}
 	}
 	else {
-        maxDist3DPtsZ = 50.0;
+        maxDist3DPtsZ = 130.0;
     }
 
     if(cmd.foundOption("RobMethod")) {
@@ -579,12 +579,12 @@ void startEvaluation(ArgvParser& cmd)
 		USACInlratFilt = stoi(cmd.optionValue("USACInlratFilt"));
 		if (USACInlratFilt < 0 || USACInlratFilt > 1)
 		{
-			std::cout << "The specified option forUSACInlratFilt is not available. Changing to default: VFC filtering" << std::endl;
-			USACInlratFilt = 1;
+			std::cout << "The specified option forUSACInlratFilt is not available. Changing to default: None" << std::endl;
+			USACInlratFilt = 0;
 		}
 	}
 	else {
-        USACInlratFilt = 1;
+        USACInlratFilt = 0;
     }
 
     if((RobMethod != "ARRSAC") && autoTH)
@@ -629,14 +629,14 @@ void startEvaluation(ArgvParser& cmd)
         cfgUSAC = cmd.optionValue("cfgUSAC");
     }
     else {
-        cfgUSAC = "311225";
+        cfgUSAC = "311220";
     }
 
     if (cmd.foundOption("refineRT")) {
         refineRT = cmd.optionValue("refineRT");
     }
     else {
-        refineRT = "00";
+        refineRT = "22";
     }
 
     if (refineRT.size() == 2)
@@ -645,18 +645,18 @@ void startEvaluation(ArgvParser& cmd)
         refineRTnr[1] = stoi(refineRT.substr(1, 1));
         if (refineRTnr[0] < 0 || refineRTnr[0] > 6)
         {
-            std::cout << "Option for 1st digit of refineRT out of range! Taking default value (disable)." << endl;
-            refineRTnr[0] = 0;
+            std::cout << "Option for 1st digit of refineRT out of range! Taking default value." << endl;
+            refineRTnr[0] = 2;
         }
         if (refineRTnr[1] > 2)
         {
             std::cout << "Option for 2nd digit of refineRT out of range! Taking default value." << endl;
-            refineRTnr[1] = 0;
+            refineRTnr[1] = 2;
         }
     }
     else
     {
-        std::cout << "Option refineRT is corrupt! Taking default values (disable)." << endl;
+        std::cout << "Option refineRT is corrupt! Taking default values." << endl;
     }
     //Set up refinement parameters
     int refineMethod = poselib::RefinePostAlg::PR_NO_REFINEMENT;
@@ -708,7 +708,7 @@ void startEvaluation(ArgvParser& cmd)
         refineRT_stereo = cmd.optionValue("refineRT_stereo");
     }
 	else {
-        refineRT_stereo = "42";
+        refineRT_stereo = "52";
     }
 	if (refineRT_stereo.size() == 2)
 	{
@@ -716,8 +716,8 @@ void startEvaluation(ArgvParser& cmd)
 		refineRTnr_stereo[1] = stoi(refineRT_stereo.substr(1, 1));
 		if (refineRTnr_stereo[0] < 1 || refineRTnr_stereo[0] > 6)
 		{
-			std::cout << "Option for 1st digit of refineRT_stereo out of range! Taking default value (Stewenius)." << endl;
-			refineRTnr_stereo[0] = 4;
+			std::cout << "Option for 1st digit of refineRT_stereo out of range! Taking default value (Kneip's Eigen solver)." << endl;
+			refineRTnr_stereo[0] = 5;
 		}
 		if (refineRTnr_stereo[1] > 2)
 		{
@@ -784,7 +784,7 @@ void startEvaluation(ArgvParser& cmd)
 		}
 	}
 	else {
-        BART_stereo = 0;
+        BART_stereo = 1;
     }
 
 	if (cmd.foundOption("minStartAggInlRat"))
@@ -806,11 +806,11 @@ void startEvaluation(ArgvParser& cmd)
 		if (relInlRatThLast < 0.01 || relInlRatThLast >= 1.0)
 		{
 			std::cout << "Value for relInlRatThLast out of range. Using default value." << endl;
-			relInlRatThLast = 0.35;
+			relInlRatThLast = 0.308;
 		}
 	}
 	else {
-        relInlRatThLast = 0.35;
+        relInlRatThLast = 0.308;
     }
 
 	if (cmd.foundOption("relInlRatThNew"))
@@ -819,11 +819,11 @@ void startEvaluation(ArgvParser& cmd)
 		if (relInlRatThNew < 0.01 || relInlRatThNew >= 1.0)
 		{
 			std::cout << "Value for relInlRatThNew out of range. Using default value." << endl;
-			relInlRatThNew = 0.2;
+			relInlRatThNew = 0.306;
 		}
 	}
 	else {
-        relInlRatThNew = 0.2;
+        relInlRatThNew = 0.306;
     }
 
 	if (cmd.foundOption("minInlierRatSkip"))
@@ -832,11 +832,11 @@ void startEvaluation(ArgvParser& cmd)
 		if (minInlierRatSkip < 0.01 || minInlierRatSkip >= 1.0)
 		{
 			std::cout << "Value for minInlierRatSkip out of range. Using default value." << endl;
-			minInlierRatSkip = 0.38;
+			minInlierRatSkip = 0.264;
 		}
 	}
 	else {
-        minInlierRatSkip = 0.38;
+        minInlierRatSkip = 0.264;
     }
 
 	if (cmd.foundOption("relMinInlierRatSkip"))
@@ -845,11 +845,11 @@ void startEvaluation(ArgvParser& cmd)
 		if (relMinInlierRatSkip < 0.01 || relMinInlierRatSkip >= 1.0)
 		{
 			std::cout << "Value for relMinInlierRatSkip out of range. Using default value." << endl;
-			relMinInlierRatSkip = 0.7;
+			relMinInlierRatSkip = 0.592;
 		}
 	}
 	else {
-        relMinInlierRatSkip = 0.7;
+        relMinInlierRatSkip = 0.592;
     }
 
 	if (cmd.foundOption("maxSkipPairs"))
@@ -873,11 +873,11 @@ void startEvaluation(ArgvParser& cmd)
 		if (minInlierRatioReInit < 0.01 || minInlierRatioReInit >= 1.0)
 		{
 			std::cout << "Value for minInlierRatioReInit out of range. Using default value." << endl;
-			minInlierRatioReInit = 0.6;
+			minInlierRatioReInit = 0.541;
 		}
 	}
 	else {
-        minInlierRatioReInit = 0.6;
+        minInlierRatioReInit = 0.541;
     }
 
 	if (cmd.foundOption("minPtsDistance"))
@@ -886,11 +886,11 @@ void startEvaluation(ArgvParser& cmd)
 		if (minPtsDistance < 1.42f || minPtsDistance > 10.f)
 		{
 			std::cout << "Value for minPtsDistance out of range. Using default value." << endl;
-			minPtsDistance = 3.f;
+			minPtsDistance = 3.523f;
 		}
 	}
 	else {
-        minPtsDistance = 3.f;
+        minPtsDistance = 3.523f;
     }
 
 	if (cmd.foundOption("maxPoolCorrespondences"))
@@ -901,11 +901,11 @@ void startEvaluation(ArgvParser& cmd)
 		if (maxPoolCorrespondences > 60000)
 		{
 			std::cout << "Value for maxPoolCorrespondences out of range. Using default value." << endl;
-			maxPoolCorrespondences = 30000;
+			maxPoolCorrespondences = 4486;
 		}
 	}
 	else {
-        maxPoolCorrespondences = 30000;
+        maxPoolCorrespondences = 4486;
     }
 
 	if (cmd.foundOption("minContStablePoses"))
@@ -916,11 +916,11 @@ void startEvaluation(ArgvParser& cmd)
 		if (minContStablePoses > 100)
 		{
 			std::cout << "Value for minContStablePoses out of range. Using default value." << endl;
-			minContStablePoses = 3;
+			minContStablePoses = 4;
 		}
 	}
 	else {
-        minContStablePoses = 3;
+        minContStablePoses = 4;
     }
 
 	if (cmd.foundOption("absThRankingStable"))
@@ -929,11 +929,11 @@ void startEvaluation(ArgvParser& cmd)
 		if (absThRankingStable < 0.01 || absThRankingStable >= 1.0)
 		{
 			std::cout << "Value for absThRankingStable out of range. Using default value." << endl;
-			absThRankingStable = 0.075;
+			absThRankingStable = 0.293205;
 		}
 	}
 	else {
-        absThRankingStable = 0.075;
+        absThRankingStable = 0.293205;
     }
 
 	useRANSAC_fewMatches = cmd.foundOption("useRANSAC_fewMatches");
@@ -946,11 +946,11 @@ void startEvaluation(ArgvParser& cmd)
 		if (checkPoolPoseRobust > 90)
 		{
 			std::cout << "Value for checkPoolPoseRobust out of range. Using default value." << endl;
-			checkPoolPoseRobust = 3;
+			checkPoolPoseRobust = 2;
 		}
 	}
 	else {
-        checkPoolPoseRobust = 3;
+        checkPoolPoseRobust = 2;
     }
 
 	if (cmd.foundOption("minNormDistStable"))
@@ -959,11 +959,11 @@ void startEvaluation(ArgvParser& cmd)
 		if (minNormDistStable < 0.01 || minNormDistStable >= 1.0)
 		{
 			std::cout << "Value for minNormDistStable out of range. Using default value." << endl;
-			minNormDistStable = 0.5;
+			minNormDistStable = 0.48087;
 		}
 	}
 	else {
-        minNormDistStable = 0.5;
+        minNormDistStable = 0.48087;
     }
 
 	if (cmd.foundOption("raiseSkipCnt")) {
@@ -998,11 +998,11 @@ void startEvaluation(ArgvParser& cmd)
 		if (maxRat3DPtsFar < 0.1 || maxRat3DPtsFar >= 1.0)
 		{
 			std::cout << "Value for maxRat3DPtsFar out of range. Using default value." << endl;
-			maxRat3DPtsFar = 0.5;
+			maxRat3DPtsFar = 0.4;
 		}
 	}
 	else {
-        maxRat3DPtsFar = 0.5;
+        maxRat3DPtsFar = 0.4;
     }
 
 	//USAC config
@@ -1049,7 +1049,7 @@ void startEvaluation(ArgvParser& cmd)
         if (cfgUSACnr[5] > 7)
         {
             std::cout << "Option for 6th digit of cfgUSAC out of range! Taking default value." << endl;
-            cfgUSACnr[5] = 5;
+            cfgUSACnr[5] = 0;
         }
     }
     else
@@ -1062,14 +1062,14 @@ void startEvaluation(ArgvParser& cmd)
         USACdegenTh = std::stod(cmd.optionValue("USACdegenTh"));
     }
     else {
-        USACdegenTh = 0.85;
+        USACdegenTh = 1.65;
     }
 
     if(cmd.foundOption("f_detect")) {
         f_detect = cmd.optionValue("f_detect");
     }
     else {
-        f_detect = "FAST";
+        f_detect = "BRISK";
     }
 
     if(cmd.foundOption("d_extr")) {
@@ -1083,7 +1083,7 @@ void startEvaluation(ArgvParser& cmd)
         matcher = cmd.optionValue("matcher");
     }
     else {
-        matcher = "GMBSOF";
+        matcher = "HNSW";//"GMBSOF";
     }
 
     if (cmd.foundOption("nmsIdx"))
@@ -1116,7 +1116,7 @@ void startEvaluation(ArgvParser& cmd)
         }
     }
     else {
-        f_nr = 8000;
+        f_nr = 5000;
     }
 
     if(cmd.foundOption("v"))
