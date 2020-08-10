@@ -22,3 +22,7 @@ fi
 copy_dir=${root_dir}/tmp/matchinglib_poselib/build
 mkdir -p ${copy_dir}
 find ${build_dir} -type f \( -executable -o -name \*.so -o -name \*.a \) -exec cp {} ${copy_dir} \;
+IMG_DIR=${build_dir}/imgs
+if [ -d ${IMG_DIR} ]; then
+  cp -r ${IMG_DIR} ${copy_dir}
+fi

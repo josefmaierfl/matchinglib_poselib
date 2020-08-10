@@ -40,16 +40,16 @@ RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -
 
 ADD ci /ci
 RUN cd /ci && ./build_thirdparty.sh
-RUN cd /ci && ./copy_thirdparty.sh
+#RUN cd /ci && ./copy_thirdparty.sh
 
 COPY matchinglib_poselib /ci/tmp/matchinglib_poselib/
 COPY build_matchinglib_poselib.sh /ci/tmp/
 RUN cd /ci/tmp && ./build_matchinglib_poselib.sh
 
 WORKDIR /app
-RUN cp -r /ci/tmp/thirdparty /app/
+#RUN cp -r /ci/tmp/thirdparty /app/
 RUN cp -r /ci/tmp/tmp/. /app/
-COPY start_testing.sh /app/
+COPY start_matchinglib_poselib.sh /app/
 #RUN rm -r /ci
 
 RUN chown -R conan /app

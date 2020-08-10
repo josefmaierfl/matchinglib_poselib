@@ -242,7 +242,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 		"If a prefix is used, all characters until the first number (excluding) must be provided. "
 		"For a postfix, '*' must be placed before the postfix.\n "
 		"Valid examples : folder/pre_*post, *post, pre_*, pre_, folder/*post, folder/pre_*, folder/pre_, folder/, folder/folder/, folder/folder/pre_*post, ...\n "
-		"For non stereo images (consecutive images), r_img_pref must be empty.>", ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
+		"For non stereo images (consecutive images), r_img_pref must be omitted.>", ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
     cmd.defineOption("r_img_pref", "<Prefix and/or postfix for the right or second images.\n "
 		"For non stereo images (consecutive images), r_img_pref must be empty.\n "
 		"For further details see the description of l_img_pref.>", ArgvParser::OptionRequiresValue);
