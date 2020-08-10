@@ -21,8 +21,5 @@ ci/thirdparty/sba-1.6/lib
 ci/thirdparty/sba-1.6/build/linux
 ci/thirdparty/sba-1.6/build/linux_debug
 matchinglib_poselib/cmake-build-debug
-matchinglib_poselib/source/poselib/thirdparty/ngransac/__pycache__
-matchinglib_poselib/source/poselib/thirdparty/ngransac/ngransac/ngransac.cpython-36m-x86_64-linux-gnu.so
-matchinglib_poselib/source/poselib/thirdparty/ngransac/ngransac/build
-matchinglib_poselib/source/poselib/thirdparty/ngransac/ngransac/dist
-matchinglib_poselib/source/poselib/thirdparty/ngransac/ngransac/ngransac.egg-info
+matchinglib_poselib/cmake-build-release
+matchinglib_poselib/build
