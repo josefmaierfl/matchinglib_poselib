@@ -8,18 +8,8 @@ find_package(Eigen REQUIRED)
 find_package(OpenCV 4.2.0 REQUIRED)
 
 find_package(Clapack REQUIRED)
-#if (CLAPACK_FOUND STREQUAL "YES")
-#  message(STATUS "Clapack found!")
-#else()
-#  message(FATAL_ERROR "Clapack not found!")
-#endif()
 
 find_package(SBA REQUIRED)
-#if (SBA_FOUND STREQUAL "YES")
-#  message(STATUS "SBA found!")
-#else()
-#  message(FATAL_ERROR "SBA not found!")
-#endif()
 
 SET( Nanoflann_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nanoflann-1.3.0/include")
 
@@ -191,7 +181,7 @@ target_include_directories(${target}
     ${DEFAULT_INCLUDE_DIRECTORIES}
     ${OpenCV_INCLUDE_DIRS}
     ${EIGEN_INCLUDE_DIR}
-        ${CLAPACK_INCLUDE_DIRS}
+    ${CLAPACK_INCLUDE_DIRS}
 
     INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -209,17 +199,13 @@ target_include_directories(${target}
 message(STATUS "clapack: ${CLAPACK_LIBRARIES}")
 target_link_libraries(${target}
     PRIVATE
-        #${SBA_LIBRARIES}
-        #${CLAPACK_LIBRARIES}
-
     opengv
 
     PUBLIC
     ${DEFAULT_LIBRARIES}
     ${OpenCV_LIBS}
     ${CLAPACK_LIBRARIES}
-        sba
-    #Eigen
+    sba
 
     INTERFACE
 )

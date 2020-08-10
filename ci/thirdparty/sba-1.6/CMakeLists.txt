@@ -17,7 +17,7 @@ set_policy(CMP0054 NEW) # ENABLE CMP0054: Only interpret if() arguments as varia
 set_policy(CMP0042 NEW) # ENABLE CMP0042: MACOSX_RPATH is enabled by default.
 set_policy(CMP0063 NEW) # ENABLE CMP0063: Honor visibility properties for all target types.
 
-option(BUILD_SHARED_LIBS     "Build shared instead of static libraries."              ON)
+option(BUILD_SHARED_LIBS "Build shared instead of static libraries." OFF)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(IDE_FOLDER "")
@@ -109,7 +109,7 @@ install(FILES ${target}-config.cmake DESTINATION ${INSTALL_ROOT} COMPONENT dev)
 #set(CMAKE_DEBUG_POSTFIX _d)
 
 # f2c is sometimes equivalent to libF77 & libI77; in that case, set HAVE_F2C to 0
-SET(HAVE_F2C 1 CACHE BOOL "Do we have f2c or F77/I77?" )
+#SET(HAVE_F2C 1 CACHE BOOL "Do we have f2c or F77/I77?" )
 
 # the directory where the lapack/blas/f2c libraries reside
 #SET(LAPACKBLAS_DIR /usr/lib CACHE PATH "Path to lapack/blas libraries")
@@ -124,16 +124,29 @@ SET(HAVE_F2C 1 CACHE BOOL "Do we have f2c or F77/I77?" )
   #SET(I77_LIB libI77 CACHE STRING "The name of the I77 library")
 #ENDIF(HAVE_F2C)
 
+string(TOUPPER ${target} target_upper)
+set(feature_file "include/${target}/${target}_features.h")
+
 find_package(Clapack REQUIRED)
 
 # sba library source files
-add_library(${target} #STATIC
+add_library(${target}
   sba_levmar.c sba_levmar_wrap.c sba_lapack.c sba_crsm.c sba_chkjac.c
   sba.h sba_chkjac.h compiler.h
 )
 
 # Export library for downstream projects
 export(TARGETS ${target} FILE ${PROJECT_BINARY_DIR}/cmake/${target}/${target}-export.cmake)
+
+# Create feature detection header
+# Compilers: https://cmake.org/cmake/help/v3.1/variable/CMAKE_LANG_COMPILER_ID.html#variable:CMAKE_%3CLANG%3E_COMPILER_ID
+# Feature: https://cmake.org/cmake/help/v3.1/prop_gbl/CMAKE_CXX_KNOWN_FEATURES.html
+write_compiler_detection_header(
+    FILE ${feature_file}
+    PREFIX ${target_upper}
+    COMPILERS AppleClang Clang GNU MSVC
+    FEATURES cxx_alignas cxx_alignof cxx_constexpr cxx_final cxx_noexcept cxx_nullptr cxx_sizeof_member cxx_thread_local
+)
 
 #if(MSVC)
 	#foreach(flag_var
@@ -176,6 +189,16 @@ target_link_libraries(${target}
     INTERFACE
     )
 
+target_compile_definitions(${target}
+    PRIVATE
+
+    PUBLIC
+    $<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:${target_upper}_STATIC_DEFINE>
+    ${DEFAULT_COMPILE_DEFINITIONS}
+
+    INTERFACE
+)
+
 # Library
 install(TARGETS ${target}
     EXPORT  "${target}-export"                      COMPONENT dev
@@ -191,6 +214,11 @@ file(GLOB INCLUDE_FILES
 )
 install(FILES
     ${INCLUDE_FILES} DESTINATION ${INSTALL_INCLUDE}/${target} COMPONENT dev
+)
+# Generated header files
+install(DIRECTORY
+    ${CMAKE_CURRENT_BINARY_DIR}/include/${target} DESTINATION ${INSTALL_INCLUDE}/${target}
+    COMPONENT dev
 )
 # CMake config
 install(EXPORT ${target}-export
