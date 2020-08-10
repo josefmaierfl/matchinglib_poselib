@@ -54,7 +54,7 @@ for (( i = 1; i <= "$#"; i++ )); do
   fi
 done
 
-if [ "${SEMIRS}" -gt 0 && "${SEMIRS}" -ne 2 ]; then
+if [ "${SEMIRS}" -gt 0 ] && [ "${SEMIRS}" -ne 2 ]; then
   echo "Arguments --sequ_path and --output_path must be provided"
   exit 1
 fi

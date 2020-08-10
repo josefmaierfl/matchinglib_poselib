@@ -163,7 +163,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
             newargs[2] = (char*)tmp1.c_str();
 
             int result = -1;
-            result = cmd.parse(4, newargs);
+            result = cmd.parse(3, newargs);
 
             if (result != ArgvParser::NoParserError)
             {

@@ -17,9 +17,9 @@ fi
 shift 1
 
 if [ "${EXE_MATCHING}" -eq 1 ]; then
-  ./matchinglib-test "$@"
+  ./matchinglib-test $@
 elif [ "${EXE_MATCHING}" -eq 2 ]; then
-  ./poselib-test "$@"
+  ./poselib-test $@
 elif [ "${EXE_MATCHING}" -eq 3 ]; then
-  ./noMatch_poselib-test "$@"
+  ./noMatch_poselib-test $@
 fi
