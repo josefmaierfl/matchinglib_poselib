@@ -246,9 +246,9 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
     cmd.defineOption("r_img_pref", "<Prefix and/or postfix for the right or second images.\n "
 		"For non stereo images (consecutive images), r_img_pref must be empty.\n "
 		"For further details see the description of l_img_pref.>", ArgvParser::OptionRequiresValue);
-    cmd.defineOption("f_detect", "<The name of the feature detector (FAST, MSER, ORB, BRISK, KAZE, AKAZE, STAR, MSD)(For SIFT & SURF, the comments of the corresponding code functions must be removed). [Default=FAST]>", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("f_detect", "<The name of the feature detector (FAST, MSER, ORB, BRISK, KAZE, AKAZE, STAR, MSD)(For SIFT & SURF, the comments of the corresponding code functions must be removed). [Default=BRISK]>", ArgvParser::OptionRequiresValue);
     cmd.defineOption("d_extr", "<The name of the descriptor extractor (BRISK, ORB, KAZE, AKAZE, FREAK, DAISY, LATCH, BGM, BGM_HARD, BGM_BILINEAR, LBGM, BINBOOST_64, BINBOOST_128, BINBOOST_256, VGG_120, VGG_80, VGG_64, VGG_48, RIFF, BOLD )(For SIFT & SURF, the comments of the corresponding code functions must be removed). [Default=FREAK]>", ArgvParser::OptionRequiresValue);
-    cmd.defineOption("matcher", "<The short form of the matcher[Default = GMBSOF]:\n "
+    cmd.defineOption("matcher", "<The short form of the matcher[Default = HNSW]:\n "
         "CASHASH : \t Cascade Hashing matcher\n "
         "GMBSOF : \t Guided Matching based on Statistical Optical Flow\n "
         "HIRCLUIDX : \t Hirarchical Clustering Index Matching from the FLANN library\n "
@@ -276,14 +276,14 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
     cmd.defineOption("refineSOF", "<If provided, the result from the matching algorithm is refined with SOF>", ArgvParser::NoOptionAttribute);
 	cmd.defineOption("refineGMS", "<If provided, the result from the matching algorithm is refined with GMS>", ArgvParser::NoOptionAttribute);
     cmd.defineOption("DynKeyP", "<If provided, the keypoints are detected dynamically to limit the number of keypoints approximately to the maximum number.>", ArgvParser::NoOptionAttribute);
-    cmd.defineOption("f_nr", "<The maximum number of keypoints per frame [Default=8000] that should be used for matching.>", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("f_nr", "<The maximum number of keypoints per frame [Default=5000] that should be used for matching.>", ArgvParser::OptionRequiresValue);
     cmd.defineOption("subPixRef", "<If provided, the feature positions of the final matches are refined by either template matching or OpenCV's corner refinement (cv::cornerSubPix) to get sub-pixel accuracy. Be careful, if there are large rotations, changes in scale or other feature deformations between the matches, template matching option should not be set. The following options are possible:\n 0\t No refinement.\n 1\t Refinement using template matching.\n >1\t Refinement using the OpenCV function cv::cornerSubPix seperately for both images.>", ArgvParser::OptionRequiresValue);
     cmd.defineOption("showNr", "<Specifies the number of matches that should be drawn [Default=50]. If the number is set to -1, all matches are drawn. If the number is set to -2, all matches in addition to all not matchable keypoints are drawn.>", ArgvParser::OptionRequiresValue);
     cmd.defineOption("v", "<Verbose value [Default=7].\n 0\t Display only pose\n 1\t Display matching time\n 2\t Display feature detection times and matching time\n 3\t Display number of features and matches in addition to all temporal values\n 4\t Display pose & pose estimation time\n 5\t Display pose and pose estimation & refinement times\n 6\t Display all available information\n 7\t Display all available information & visualize the matches.>", ArgvParser::OptionRequiresValue);
     cmd.defineOption("c_file", "<Name of the calibration file with file extension. The format of the file corresponds to that provided by KITTI for raw data. For each of the two cameras, the inrinsic ('K_00:', 'K_01:', 'D_00:', 'D_01:') & extrinsic ('R_00:', 'R_01:', 'T_00:', 'T_01:') parameters have to be specified.>", ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
     cmd.defineOption("noPoseDiff", "<If provided, the calculation of the difference to the given pose is disabled.>", ArgvParser::NoOptionAttribute);
     cmd.defineOption("autoTH", "<If provided, the threshold for estimating the pose is automatically adapted to the data. This methode always uses ARRSAC with subsequent refinement.>", ArgvParser::NoOptionAttribute);
-    cmd.defineOption("refineRT", "<If provided, the pose (R, t) is linearly refined using one of the following options. It consists of a combination of 2 digits [Default=00]:\n "
+    cmd.defineOption("refineRT", "<If provided, the pose (R, t) is linearly refined using one of the following options. It consists of a combination of 2 digits [Default=22]:\n "
         "1st digit - choose a refinement algorithm:"
         "\n 0\t no refinement"
         "\n 1\t 8 point algorithm with a pseudo-huber cost-function (old version). Here, the second digit has no effect."
@@ -305,7 +305,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
     cmd.defineOption("output_path", "<Path where rectified images are saved to. Only if a path is given, the rectified images are stored to memory.>", ArgvParser::OptionRequiresValue);
     cmd.defineOption("distcoeffNr", "<Number of used distortion coeffitients in the calibration file. Can be 5 or 8. If not specifyed a default value of 5 is used.>", ArgvParser::OptionRequiresValue);
     cmd.defineOption("histEqual", "<If provided, histogram equalization is applied to the source images.>", ArgvParser::NoOptionAttribute);
-    cmd.defineOption("cfgUSAC", "<Specifies parameters for USAC. It consists of a combination of 6 digits [Default=311225]. "
+    cmd.defineOption("cfgUSAC", "<Specifies parameters for USAC. It consists of a combination of 6 digits [Default=311220]. "
         "In the following the options for every digit are explained:\n "
         "1st digit:\n 0\t Use default paramters for SPRT\n 1\t Automatic estimation of SPRT delta\n 2\t Automatic estimation of SPRT epsilon (only without option refineVFC and refineGMS)\n 3\t Automatic estimation of SPRT delta and epsilon\n "
         "2nd digit:\n 0\t Use default paramter for PROSAC beta\n 1\t Automatic estimation of PROSAC beta (uses SPRT delta)\n "
@@ -313,9 +313,9 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
         "4th digit:\n 0\t Disable degeneracy check\n 1\t Use QDEGSAC for checking degeneracy\n 2\t Use USACs internal degeneracy check\n "
         "5th digit:\n 0\t Estimator: Nister\n 1\t Estimator: Kneip's Eigen solver\n 2\t Estimator: Stewenius\n "
         "6th digit:\n 0\t Inner refinement alg: 8pt with Torr weights\n 1\t Inner refinement alg: 8pt with pseudo-huber weights\n 2\t Inner refinement alg: Kneip's Eigen solver\n 3\t Inner refinement alg: Kneip's Eigen solver with Torr weights\n 4\t Inner refinement alg: Stewenius\n 5\t Inner refinement alg: Stewenius with pseudo-huber weights\n 6\t Inner refinement alg: Nister\n 7\t Inner refinement alg: Nister with pseudo-huber weights>", ArgvParser::OptionRequiresValue);
-    cmd.defineOption("USACdegenTh", "<Decision threshold on the inlier ratios between Essential matrix and the degenerate configuration (only rotation) to decide if the solution is degenerate or not [Default=0.85]. It is only used for the internal degeneracy check of USAC (4th digit of option cfgUSAC = 2)>", ArgvParser::OptionRequiresValue);
-	cmd.defineOption("USACInlratFilt", "<Specifies which filter is used on the matches to estimate an initial inlier ratio for USAC. Choose 0 for GMS and 1 for VFC [Default].>", ArgvParser::OptionRequiresValue);
-	cmd.defineOption("th", "<Inlier threshold to check if a match corresponds to a model. [Default=0.8]>", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("USACdegenTh", "<Decision threshold on the inlier ratios between Essential matrix and the degenerate configuration (only rotation) to decide if the solution is degenerate or not [Default=1.65]. It is only used for the internal degeneracy check of USAC (4th digit of option cfgUSAC = 2)>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("USACInlratFilt", "<Specifies which filter is used on the matches to estimate an initial inlier ratio for USAC. Choose 0 for GMS [Default] and 1 for VFC.>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("th", "<Inlier threshold to check if a match corresponds to a model. [Default=1.6]>", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("compInitPose", "<If provided, the estimated pose is compared to the given pose (Ground Truth).>", ArgvParser::NoOptionAttribute);
 	
 	cmd.defineOption("stereoRef", "<If provided, the algorithm assums a stereo configuration and refines the pose using multiple image pairs.>", ArgvParser::NoOptionAttribute);
@@ -323,7 +323,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 	cmd.defineOption("useOnlyStablePose", "<For stereo refinement: If provided, and the option stereoRef is enabled, only a stable pose is used for rectification after the first stable pose is available. For estimations which do not produce a stable pose, the last stable pose is used. If the real pose is expected to change often, this option should not be used.>", ArgvParser::NoOptionAttribute);
 	cmd.defineOption("useMostLikelyPose", "<For stereo refinement: If provided, the most likely correct pose over the last poses is preferred (if it is stable) instead of the actual pose.>", ArgvParser::NoOptionAttribute);
 	
-	cmd.defineOption("refineRT_stereo", "<For stereo refinement: Linear refinement of the pose using all correspondences from the pool with one of the following options. It consists of a combination of 2 digits [Default=42]:\n "
+	cmd.defineOption("refineRT_stereo", "<For stereo refinement: Linear refinement of the pose using all correspondences from the pool with one of the following options. It consists of a combination of 2 digits [Default=52]:\n "
         "1st digit - choose a refinement algorithm:"
         "\n 1\t 8 point algorithm with a pseudo-huber cost-function (old version). Here, the second digit has no effect."
         "\n 2\t 8 point algorithm"
@@ -338,22 +338,22 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 		">", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("BART_stereo", "<For stereo refinement: If provided, the pose (R, t) is refined using bundle adjustment (BA). The following options are available:\n 1\t BA for extrinsics only (including structure)\n 2\t BA for extrinsics and intrinsics (including structure)>", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("minStartAggInlRat", "<For stereo refinement: Minimum inlier ratio [Default=0.2] at robust estimation to start correspondence aggregation.>", ArgvParser::OptionRequiresValue);
-	cmd.defineOption("relInlRatThLast", "<For stereo refinement: Maximum relative change of the inlier ratio between image pairs to check by a robsut method if the pose changed [Default=0.35].>", ArgvParser::OptionRequiresValue);
-	cmd.defineOption("relInlRatThNew", "<For stereo refinement: Maximum relative change [Default=0.2] between the inlier ratio with the last E and the new robustly estimated E on the new image pair to check if the pose has really changed or if only the image pair qulity is very bad (Only if relInlRatThLast does not hold).>", ArgvParser::OptionRequiresValue);
-	cmd.defineOption("minInlierRatSkip", "<For stereo refinement: Maximum inlier ratio [Default=0.38] using the new robustly estimated E to decide if the image pair quality is too bad (Only if relInlRatThNew does not hold and minInlierRatioReInit is not reached). Below this threshold, a fall-back threshold estimated by relMinInlierRatSkip and the inlier ratio of the last image pair can be used, if the resulting threshold is smaller minInlierRatSkip.>", ArgvParser::OptionRequiresValue);
-	cmd.defineOption("relMinInlierRatSkip", "<For stereo refinement: Multiplication factor on the inlier ratio [Default=0.7] from the last image pair compared to the new robust estimated one to decide if the new image pair quality is too bad. minInlierRatSkip also influences the decision.>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("relInlRatThLast", "<For stereo refinement: Maximum relative change of the inlier ratio between image pairs to check by a robsut method if the pose changed [Default=0.308].>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("relInlRatThNew", "<For stereo refinement: Maximum relative change [Default=0.306] between the inlier ratio with the last E and the new robustly estimated E on the new image pair to check if the pose has really changed or if only the image pair qulity is very bad (Only if relInlRatThLast does not hold).>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("minInlierRatSkip", "<For stereo refinement: Maximum inlier ratio [Default=0.264] using the new robustly estimated E to decide if the image pair quality is too bad (Only if relInlRatThNew does not hold and minInlierRatioReInit is not reached). Below this threshold, a fall-back threshold estimated by relMinInlierRatSkip and the inlier ratio of the last image pair can be used, if the resulting threshold is smaller minInlierRatSkip.>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("relMinInlierRatSkip", "<For stereo refinement: Multiplication factor on the inlier ratio [Default=0.592] from the last image pair compared to the new robust estimated one to decide if the new image pair quality is too bad. minInlierRatSkip also influences the decision.>", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("maxSkipPairs", "<For stereo refinement: Number of consecutive image pairs [Default=5] where a change in pose or a bad pair was detected until the system is reinitialized.>", ArgvParser::OptionRequiresValue);
-	cmd.defineOption("minInlierRatioReInit", "<For stereo refinement: Minimum inlier ratio [Default=0.67] of the new robust estimation after a change in pose was detected to immediately reinitialize the system (Only if relInlRatThNew does not hold).>", ArgvParser::OptionRequiresValue);
-	cmd.defineOption("minPtsDistance", "<For stereo refinement: Minimum distance [Default=3.0] between correspondences in the pool (holding the correspondences of the last image pairs).>", ArgvParser::OptionRequiresValue);
-	cmd.defineOption("maxPoolCorrespondences", "<For stereo refinement: Maximum number of correspondences in the pool [Default=30000].>", ArgvParser::OptionRequiresValue);
-	cmd.defineOption("minContStablePoses", "<For stereo refinement: Minimum number of poses that must be very similar in terms of their geometric distance to detect stability [Default=3].>", ArgvParser::OptionRequiresValue);
-	cmd.defineOption("absThRankingStable", "<For stereo refinement: Maximum normalized error range difference between image pairs to detect stability [Default=0.075]. This normalized error is defined as pose_distance_rating = 1.0 - Pose_Distance_to_all_Poses_gravity_center / max_dist_from_center. absThRankingStable defines the distance region arround the actual pose based on pose_distance_rating +- absThRankingStable. If the maximum pool size is reached and no stability was reached, a different measure based on reprojection error statistics from frame to frame is used (as fall-back) to determine if the computed pose is stable.>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("minInlierRatioReInit", "<For stereo refinement: Minimum inlier ratio [Default=0.541] of the new robust estimation after a change in pose was detected to immediately reinitialize the system (Only if relInlRatThNew does not hold).>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("minPtsDistance", "<For stereo refinement: Minimum distance [Default=3.523] between correspondences in the pool (holding the correspondences of the last image pairs).>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("maxPoolCorrespondences", "<For stereo refinement: Maximum number of correspondences in the pool [Default=4486].>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("minContStablePoses", "<For stereo refinement: Minimum number of poses that must be very similar in terms of their geometric distance to detect stability [Default=4].>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("absThRankingStable", "<For stereo refinement: Maximum normalized error range difference between image pairs to detect stability [Default=0.293205]. This normalized error is defined as pose_distance_rating = 1.0 - Pose_Distance_to_all_Poses_gravity_center / max_dist_from_center. absThRankingStable defines the distance region arround the actual pose based on pose_distance_rating +- absThRankingStable. If the maximum pool size is reached and no stability was reached, a different measure based on reprojection error statistics from frame to frame is used (as fall-back) to determine if the computed pose is stable.>", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("useRANSAC_fewMatches", "<For stereo refinement: If provided, RANSAC for robust estimation if less than 100 matches are available is used.>", ArgvParser::NoOptionAttribute);
-	cmd.defineOption("checkPoolPoseRobust", "<For stereo refinement: After this number of iterations [Default=3] or new image pairs, robust estimation is performed on the pool correspondences. The number automatically grows exponentially after each robust estimation. Options:"
+	cmd.defineOption("checkPoolPoseRobust", "<For stereo refinement: After this number of iterations [Default=2] or new image pairs, robust estimation is performed on the pool correspondences. The number automatically grows exponentially after each robust estimation. Options:"
 		"\n 0\t Disabled"
 		"\n 1\t Robust estimation is used instead of refinement."
 		"\n 2-20\t see above>", ArgvParser::OptionRequiresValue);
-	cmd.defineOption("minNormDistStable", "<For stereo refinement: Minimum normalized distance [Default=0.5] to the center of gravity of all valid poses to detect stability.>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("minNormDistStable", "<For stereo refinement: Minimum normalized distance [Default=0.48087] to the center of gravity of all valid poses to detect stability.>", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("raiseSkipCnt", "<For stereo refinement: If provided, the value of maxSkipPairs is increased after a specific number of stable consecutive poses was detected [Default=00]. The following options are available:\n "
 		"1st digit - Factor to increase maxSkipPairs:"
 		"\n 0\t Disable [Default]"
@@ -361,8 +361,8 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 		"\n 2nd digit - Number of stable consecutive poses to increase maxSkipPairs:"
 		"\n 0-9\t nr = (2nd digit) + 1"
 		">", ArgvParser::OptionRequiresValue);
-	cmd.defineOption("maxRat3DPtsFar", "<For stereo refinement: Maximum ratio [Default=0.5] of 3D points for which their z-value is very large (maxDist3DPtsZ x baseline) compared to the number of all 3D points. Above this threshold, a pose cannot be marked as stable using only a threshold on the Sampson error ranges (see absThRankingStable).>", ArgvParser::OptionRequiresValue);
-	cmd.defineOption("maxDist3DPtsZ", "<Maximum value for the z-coordinates of 3D points [Default=50.0] to be included into BA. Moreover, this value influences the decision if a pose is marked as stable during stereo refinement (see maxRat3DPtsFar).>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("maxRat3DPtsFar", "<For stereo refinement: Maximum ratio [Default=0.4] of 3D points for which their z-value is very large (maxDist3DPtsZ x baseline) compared to the number of all 3D points. Above this threshold, a pose cannot be marked as stable using only a threshold on the Sampson error ranges (see absThRankingStable).>", ArgvParser::OptionRequiresValue);
+	cmd.defineOption("maxDist3DPtsZ", "<Maximum value for the z-coordinates of 3D points [Default=130.0] to be included into BA. Moreover, this value influences the decision if a pose is marked as stable during stereo refinement (see maxRat3DPtsFar).>", ArgvParser::OptionRequiresValue);
 
     /// finally parse and handle return codes (display help etc...)
     testing::InitGoogleTest(&argc, argv);
