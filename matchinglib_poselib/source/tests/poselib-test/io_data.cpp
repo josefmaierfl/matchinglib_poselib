@@ -291,6 +291,11 @@ int loadStereoSequence(std::string filepath, std::string fileprefl, std::string 
             return -1;
         }
 
+        if (filenamesl.empty() && filenamesr.empty()){
+            cerr << "No stereo images found" << endl;
+            return -1;
+        }
+
         if (!fileprefl_use.empty() && i == 0)
         {
             prefxPos1 = filenamesl.back().rfind(fileprefl_use);
