@@ -79,9 +79,9 @@ using namespace cv;
  * Return value:						1 :		Everything ok
  *										0 :		Homography alignment not possible/failed
  */
-int ComputeHomographyMotion(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
+int ComputeHomographyMotion(const std::vector<std::pair<cv::Mat,cv::Mat>>& inl_points,
 							std::vector<cv::Mat> Hs,
-							std::vector<unsigned int> num_inl,
+							const std::vector<unsigned int>& num_inl,
 							cv::Mat & R1_2,
 							cv::Mat & t1_2,
 							double tol,
@@ -106,17 +106,17 @@ int ComputeHomographyMotion(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 		{
 			if(!R1_2.empty())
 				rot2_1 = R1_2.t();
-			HomographysAlignment_initial_rotation(inl_points,num_inl,Hs[0],homo,rot2_1,t1_2,norms,tol);
+            Homographys_Alignment_initial_rotation(inl_points, num_inl, Hs[0], homo, rot2_1, t1_2, norms, tol);
 		}
 		else
 		{
-			HomographysAlignment(inl_points,num_inl,Hs[0],homo,rot2_1,t1_2,norms,tol);
+            Homographys_Alignment(inl_points, num_inl, Hs[0], homo, rot2_1, t1_2, norms, tol);
 		}
 		R1_2 = rot2_1.t();
 		norms.col(0).copyTo(N);
 		for(i = 0; i < num_planes; ++i)
 		{
-			constructAnalyticHomography(rot2_1, t1_2, norms.col(i), homo);
+            construct_analytic_homography(rot2_1, t1_2, norms.col(i), homo);
 			Hs_out.push_back(homo.clone());
 		}
 	}
@@ -125,7 +125,7 @@ int ComputeHomographyMotion(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 		if(t1_2.empty() || cv::norm(t1_2) < 1e-6)
 			return 0;
 
-		LonguetHigginsSolution(Hs[0], rot_b2, dt_b2, norm2);
+        Longuet_Higgins_Solution(Hs[0], rot_b2, dt_b2, norm2);
 		inv_rot_b2.push_back(rot_b2[0].t());
 		inv_rot_b2.push_back(rot_b2[1].t());
 		error[0] = 0.0;
@@ -161,7 +161,7 @@ int ComputeHomographyMotion(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
     double op[2];
 	test_pts2 = Mat(2,1,CV_64F,op);
 	double *test_pts = (double*)inl_points[0].first.row(j).data;
-	homographyTransfer33D(h_a, test_pts, op);
+	homography_transfer_33D(h_a, test_pts, op);
 	p_diff = test_pts2 - inl_points[0].first.row(j).t();
 	cout << "reprojection error " << p_diff.at<double>(0) << ", " << p_diff.at<double>(1) << endl;
   }
@@ -194,27 +194,27 @@ int ComputeHomographyMotion(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 #define MAX_ITERATION 40
 //estimated rotation is from camera 1 to camera 2
 //estimate translation if the camera 2 in camera 1 frame
-int  HomographysAlignment(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
-						  std::vector<unsigned int> num_inl,
-						  cv::InputArray H,
-						  cv::Mat & homo,
-						  cv::Mat & R2_1,
-						  cv::Mat & t1_2,
-						  cv::Mat & norms,
-						  double tol)
+int  Homographys_Alignment(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
+                           std::vector<unsigned int> num_inl,
+                           cv::InputArray H,
+                           cv::Mat & homo,
+                           cv::Mat & R2_1,
+                           cv::Mat & t1_2,
+                           cv::Mat & norms,
+                           double tol)
 {
 
-	Mat _H = H.getMat();
+	Mat Hm = H.getMat();
 	std::vector<Mat> rot_b2, dt_b2, norm2, base_rt2, rot2, homo2, t2/*, rt2*/;
 	Mat dn, dn2, h0, rt0, rot_b, dt_b, norm_b, _hh;
-	rot2.push_back(Mat(3,3,CV_64F));
-	rot2.push_back(Mat(3,3,CV_64F));
-	homo2.push_back(Mat(3,3,CV_64F));
-	homo2.push_back(Mat(3,3,CV_64F));
-	t2.push_back(Mat(3,1,CV_64F));
-	t2.push_back(Mat(3,1,CV_64F));
-	base_rt2.push_back(Mat(3,1,CV_64F));
-	base_rt2.push_back(Mat(3,1,CV_64F));
+	rot2.emplace_back(3,3,CV_64F);
+	rot2.emplace_back(Mat(3,3,CV_64F));
+	homo2.emplace_back(Mat(3,3,CV_64F));
+	homo2.emplace_back(Mat(3,3,CV_64F));
+	t2.emplace_back(Mat(3,1,CV_64F));
+	t2.emplace_back(Mat(3,1,CV_64F));
+	base_rt2.emplace_back(Mat(3,1,CV_64F));
+	base_rt2.emplace_back(Mat(3,1,CV_64F));
 	int i ;
 	int iter;
 	double hh[3][3];
@@ -239,9 +239,9 @@ int  HomographysAlignment(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 	dn = Mat(num_patches,3,CV_64F);
 	dn2 = Mat(2*num_patches,3,CV_64F);
 
-	_H.copyTo(h0);
+	Hm.copyTo(h0);
 
-	LonguetHigginsSolution(_H, rot_b2, dt_b2, norm2);
+    Longuet_Higgins_Solution(Hm, rot_b2, dt_b2, norm2);
 	errors[0] = Check_motion_error(inl_points, num_inl, rot_b2[0], dt_b2[0]);
 	errors[1] = Check_motion_error(inl_points, num_inl, rot_b2[1], dt_b2[1]);
 
@@ -253,7 +253,7 @@ int  HomographysAlignment(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 	//q is the index of which solution is used for HA
 	for(q = 0; q < 2; ++q)
 	{
-		_H.copyTo(h0);
+		Hm.copyTo(h0);
 		base_rt2[q].copyTo(rt0);
 		rot_b2[q].copyTo(rot_b);
 		dt_b2[q].copyTo(dt_b);
@@ -263,7 +263,7 @@ int  HomographysAlignment(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 			//this is to update the h0 and dn
 			for(iter = 0 ; iter < MAX_ITERATION; ++iter)
 			{
-				dn.row(0) = Mat::zeros(1,3,CV_64F);//first update the dn here ---------> warum wird immer der erste 0 gesetzt -> ist das nicht ein Fehler -> nein (weil in der folgenden for-Schleife nie der erste ein update bekommt (die anderen werden dort hin getrimmt)
+				dn.row(0) = Mat::zeros(1,3,CV_64F);
 
 				for(i = 1; i < num_patches; ++i)
 				{
@@ -272,8 +272,7 @@ int  HomographysAlignment(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 				}
 
 				update_h0_rt(inl_points,num_inl,h0,dn,rt0);
-				e1 = Check_error(inl_points, num_inl, h0, dn, rt0);
-				//printf("q = %d iter %d e1 = %f e2 = %f\n", q, iter, e1, e2);
+				e1 = check_error(inl_points, num_inl, h0, dn, rt0);
 
 				if((fabs(e1-e2) < 0.00001 || e1 < tol)&& iter > 2)
 				{
@@ -287,10 +286,10 @@ int  HomographysAlignment(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 				//compute the total error
 			}
 
-			LonguetHigginsSolution_with_initial(h0, rot_b, dt_b, norm_b);
+            Longuet_Higgins_Solution_with_initial(h0, rot_b, dt_b, norm_b);
 			rt0 = rot_b * dt_b;
 
-			e1 = Check_error(inl_points, num_inl, h0, dn, rt0);
+			e1 = check_error(inl_points, num_inl, h0, dn, rt0);
 
 			if((fabs(e1-e2) < 0.000001 || e1 < tol)&& iter > 2)
 			{
@@ -316,7 +315,7 @@ int  HomographysAlignment(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 		}
 	}
 
-	//LonguetHigginsSolution(h0, rot_b2, dt_b2, norm2);
+	//Longuet_Higgins_Solution(h0, rot_b2, dt_b2, norm2);
 	errors[0] = Check_motion_error(inl_points, num_inl, rot2[0], t2[0]);
 	errors[1] = Check_motion_error(inl_points, num_inl, rot2[1], t2[1]);
 
@@ -388,26 +387,26 @@ int  HomographysAlignment(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 #ifndef MAX_ITERATION
 #define MAX_ITERATION 30
 
-int HomographysAlignment_initial_rotation(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
-						  std::vector<unsigned int> num_inl,
-						  cv::InputArray H,
-						  cv::Mat & homo,
-						  cv::Mat & R2_1,
-						  cv::Mat & t1_2,
-						  cv::Mat & norms,
-						  double tol)
+int Homographys_Alignment_initial_rotation(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
+                                           std::vector<unsigned int> num_inl,
+                                           cv::InputArray H,
+                                           cv::Mat & homo,
+                                           cv::Mat & R2_1,
+                                           cv::Mat & t1_2,
+                                           cv::Mat & norms,
+                                           double tol)
 {
-	Mat h0, _H, R, dR, rot_b, dn, dn2, rt0, rt00, dt_b, norm_b, _hh;
+	Mat h0, Hm, R, dR, rot_b, dn, dn2, rt0, rt00, dt_b, norm_b, _hh;
 	std::vector<Mat> rot_b2, dt_b2, norm2, base_rt2, rot2, homo2, t2;
-	_H = H.getMat();
-	base_rt2.push_back(Mat(3,1,CV_64F));
-	base_rt2.push_back(Mat(3,1,CV_64F));
-	rot2.push_back(Mat(3,3,CV_64F));
-	rot2.push_back(Mat(3,3,CV_64F));
-	homo2.push_back(Mat(3,3,CV_64F));
-	homo2.push_back(Mat(3,3,CV_64F));
-	t2.push_back(Mat(3,1,CV_64F));
-	t2.push_back(Mat(3,1,CV_64F));
+    Hm = H.getMat();
+	base_rt2.emplace_back(3,1,CV_64F);
+	base_rt2.emplace_back(Mat(3,1,CV_64F));
+	rot2.emplace_back(Mat(3,3,CV_64F));
+	rot2.emplace_back(Mat(3,3,CV_64F));
+	homo2.emplace_back(Mat(3,3,CV_64F));
+	homo2.emplace_back(Mat(3,3,CV_64F));
+	t2.emplace_back(Mat(3,1,CV_64F));
+	t2.emplace_back(Mat(3,1,CV_64F));
 	int i ;
 	int iter;
 	double hh[3][3];
@@ -430,9 +429,9 @@ int HomographysAlignment_initial_rotation(std::vector<std::pair<cv::Mat,cv::Mat>
 	dn = Mat(num_patches,3,CV_64F);
 	dn2 = Mat(2*num_patches,3,CV_64F);
 
-	_H.copyTo(h0);
+	Hm.copyTo(h0);
 
-	LonguetHigginsSolution(h0, rot_b2, dt_b2, norm2);
+    Longuet_Higgins_Solution(h0, rot_b2, dt_b2, norm2);
 	R = R2_1.t();
 	dR = R * rot_b2[0];
 	Eigen::Matrix3d rot_e;
@@ -471,7 +470,7 @@ int HomographysAlignment_initial_rotation(std::vector<std::pair<cv::Mat,cv::Mat>
 	//q is the index of which solution is used for HA
 	for(q = 0; q < 1; ++q)
 	{
-		_H.copyTo(h0);
+		Hm.copyTo(h0);
 		base_rt2[q].copyTo(rt0);
 		rt0.copyTo(rt00);
 		e2 = 100000.0;
@@ -479,7 +478,7 @@ int HomographysAlignment_initial_rotation(std::vector<std::pair<cv::Mat,cv::Mat>
 		{
 			for(iter = 0 ; iter < MAX_ITERATION; ++iter)
 			{
-				dn.row(0) = Mat::zeros(1,3,CV_64F); //first update the dn here ---------> warum wird immer der erste 0 gesetzt -> ist das nicht ein Fehler -> nein (weil in der folgenden for-Schleife nie der erste ein update bekommt (die anderen werden dort hin getrimmt)
+				dn.row(0) = Mat::zeros(1,3,CV_64F);
 
 				for(i = 1; i < num_patches; ++i)
 				{
@@ -488,7 +487,7 @@ int HomographysAlignment_initial_rotation(std::vector<std::pair<cv::Mat,cv::Mat>
 				}
 
 				update_h0_rt(inl_points,num_inl,h0,dn,rt0);
-				e1 = Check_error(inl_points, num_inl, h0, dn, rt0);
+				e1 = check_error(inl_points, num_inl, h0, dn, rt0);
 
 				if((fabs(e1-e2) < 0.00001 || e1 < tol)&& iter > 2)
 				{
@@ -502,7 +501,7 @@ int HomographysAlignment_initial_rotation(std::vector<std::pair<cv::Mat,cv::Mat>
 				//compute the total error
 			}
 			//update rt0
-			LonguetHigginsSolution_with_initial(h0, rot_b, dt_b, norm_b);
+            Longuet_Higgins_Solution_with_initial(h0, rot_b, dt_b, norm_b);
 
 			//this may no tbe the right solution
 			rt0 = rot_b * dt_b;
@@ -511,7 +510,7 @@ int HomographysAlignment_initial_rotation(std::vector<std::pair<cv::Mat,cv::Mat>
 			h0.copyTo(homo2[q]);
 			dt_b.copyTo(t2[q]);
 
-			e1 = Check_error(inl_points, num_inl, h0, dn, rt0);
+			e1 = check_error(inl_points, num_inl, h0, dn, rt0);
 			if((fabs(e1-e2) < 0.000001 || e1 < tol)&& iter > 2)
 			{
 				break;
@@ -575,9 +574,9 @@ int HomographysAlignment_initial_rotation(std::vector<std::pair<cv::Mat,cv::Mat>
  * Return value:						1 :		Everything ok
  *										0 :		Estimation not possible/failed
  */
-int LonguetHigginsSolution( cv::InputArray H, std::vector<cv::Mat> & R1_2, std::vector<cv::Mat> & dt2in1, std::vector<cv::Mat> & norm)
+int Longuet_Higgins_Solution(cv::InputArray H, std::vector<cv::Mat> & R1_2, std::vector<cv::Mat> & dt2in1, std::vector<cv::Mat> & norm)
 {
-    Mat _H = H.getMat();
+    Mat Hm = H.getMat();
 	if(!R1_2.empty())
 		R1_2.clear();
 
@@ -614,15 +613,15 @@ int LonguetHigginsSolution( cv::InputArray H, std::vector<cv::Mat> & R1_2, std::
 	Mat _tn = Mat(3,3,CV_64F,tn);
 	Mat _hh = Mat(3,3,CV_64F,hh);
 	Mat _u = Mat(3,3,CV_64F,u);
-	ht = _H.t();
-	_hh = ht * _H;
+	ht = Hm.t();
+	_hh = ht * Hm;
     //u here is the Ut on the right side
-    jacobi33(hh, d, u, &iter);
+    jacobi_mat_33(hh, d, u, &iter);
 	ut = _u.t();
 
 	_hh = d[1] * _hh;
     d2 = 1.0/sqrt(d[1]);
-	h_norm = d2 * _H;//the homo_norm is the homo transform with
+	h_norm = d2 * Hm;//the homo_norm is the homo transform with
     d[0] = d[0]/d[1];
     d[2] = d[2]/d[1];
     d[1] = 1.0;
@@ -731,12 +730,11 @@ int LonguetHigginsSolution( cv::InputArray H, std::vector<cv::Mat> & R1_2, std::
  * Return value:						1 :		Everything ok
  *										0 :		Estimation not possible/failed
  */
-int LonguetHigginsSolution_with_initial( cv::InputArray H, cv::Mat & R2_1, cv::Mat & dt1, cv::Mat & norm1)
+int Longuet_Higgins_Solution_with_initial(cv::InputArray H, cv::Mat & R2_1, cv::Mat & dt1, cv::Mat & norm1)
 {
-    Mat _H = H.getMat();
+    Mat Hm = H.getMat();
 	double hh[3][3], d[3], u[3][3], n[3], check, d2;
     double p[3], t[3], tn[3][3];
-    double homo_norm[3][3];
 
     double ts[3];
     double ps[3] ;
@@ -751,16 +749,16 @@ int LonguetHigginsSolution_with_initial( cv::InputArray H, cv::Mat & R2_1, cv::M
 	Mat _hh = Mat(3,3,CV_64F,hh);
 	Mat _u = Mat(3,3,CV_64F,u);
 
-	ht = _H.t();
-	_hh = ht * _H;
+	ht = Hm.t();
+	_hh = ht * Hm;
     //u here is the Ut on the right side
-    jacobi33(hh, d, u, &iter);
+    jacobi_mat_33(hh, d, u, &iter);
 
 
     //if d[1] != 1.0 make a correction
 	_hh = -1.0 * _hh;
     d2 = 1.0/sqrt(d[1]);
-	h_norm = d2 * _H;//the homo_norm is the homo transform with
+	h_norm = d2 * Hm;//the homo_norm is the homo transform with
     d[0] = d[0]/d[1];
     d[2] = d[2]/d[1];
     d[1] = 1.0;
@@ -824,14 +822,11 @@ int LonguetHigginsSolution_with_initial( cv::InputArray H, cv::Mat & R2_1, cv::M
 			}
         }
     }
-	if(dt[0].dot(dt1) > dt[1].dot(dt1))
-    {
+	if(dt[0].dot(dt1) > dt[1].dot(dt1)){
 		i = 0;
 		dt[0].copyTo(dt1);
 		norm[0].copyTo(norm1);
-    }
-    else
-    {
+    }else{
 	    i = 1;
 		dt[1].copyTo(dt1);
 		norm[1].copyTo(norm1);
@@ -875,7 +870,7 @@ int LonguetHigginsSolution_with_initial( cv::InputArray H, cv::Mat & R2_1, cv::M
 #define ROTATE(a,i,j,k,l) g=a[i][j];h=a[k][l];a[i][j]=g-s*(h+g*tau);\
 	a[k][l]=h+s*(g-h*tau);
 
-int jacobi33(double a[3][3], double d[3], double v[3][3], int *nrot)
+int jacobi_mat_33(double a[3][3], double *d, double v[3][3], int *nrot)
 {
 	int j,iq,ip,i;
 	double tresh,theta,tau,t,sm,s,h,g,c, b[3],z[3];
@@ -1016,12 +1011,12 @@ int jacobi33(double a[3][3], double d[3], double v[3][3], int *nrot)
 
 double Check_motion_error(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 						  std::vector<unsigned int> num_inl,
-						  cv::Mat R1_2,
-						  cv::Mat t)
+						  const cv::Mat& R1_2,
+						  const cv::Mat& t)
 {
 	Mat c0, R2_1, p, r1, r2, p1, p2, dp;
-	int num_homo = (int)num_inl.size();
-	int i, j;
+	size_t num_homo = num_inl.size();
+    size_t i, j;
 	double error, error1;
 	int total_pts;
 
@@ -1043,7 +1038,7 @@ double Check_motion_error(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 			p1 = R2_1 * p;
 			r2 = p1 / cv::norm(p1);
 
-			if(Rays_ClosestPoints(c0, r1, t, r2, p1, p2)!= 0)
+			if(Rays_Closest_Points(c0, r1, t, r2, p1, p2) != 0)
 			{
 				dp = p1 - p2;
 				error1 += cv::norm(dp);
@@ -1056,14 +1051,14 @@ double Check_motion_error(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 	return error/(double)total_pts;
 }
 
-int Rays_ClosestPoints(cv::Mat pt1, cv::Mat ray1, cv::Mat pt2, cv::Mat ray2, cv::Mat & p1, cv::Mat & p2)
+int Rays_Closest_Points(const cv::Mat& pt1, const cv::Mat& ray1, const cv::Mat& pt2, const cv::Mat& ray2, cv::Mat & p1, cv::Mat & p2)
 {
     double m1, m2, dotp, dotbv1, dotbv2;
 	Mat b;
 
 	if(fabs(ray1.dot(ray2)) >0.9999999)
 	{
-		//two ray are close to parallel
+		//two rays are close to parallel
 		return 0;
 	}
 	b = pt2 - pt1;
@@ -1080,8 +1075,6 @@ int Rays_ClosestPoints(cv::Mat pt1, cv::Mat ray1, cv::Mat pt2, cv::Mat ray2, cv:
 	{
 		m1 = (dotbv1 - dotbv2*dotp)/(1.0-dotp*dotp);
 		m2 = dotp*m1 - dotbv2;
-
-		//m1 = dotbv1/(1+dotp);
 	}
 	p1 = m1 * ray1;
 	p2 = m2 * ray2;
@@ -1090,7 +1083,7 @@ int Rays_ClosestPoints(cv::Mat pt1, cv::Mat ray1, cv::Mat pt2, cv::Mat ray2, cv:
 	return 1;
 }
 
-int update_dn(cv::Mat points1, cv::Mat points2, int num_pts, cv::Mat h0, cv::Mat k0, cv::Mat & dn)
+int update_dn(cv::Mat points1, cv::Mat points2, int num_pts, const cv::Mat& h0, const cv::Mat& k0, cv::Mat & dn)
 {
 	Mat A, B, invA, p, p1, t, t1, _hp, _tt, ty;
 	int i;
@@ -1152,16 +1145,16 @@ int update_dn(cv::Mat points1, cv::Mat points2, int num_pts, cv::Mat h0, cv::Mat
  int update_h0_rt(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 				  std::vector<unsigned int> num_inl,
 				  cv::Mat & homo,
-				  cv::Mat dn,
+				  const cv::Mat& dn,
 				  cv::Mat & rt)
 {
 	Mat rt_back, _p1;
-	int num_homo = (int)num_inl.size();
+	size_t num_homo = num_inl.size();
 	double *_homo;
 	double *_rt;
 	_homo = (double*)homo.data;
 	_rt = (double*)rt.data;
-	int i, j;
+    size_t i, j;
 	double r[11];
 	double a[121], inva[121], b[11], m[11];
 	double c[121];
@@ -1205,11 +1198,11 @@ int update_dn(cv::Mat points1, cv::Mat points2, int num_pts, cv::Mat h0, cv::Mat
 			r[8] = dnp;
 			r[9] = 0.0;
 			r[10] = -p2[0]*dnp;
-			LinearTransformD(r, r, c, 11, 1, 11);
-			AddMatrixD (c, a, a, 11, 11);
+            Linear_Transform_D(r, r, c, 11, 1, 11);
+            add_matrix_D(c, a, a, 11, 11);
 			d = (double)p2[0];
-			ScaleMatrixD (d, r, r, 11, 1);
-			AddMatrixD(r, b, b, 11, 1);
+            scale_matrix_D(d, r, r, 11, 1);
+            add_matrix_D(r, b, b, 11, 1);
 
 			r[0] = 0.0;
 			r[1] = 0.0;
@@ -1224,19 +1217,19 @@ int update_dn(cv::Mat points1, cv::Mat points2, int num_pts, cv::Mat h0, cv::Mat
 			r[8] = 0.0;
 			r[9] = dnp;
 			r[10] = -p2[1]*dnp;
-			LinearTransformD(r, r, c, 11, 1, 11);
-			AddMatrixD (c, a, a, 11, 11);
+            Linear_Transform_D(r, r, c, 11, 1, 11);
+            add_matrix_D(c, a, a, 11, 11);
 			d = (double)p2[1];
-			ScaleMatrixD (d, r, r, 11, 1);
-			AddMatrixD(r, b, b, 11, 1);
+            scale_matrix_D(d, r, r, 11, 1);
+            add_matrix_D(r, b, b, 11, 1);
 		}
 	}
-	if(InvertMatrixD(a, inva, 11, 11) == 0)
+	if(invert_matrix_D(a, inva, 11, 11) == 0)
 	{
 		return (0);
 	}
 
-	LinearTransformD(inva, b, m, 11, 11, 1);
+    Linear_Transform_D(inva, b, m, 11, 11, 1);
 	_homo[0] = m[0];
 	_homo[1] = m[1];
 	_homo[2] = m[2];
@@ -1254,9 +1247,7 @@ int update_dn(cv::Mat points1, cv::Mat points2, int num_pts, cv::Mat h0, cv::Mat
 	return 1;
 }
 
-/********************************************************************************
- * LinearTransform
- * Linear transformations, for transforming vectors and matrices.
+/* Linear transformations, for transforming vectors and matrices.
  * This works for row vectors and column vectors alike.
  *	L[nRows][lCol]	- input (left) matrix
  *	rg[lCol][rCol]	- transformation (right) matrix
@@ -1273,29 +1264,28 @@ int update_dn(cv::Mat points1, cv::Mat points2, int num_pts, cv::Mat h0, cv::Mat
  * by the right matrix, placing the result back in the left.  By its nature,
  * then, this can only be used for transforming row vectors or concatenating
  * matrices from the right.
- ********************************************************************************/
+ */
 #define MAXDIM	32			/* The maximum dimension of a matrix */
 
-void LinearTransformD(
-	const double		*L,		/* The left matrix */
-	const double		*R,		/* The right matrix */
-	register double	*P,		/* The resultant matrix */
-	long			nRows,	/* The number of rows of the left and resultant matrices */
-	long			lCol,	/* The number of columns in the left matrix */
-	long			rCol	/* The number of columns in the resultant matrix */
-)
+void Linear_Transform_D(
+        const double *L, //The left mat
+        const double *R, //The right mat
+        double	*P,	//The result mat
+        int nRows, //Number of rows of the left and result matrices
+        int lCol, //Number of columns in the left matrix
+        int rCol) //The number of columns in the result matrix
 {
-	register const double *lp;		/* Left matrix pointer for dot product */
-	register const char *rp;		/* Right matrix pointer for dot product */
-	register long k;				/* Loop counter */
-	register double sum;			/* Extended precision for intermediate results */
-	register long rowBytes = lCol * sizeof(double);
-	register long rRowBytes = rCol * sizeof(double);
-	register long j, i;				/* Loop counters */
-	register long lRowBytes = lCol * sizeof(double);
+	const double *lp;		/* Left matrix pointer for dot product */
+	const char *rp;		/* Right matrix pointer for dot product */
+	int k;				/* Loop counter */
+	double sum;			/* Extended precision for intermediate results */
+    size_t rowBytes = lCol * sizeof(double);
+    size_t rRowBytes = rCol * sizeof(double);
+	int j, i;				/* Loop counters */
+	size_t lRowBytes = lCol * sizeof(double);
 	const char *lb = (const char*)L;
 	double temp[MAXDIM*MAXDIM]; // Temporary storage for in-place transformations
-	register double *tp;
+	double *tp;
 
 	if (P == L) {  // IN PLACE
 		double *op = P;				/* Output geometry */
@@ -1339,43 +1329,38 @@ void LinearTransformD(
 	}
 }
 
-void AddMatrixD (double *A, double *B, double *result, long m, long n)
+void add_matrix_D(double *A, double *B, double *result, int m, int n)
 {
-	long i;
-	for (i = m * n; i --; A++, B++, result ++)
+	for (int i = m * n; i --; A++, B++, result ++)
 		*result = (*A) + (*B);
 }
 
-void ScaleMatrixD (double scale, double *from, double *to, long m, long n)
+void scale_matrix_D (double scale, double *from, double *to, int m, int n)
 {
-	long i;
-	for (i = m * n; i--; from ++, to++)
+	for (int i = m * n; i--; from ++, to++)
 		*to = scale * (*from);
 }
 
-/********************************************************************************
- * InvertMatrix()
- *	Inverts square matrices
+/*  Inverts square matrices
  *	With tall matrices, invert upper part and transform the bottom
  *	rows as would be expected if embedded into a larger matrix.
  *	Undefined for wide matrices.
  * M^(-1) --> Minv
- * IN PLACE SUPPORTED, no performance difference
  *
- * 1 is returned if the matrix was non-singular and the inversion was successful;
- * 0 is returned if the matrix was singular and the inversion failed.
- ********************************************************************************/
+ * 1 is returned if the matrix was non-singular and the inversion was successful
+ * 0 is returned if the matrix was singular and the inversion failed
+ */
 
-long InvertMatrixD (const double *M, double *Minv, long nRows, register long n)
+size_t invert_matrix_D (const double *M, double *Minv, int nRows, int n)
 {
 	double *m;
-	long tallerBy = nRows - n;		/* Excess of rows over columns */
-	register long j, i;
+	int tallerBy = nRows - n;		/* Excess of rows over columns */
+	int j, i;
 	double b[MAXDIM];
 	double lu[MAXDIM*MAXDIM+MAXDIM];
 
 	/* Decompose matrix into L and U triangular matrices */
-	if ((tallerBy < 0) || (LUDecomposeD(M, lu, n) == 0)) {
+	if ((tallerBy < 0) || (LU_decompose_D(M, lu, n) == 0)) {
 		return(0);		/* Singular */
 	}
 
@@ -1385,46 +1370,44 @@ long InvertMatrixD (const double *M, double *Minv, long nRows, register long n)
 			b[j] = 0;
 		b[i] = 1;
 
-		LUSolveD(lu, b, m, n);	/* Into a row of m */
+        LU_solve_D(lu, b, m, n);	/* Into a row of m */
 	}
 
 	/* Special post-processing for affine transformations (e.g. 4x3) */
-	if (tallerBy) {			/* Affine transformation */
-		register double *t = Minv+n*n;			/* Translation vector */
-		m = Minv;			/* Reset m */
-		LinearTransformD(t, m, t, tallerBy, n, n);	/* Invert translation */
+	if (tallerBy) {	/* Affine transformation */
+		double *t = Minv+n*n;/* Translation vector */
+		m = Minv;/* Reset m */
+        Linear_Transform_D(t, m, t, tallerBy, n, n);/* Invert translation */
 		for (j = tallerBy * n; n--; t++)
-			*t = -*t;				/* Negate translation vector */
+			*t = -*t;/* Negate translation vector */
 	}
 
 	return(1);
 }
 
-/********************************************************************************
- * LUDecompose() decomposes the coefficient matrix A into upper and lower
+/* Decomposes the coefficient matrix A into upper and lower
  * triangular matrices, the composite being the LU matrix.
  * This is then followed by multiple applications of FELUSolve(),
  * to solve several problems with the same system matrix.
  *
  * 1 is returned if the matrix is non-singular and the decomposition was successful;
  * 0 is returned if the matrix is singular and the decomposition failed.
- ********************************************************************************/
+ */
 #define luel(i, j)  lu[(i)*n+(j)]
 #define ael(i, j)	a[(i)*n+(j)]
 
-long LUDecomposeD(
-	register const double	*a,		/* the (n x n) coefficient matrix */
-	register double		*lu, 	/* the (n x n) lu matrix augmented by an (n x 1) pivot sequence */
-	register long			n		/* the order of the matrix */
-)
+size_t LU_decompose_D(
+        const double *a, //n x n coefficient matrix
+        double *lu, //n x n LU matrix augmented by an n x 1 pivot sequence
+        int n) //Order of the matrix
 {
-	register long i, j, k;
-	short pivotindex;
+	int i, j, k;
+    int pivotindex;
 	double pivot, biggest, mult, tempf;
-	register long *ps;
+	int *ps;
 	double scales[MAXDIM];
 
-	ps = (long *)(&lu[n*n]); /* Memory for ps[] comes after LU[][] */
+	ps = (int *)(&lu[n*n]); /* Memory for ps[] comes after LU[][] */
 
 	for (i = 0; i < n; i++) {	/* For each row */
 		/* Find the largest element in each row for row equilibration */
@@ -1448,7 +1431,7 @@ long LUDecomposeD(
 		for (i = k; i < n; i++) {
 			if (biggest < (tempf = fabs(luel(ps[i],k)) * scales[ps[i]])) {
 				biggest = tempf;
-				pivotindex = (short)i;
+				pivotindex = i;
 			}
 		}
 		if (biggest == 0.0)
@@ -1470,25 +1453,24 @@ long LUDecomposeD(
 		}
 	}
 	return(luel(ps[n-1],n-1) != 0.0);	/* 0 if singular, 1 if not */
-}	/* Decompose */
+}
 
-/********************************************************************************
- * Solve() solves the linear equation (xA = b) after the matrix A has
- * been decomposed with LUDecompose() into the lower and upper triangular
- * matrices L and U, giving the equivalent equation (xUL = b).
- ********************************************************************************/
-void LUSolveD(
-	register const double	*lu,	/* the decomposed LU matrix */
-	register const double	*b,		/* the constant vector */
-	register double			*x,		/* the solution vector */
-	register long			n		/* the order of the equation */
-)
+/*
+ * Solves the linear equation xA = b after the matrix A has
+ * been decomposed with LUDecompose into the lower and upper triangular
+ * matrices L and U, giving the equivalent equation xUL = b.
+ */
+void LU_solve_D(
+        const double *lu, //decomposed LU matrix
+        const double *b, //constant vector
+        double *x, //solution vector
+        int n) //order of the equation
 {
-	register long i, j;
+	int i, j;
 	double dot;
-	register const long *ps;
+	const int *ps;
 
-	ps = (const long *)(&lu[n*n]); /* Memory for ps[] comes after LU[][] */
+	ps = (const int *)(&lu[n*n]); /* Memory for ps[] comes after LU[][] */
 
 	/* Vector reduction using U triangular matrix */
 	for (i = 0; i < n; i++) {
@@ -1505,19 +1487,19 @@ void LUSolveD(
 			dot += luel(ps[i],j) * x[j];
 		x[i] = (x[i] - dot) / luel(ps[i],i);
 	}
-}	/* LUSolve */
+}
 
 //compute mean of reprojection error
-double Check_error(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
-				  std::vector<unsigned int> num_inl,
-				  cv::Mat base_homo,
-				  cv::Mat dn,
-				  cv::Mat rt)
+double check_error(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
+                   std::vector<unsigned int> num_inl,
+                   const cv::Mat& base_homo,
+                   cv::Mat dn,
+                   cv::Mat rt)
 {
-	int num_homo = (int)num_inl.size();
+	size_t num_homo = num_inl.size();
 	double *points1, *points2;
 	Mat _h;
-	int i, j;
+    size_t i, j;
 	double error, error1;
 	double dx, dy;
 	double op[2];
@@ -1545,7 +1527,7 @@ double Check_error(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 		{
 			points1 = (double*)inl_points[i].first.row(j).data;
 			points2 = (double*)inl_points[i].second.row(j).data;
-			homographyTransfer33D(h, points1, op);
+            homography_transfer_33D(h, points1, op);
 			dx = op[0] - points2[0];
 			dy = op[1] - points2[1];
 			error1 +=sqrt(dx*dx + dy*dy);
@@ -1556,7 +1538,7 @@ double Check_error(std::vector<std::pair<cv::Mat,cv::Mat>> inl_points,
 	return error/(float)total_pts;
 }
 
-int homographyTransfer33D(double h[3][3], double ip[2], double op[2])
+int homography_transfer_33D(double h[3][3], double *ip, double *op)
 {
 	double  p[3];
 	double hp[3];
@@ -1564,13 +1546,13 @@ int homographyTransfer33D(double h[3][3], double ip[2], double op[2])
 	_h = Mat(3,3,CV_64F,h);
 	_hp = Mat(3,1,CV_64F,hp);
 	_p = Mat(3,1,CV_64F,p);
-	convertToHomo(ip, p);
+    convertToHomography(ip, p);
 	_hp = _h * _p;
 	convertToImage(hp, op);
 	return 1;
 }
 
-int convertToHomo(double ip[2], double op[3])
+int convertToHomography(const double *ip, double *op)
 {
 	op[0] = ip[0];
 	op[1] = ip[1];
@@ -1578,7 +1560,7 @@ int convertToHomo(double ip[2], double op[3])
 	return 1;
 }
 
-int convertToImage(double ip[3], double op[2])
+int convertToImage(const double ip[3], double op[2])
 {
 	op[0] = ip[0]/ip[2];
 	op[1] = ip[1]/ip[2];
@@ -1592,7 +1574,7 @@ int convertToImage(double ip[3], double op[2])
 //the argument input is
 //P2 = R(P1-t)
 
-int constructAnalyticHomography(cv::Mat rot, cv::Mat t, cv::Mat plane, cv::Mat & h)
+int construct_analytic_homography(const cv::Mat& rot, cv::Mat t, cv::Mat plane, cv::Mat & h)
 {
 	Mat _tp, im;
 	double tp[3][3], s;
