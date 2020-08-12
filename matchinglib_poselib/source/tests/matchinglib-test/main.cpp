@@ -93,53 +93,98 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
     testing::internal::FilePath program_dir = program.RemoveFileName();
     testing::internal::FilePath data_path = testing::internal::FilePath::ConcatPaths(program_dir,testing::internal::FilePath("imgs/homography/wall"));
 
-    cmd.setIntroductoryDescription("Interface for testing various keypoint detectors, descriptor extractors, and matching algorithms.\n Example of usage:\n"
-                                   + std::string(argv[0]) + " --img_path=" + data_path.string() + " --l_img_pref=left_ --r_img_pref=right_ ");
+    cmd.setIntroductoryDescription("Interface for testing various keypoint detectors, descriptor extractors, "
+                                   "and matching algorithms.\n Example of usage:\n"
+                                   + std::string(argv[0]) + " --img_path=" + data_path.string() + " --l_img_pref=img_");
     //define error codes
     cmd.addErrorCode(0, "Success");
     cmd.addErrorCode(1, "Error");
 
     cmd.setHelpOption("h", "help","<Shows this help message.>");
     cmd.defineOption("img_path",
-                     "<Path to the images (all required in one folder). All images are loaded one after another for matching using the specified file prefixes for left and right images. If only the left prefix is specified, images with the same prefix flollowing after another are matched.>",
+                     "<Path to the images (all required in one folder). All images are loaded one "
+                     "after another for matching using the specified file prefixes for left and right images. "
+                     "If only the left prefix is specified, images with the same prefix flollowing after another are matched.>",
                      ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
-    cmd.defineOption("l_img_pref",
-                     "<The prefix of the left or first image. The whole prefix until the start of the number is needed (last character must be '_').>",
-                     ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
-    cmd.defineOption("r_img_pref",
-                     "<The prefix of the right or second image. The whole prefix until the start of the number is needed (last character must be '_'). Can be empty for image series where one image is matched to the next image.>",
-                     ArgvParser::OptionRequiresValue);
-    cmd.defineOption("f_detect",
-                     "<The name of the feature detector in OpenCV 3.2 style (FAST, MSER, ORB, BRISK, KAZE, AKAZE, STAR, MSD)(For SIFT & SURF, the comments of the corresponding code functions must be removed). [Default=FAST]>",
-                     ArgvParser::OptionRequiresValue);
-    cmd.defineOption("d_extr",
-                     "<The name of the descriptor extractor in OpenCV 3.2 style (BRISK, ORB, KAZE, AKAZE, FREAK, DAISY, LATCH, BGM, BGM_HARD, BGM_BILINEAR, LBGM, BINBOOST_64, BINBOOST_128, BINBOOST_256, VGG_120, VGG_80, VGG_64, VGG_48)(For SIFT & SURF, the comments of the corresponding code functions must be removed). For the non-OpenCV descriptors use RIFF or BOLD. [Default=FREAK]>",
-                     ArgvParser::OptionRequiresValue);
-    cmd.defineOption("matcher",
-                     "<The short form of the matcher [Default=GMBSOF]:\n CASHASH:\t Cascade Hashing matcher\n GMBSOF:\t Guided Matching based on Statistical Optical Flow\n HIRCLUIDX:\t Hirarchical Clustering Index Matching from the FLANN library\n HIRKMEANS:\t hierarchical k-means tree matcher from the FLANN library\n LINEAR:\t Linear matching algorithm (Brute force) from the FLANN library\n LSHIDX:\t LSH Index Matching algorithm from the FLANN library (not stable (bug in FLANN lib) -> program may crash)\n RANDKDTREE:\t randomized KD-trees matcher from the FLANN library\n SWGRAPH:\t Small World Graph (SW-graph) from the NMSLIB. Parameters for the matcher should be specified with options 'nmsIdx' and 'nmsQry'.\n HNSW:\t Hiarchical Navigable Small World Graph. Parameters for the matcher should be specified with options 'nmsIdx' and 'nmsQry'.\n VPTREE:\t VP-tree or ball-tree from the NMSLIB. Parameters for the matcher should be specified with options 'nmsIdx' and 'nmsQry'.\n MVPTREE:\t Multi-Vantage Point Tree from the NMSLIB. Parameters for the matcher should be specified with options 'nmsIdx' and 'nmsQry'.\n GHTREE:\t GH-Tree from the NMSLIB. Parameters for the matcher should be specified with options 'nmsIdx' and 'nmsQry'.\n LISTCLU:\t List of clusters from the NMSLIB. Parameters for the matcher should be specified with options 'nmsIdx' and 'nmsQry'.\n SATREE:\t Spatial Approximation Tree from the NMSLIB.\n BRUTEFORCENMS:\t Brute-force (sequential) searching from the NMSLIB.\n ANNOY:\t Approximate Nearest Neighbors Matcher.>",
-                     ArgvParser::OptionRequiresValue);
+    cmd.defineOption("l_img_pref", "<Prefix and/or postfix for the left or first images.\n "
+                                   "It can include a folder structure that follows after the filepath, a file prefix, "
+                                   "a '*' indicating the position of the number and a postfix. "
+                                   "If it is empty, all files from the folder img_path are used "
+                                   "(also if l_img_pref only contains a folder ending with '/', every file within this folder is used). "
+                                   "It is possible to specify only a prefix with or without '*' at the end. "
+                                   "If a prefix is used, all characters until the first number (excluding) must be provided. "
+                                   "For a postfix, '*' must be placed before the postfix.\n "
+                                   "Valid examples : folder/pre_*post, *post, pre_*, pre_, "
+                                   "folder/*post, folder/pre_*, folder/pre_, folder/, folder/folder/, folder/folder/pre_*post, ...\n "
+                                   "For non stereo images (consecutive images), r_img_pref must be omitted.>", ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
+    cmd.defineOption("r_img_pref", "<Prefix and/or postfix for the right or second images.\n "
+                                   "For non stereo images (consecutive images), r_img_pref must be empty.\n "
+                                   "For further details see the description of l_img_pref.>", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("f_detect", "<The name of the feature detector "
+                                 "(FAST, MSER, ORB, BRISK, KAZE, AKAZE, STAR, MSD)(For SIFT & SURF, CMake option "
+                                 "-DUSE_NON_FREE_CODE=ON must be provided during build process). [Default=BRISK]>", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("d_extr", "<The name of the descriptor extractor "
+                               "(BRISK, ORB, KAZE, AKAZE, FREAK, DAISY, LATCH, BGM, BGM_HARD, "
+                               "BGM_BILINEAR, LBGM, BINBOOST_64, BINBOOST_128, BINBOOST_256, "
+                               "VGG_120, VGG_80, VGG_64, VGG_48, RIFF, BOLD )(For SIFT & SURF, CMake option "
+                               "-DUSE_NON_FREE_CODE=ON must be provided during build process). [Default=FREAK]>", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("matcher", "<The short form of the matcher[Default = GMBSOF]:\n "
+                            "CASHASH : \t Cascade Hashing matcher\n "
+                            "GMBSOF : \t Guided Matching based on Statistical Optical Flow\n "
+                            "HIRCLUIDX : \t Hirarchical Clustering Index Matching from the FLANN library\n "
+                            "HIRKMEANS : \t hierarchical k - means tree matcher from the FLANN library\n "
+                            "LINEAR : \t Linear matching algorithm(Brute force) from the FLANN library\n "
+                            "LSHIDX : \t LSH Index Matching algorithm from the FLANN library(not stable(bug in FLANN lib)->program may crash)\n "
+                            "RANDKDTREE : \t randomized KD - trees matcher from the FLANN library\n "
+                            "SWGRAPH : \t Small World Graph(SW - graph) from the NMSLIB. Parameters for the matcher should be specified with options 'nmsIdx' and 'nmsQry'.\n "
+                            "HNSW : \t Hiarchical Navigable Small World Graph. Parameters for the matcher should be specified with options 'nmsIdx' and 'nmsQry'.\n "
+                            "VPTREE : \t VP - tree or ball - tree from the NMSLIB. Parameters for the matcher should be specified with options 'nmsIdx' and 'nmsQry'.\n "
+                            "MVPTREE : \t Multi - Vantage Point Tree from the NMSLIB. Parameters for the matcher should be specified with options 'nmsIdx' and 'nmsQry'.\n "
+                            "GHTREE : \t GH - Tree from the NMSLIB.Parameters for the matcher should be specified with options 'nmsIdx' and 'nmsQry'.\n "
+                            "LISTCLU : \t List of clusters from the NMSLIB.Parameters for the matcher should be specified with options 'nmsIdx' and 'nmsQry'.\n "
+                            "SATREE : \t Spatial Approximation Tree from the NMSLIB.\n "
+                            "BRUTEFORCENMS : \t Brute - force(sequential) searching from the NMSLIB.\n "
+                            "ANNOY : \t Approximate Nearest Neighbors Matcher.>", ArgvParser::OptionRequiresValue);
     cmd.defineOption("noRatiot", "<If provided, ratio test is disabled for the matchers for which it is possible.>",
                      ArgvParser::NoOptionAttribute);
     cmd.defineOption("refineVFC", "<If provided, the result from the matching algorithm is refined with VFC>", ArgvParser::NoOptionAttribute);
     cmd.defineOption("refineSOF", "<If provided, the result from the matching algorithm is refined with SOF>", ArgvParser::NoOptionAttribute);
     cmd.defineOption("refineGMS", "<If provided, the result from the matching algorithm is refined with GMS>", ArgvParser::NoOptionAttribute);
     cmd.defineOption("DynKeyP",
-                     "<If provided, the keypoints are detected dynamically to limit the number of keypoints approximately to the maximum number but are limited using response values. CURRENTLY NOT WORKING with OpenCV 3.0.>",
+                     "<If provided, the keypoints are detected dynamically to limit the number of "
+                     "keypoints approximately to the maximum number but are limited using response values.>",
                      ArgvParser::NoOptionAttribute);
-    cmd.defineOption("f_nr", "<The maximum number of keypoints per frame [Default=8000] that should be used for matching.>",
+    cmd.defineOption("f_nr", "<The maximum number of keypoints per frame [Default=5000] that should be used for matching.>",
                      ArgvParser::OptionRequiresValue);
-    cmd.defineOption("subPixRef", "<If provided, the feature positions of the final matches are refined by either template matching or OpenCV's corner refinement (cv::cornerSubPix) to get sub-pixel accuracy. Be careful, if there are large rotations, changes in scale or other feature deformations between the matches, template matching option should not be set. The following options are possible:\n 0\t No refinement.\n 1\t Refinement using template matching.\n >1\t Refinement using the OpenCV function cv::cornerSubPix seperately for both images.>", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("subPixRef", "<If provided, the feature positions of the final matches "
+                                  "are refined by either template matching or OpenCV's corner refinement "
+                                  "(cv::cornerSubPix) to get sub-pixel accuracy. Be careful, if there are "
+                                  "large rotations, changes in scale or other feature deformations between the matches, "
+                                  "template matching option should not be set. The following options are possible:\n "
+                                  "0\t No refinement.\n "
+                                  "1\t Refinement using template matching.\n "
+                                  ">1\t Refinement using the OpenCV function cv::cornerSubPix seperately for both images.>", ArgvParser::OptionRequiresValue);
     cmd.defineOption("showNr",
-                     "<Specifies the number of matches that should be drawn [Default=50]. If the number is set to -1, all matches are drawn. If the number is set to -2, all matches in addition to all not matchable keypoints are drawn.>",
+                     "<Specifies the number of matches that should be drawn [Default=50]. "
+                     "If the number is set to -1, all matches are drawn. If the number is set to -2, "
+                     "all matches in addition to all not matchable keypoints are drawn.>",
                      ArgvParser::OptionRequiresValue);
     cmd.defineOption("v",
-                     "<Verbose value [Default=3].\n 0\t no information\n 1\t Display matching time\n 2\t Display feature detection times and matching time\n 3\t Display number of features and matches in addition to all temporal values>",
+                     "<Verbose value [Default=3].\n "
+                     "0\t no information\n "
+                     "1\t Display matching time\n "
+                     "2\t Display feature detection times and matching time\n "
+                     "3\t Display number of features and matches in addition to all temporal values>",
                      ArgvParser::OptionRequiresValue);
     cmd.defineOption("nmsIdx",
-                     "<Index parameters for matchers of the NMSLIB. See manual of NMSLIB for details. Instead of '=' in the string you have to use '+'. If you are using a NMSLIB matcher but no parameters are given, the default parameters are used which may leed to unsatisfactory results.>",
+                     "<Index parameters for matchers of the NMSLIB. See manual of NMSLIB for details. "
+                     "Instead of '=' in the string you have to use '+'. If you are using a NMSLIB matcher but "
+                     "no parameters are given, the default parameters are used which may leed to unsatisfactory results.>",
                      ArgvParser::OptionRequiresValue);
     cmd.defineOption("nmsQry",
-                     "<Query-time parameters for matchers of the NMSLIB. See manual of NMSLIB for details. Instead of '=' in the string you have to use '+'. If you are using a NMSLIB matcher but no parameters are given, the default parameters are used which may leed to unsatisfactory results.>",
+                     "<Query-time parameters for matchers of the NMSLIB. See manual of NMSLIB for details. "
+                     "Instead of '=' in the string you have to use '+'. If you are using a NMSLIB matcher but no "
+                     "parameters are given, the default parameters are used which may leed to unsatisfactory results.>",
                      ArgvParser::OptionRequiresValue);
 
     /// finally parse and handle return codes (display help etc...)
@@ -172,7 +217,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
             }
 
             cout << "Executing the following default command: " << endl;
-            cout << argv[0] << " " << arg1str << " --l_img_pref=left_ --r_img_pref=right_" << endl << endl;
+            cout << argv[0] << " " << arg1str << " --l_img_pref=img_" << endl << endl;
             cout << "For options see help with option -h" << endl;
         }
         else
@@ -227,7 +272,7 @@ void startEvaluation(ArgvParser& cmd)
   }
   else
   {
-    f_detect = "ORB";
+    f_detect = "BRISK";
   }
 
   if(cmd.foundOption("d_extr"))
@@ -236,7 +281,7 @@ void startEvaluation(ArgvParser& cmd)
   }
   else
   {
-    d_extr = "ORB";
+    d_extr = "FREAK";
   }
 
   if(cmd.foundOption("matcher"))
@@ -281,7 +326,7 @@ void startEvaluation(ArgvParser& cmd)
   }
   else
   {
-    f_nr = 8000;
+    f_nr = 5000;
   }
 
   if(cmd.foundOption("v"))
@@ -358,13 +403,13 @@ void startEvaluation(ArgvParser& cmd)
   {
     if(oneCam)
     {
-      src[0] = cv::imread(img_path + "/" + filenamesl[i],cv::IMREAD_GRAYSCALE);
-      src[1] = cv::imread(img_path + "/" + filenamesl[i + 1],cv::IMREAD_GRAYSCALE);
+      src[0] = cv::imread(filenamesl[i],cv::IMREAD_GRAYSCALE);
+      src[1] = cv::imread(filenamesl[i + 1],cv::IMREAD_GRAYSCALE);
     }
     else
     {
-      src[0] = cv::imread(img_path + "/" + filenamesl[i],cv::IMREAD_GRAYSCALE);
-      src[1] = cv::imread(img_path + "/" + filenamesr[i],cv::IMREAD_GRAYSCALE);
+      src[0] = cv::imread(filenamesl[i],cv::IMREAD_GRAYSCALE);
+      src[1] = cv::imread(filenamesr[i],cv::IMREAD_GRAYSCALE);
     }
 
     err = matchinglib::getCorrespondences(src[0],
