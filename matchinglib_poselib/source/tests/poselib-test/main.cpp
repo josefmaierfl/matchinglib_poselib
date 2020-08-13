@@ -2059,8 +2059,8 @@ void startEvaluation(ArgvParser& cmd)
 
             string imgname1, imgname2;
             if(oneCam){
-                imgname1 = extractFileName(filenamesl[i]);
-                imgname2 = extractFileName(filenamesl[i + step]);
+                imgname1 = extractFileName(filenamesl[i]) + "_0";
+                imgname2 = extractFileName(filenamesl[i + step]) + "_1";
             }else{
                 imgname1 = extractFileName(filenamesl[i]);
                 imgname2 = extractFileName(filenamesr[i]);
