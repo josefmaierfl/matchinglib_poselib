@@ -52,6 +52,7 @@ void showMatches(const cv::Mat &img1, const cv::Mat &img2,
                  std::vector<cv::DMatch> matches,
                  int nrFeatures,
                  bool drawAllKps = false);
+std::string extractFileName(const std::string &file);
 bool readCalibMat(std::ifstream& calibFile, const std::string &label, const cv::Size &matsize, cv::Mat& calibMat);
 int loadCalibFile(std::string filepath,
         const std::string &filename,
@@ -2029,7 +2030,7 @@ void startEvaluation(ArgvParser& cmd)
         std::cout << "Estimated translation vector: [ " << setprecision(4) << t.at<double>(0) << " " << t.at<double>(1) << " " << t.at<double>(2) << " ]" << endl;
         std::cout << std::endl << std::endl;
 
-        if(showRect)
+        if(showRect || !output_path.empty())
         {
             Mat Rect1, Rect2, K0new, K1new, t0_1, mapX1, mapY1, mapX2, mapY2;
 
@@ -2043,10 +2044,28 @@ void startEvaluation(ArgvParser& cmd)
             initUndistortRectifyMap(K0, dist0_8, Rect1, K0new, cv::Size(src[0].cols, src[0].rows), CV_32FC1, mapX1, mapY1);
             initUndistortRectifyMap(K1, dist1_8, Rect2, K1new, cv::Size(src[0].cols, src[0].rows), CV_32FC1, mapX2, mapY2);
 
+            string imgname1, imgname2;
+            if(oneCam){
+                imgname1 = extractFileName(filenamesl[i]);
+                imgname2 = extractFileName(filenamesl[i + step]);
+            }else{
+                imgname1 = extractFileName(filenamesl[i]);
+                imgname2 = extractFileName(filenamesr[i]);
+            }
+
             //Show rectified images
-      poselib::ShowRectifiedImages(src[0], src[1], mapX1, mapY1, mapX2, mapY2, t0_1, output_path);
+            poselib::ShowRectifiedImages(src[0], src[1], mapX1, mapY1, mapX2, mapY2, t0_1, output_path, imgname1, imgname2, showRect);
         }
     }
+}
+
+std::string extractFileName(const std::string &file){
+    size_t pos0 = file.rfind('/');
+    if(pos0 == string::npos) return "";
+    std::string img_name = file.substr(pos0 + 1);
+    pos0 = img_name.rfind('.');
+    if(pos0 == string::npos) return "";
+    return img_name.substr(0, pos0);
 }
 
 void showMatches(const cv::Mat &img1, const cv::Mat &img2,

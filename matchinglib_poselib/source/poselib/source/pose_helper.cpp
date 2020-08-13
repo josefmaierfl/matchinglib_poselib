@@ -64,26 +64,26 @@ namespace poselib
 /* --------------------- Function prototypes --------------------- */
 
 //This function undistorts an image point
-bool LensDist_Oulu(cv::Point2f distorted, cv::Point2f& corrected, cv::Mat dist, int iters = 10);
+bool LensDist_Oulu(const cv::Point2f& distorted, cv::Point2f& corrected, cv::Mat dist, int iters = 10);
 //Calculation of the rectifying matrices
 int rectifyFusiello(cv::InputArray K1, cv::InputArray K2, cv::InputArray R, cv::InputArray t,
-                    cv::InputArray distcoeffs1, cv::InputArray distcoeffs2, cv::Size imageSize,
+                    cv::InputArray distcoeffs1, cv::InputArray distcoeffs2, const cv::Size& imageSize,
                     cv::OutputArray Rect1, cv::OutputArray Rect2, cv::OutputArray K12new,
-                    double alpha = -1, cv::Size newImgSize=cv::Size(), cv::Rect *roi1 = NULL, cv::OutputArray P1new = cv::noArray(),
+                    double alpha = -1, cv::Size newImgSize=cv::Size(), cv::Rect *roi1 = nullptr, cv::OutputArray P1new = cv::noArray(),
                     cv::OutputArray P2new = cv::noArray());
 //OpenCV interface function for cvStereoRectify. This code was copied from the OpenCV without changes.
 void stereoRectify2( InputArray cameraMatrix1, InputArray distCoeffs1,
                                InputArray cameraMatrix2, InputArray distCoeffs2,
-                               Size imageSize, InputArray R, InputArray T,
-                               OutputArray R1, OutputArray R2,
-                               OutputArray P1, OutputArray P2,
-                               OutputArray Q, int flags=CALIB_ZERO_DISPARITY,
+                               Size imageSize, InputArray _Rmat, InputArray T,
+                               OutputArray _Rmat1, OutputArray _Rmat2,
+                               OutputArray _Pmat1, OutputArray _Pmat2,
+                               OutputArray _Qmat, int flags=CALIB_ZERO_DISPARITY,
                                double alpha=-1, Size newImageSize=Size(),
-                               CV_OUT Rect* validPixROI1=0, CV_OUT Rect* validPixROI2=0 );
+                               CV_OUT Rect* validPixROI1=nullptr, CV_OUT Rect* validPixROI2=nullptr );
 //Slightly changed version of the OpenCV rectification function cvStereoRectify.
 void cvStereoRectify2( const cv::Mat* _cameraMatrix1, const cv::Mat* _cameraMatrix2,
                       const cv::Mat* _distCoeffs1, const cv::Mat* _distCoeffs2,
-                      cv::Size imageSize, const cv::Mat* matR, const cv::Mat* matT,
+                      const cv::Size& imageSize, const cv::Mat* matR, const cv::Mat* matT,
                       cv::Mat* _R1, cv::Mat* _R2, cv::Mat* _P1, cv::Mat* _P2,
                       cv::Mat* matQ, int flags, double alpha, cv::Size newImgSize,
                       cv::Rect* roi1, cv::Rect* roi2 );
@@ -93,7 +93,7 @@ void cvUndistortPoints2(const cv::Mat& src_, cv::Mat& dst_, const cv::Mat& camer
                         const cv::Mat* matR, const cv::Mat* matP, cv::OutputArray mask );
 // Estimates the inner rectangle of a distorted image containg only valid/available image information and an outer rectangle countaing all image information
 void icvGetRectanglesV0( const cv::Mat* cameraMatrix, const cv::Mat* distCoeffs,
-                 const cv::Mat* R, const cv::Mat* newCameraMatrix, cv::Size imgSize,
+                 const cv::Mat* R, const cv::Mat* newCameraMatrix, const cv::Size& imgSize,
                  cv::Rect_<float>& inner, cv::Rect_<float>& outer );
 // Helping function - Takes some actions on a mouse move
 void on_mouse_move(int event, int x, int y, int flags, void* param);
@@ -112,7 +112,7 @@ void on_mouse_move(int event, int x, int y, int flags, void* param);
  *
  * Return value:					none
  */
-void SampsonL1(const cv::Mat x1, const cv::Mat x2, const cv::Mat E, double & denom1, double & num)
+void SampsonL1(const cv::Mat &x1, const cv::Mat &x2, const cv::Mat &E, double & denom1, double & num)
 {
     Mat X1, X2;
     if(x1.rows > x1.cols)
@@ -154,9 +154,13 @@ int getClosestE(Eigen::Matrix3d & E)
     //double avgSingVal;
     Eigen::JacobiSVD<Eigen::Matrix3d> svdE(E, Eigen::ComputeFullU | Eigen::ComputeFullV);
 
-    if(!nearZero(svdE.singularValues()[2])) return -1; // E is no essential matrix
-    else if((svdE.singularValues()[0]/svdE.singularValues()[1] > 1.5) ||
-            (svdE.singularValues()[0]/svdE.singularValues()[1] < 0.66)) return -1; // E is no essential matrix
+    if(!nearZero(svdE.singularValues()[2])){
+        return -1; // E is no essential matrix
+    }
+    if((svdE.singularValues()[0]/svdE.singularValues()[1] > 1.5) ||
+            (svdE.singularValues()[0]/svdE.singularValues()[1] < 0.66)){
+        return -1; // E is no essential matrix
+    }
 
     Eigen::Matrix3d D;
     D.setZero();
@@ -189,7 +193,12 @@ int getClosestE(Eigen::Matrix3d & E)
  * Return value:					true:		  Essential/Fundamental matrix is valid
  *									false:		  Essential/Fundamental matrix is invalid
  */
-bool validateEssential(const cv::Mat p1, const cv::Mat p2, Eigen::Matrix3d E, bool EfullCheck, cv::InputOutputArray _mask, bool tryOrientedEpipolar)
+bool validateEssential(const cv::Mat &p1,
+                       const cv::Mat &p2,
+                       Eigen::Matrix3d E,
+                       bool EfullCheck,
+                       cv::InputOutputArray _mask,
+                       bool tryOrientedEpipolar)
 {
     //Eigen::Matrix3d E;
     Eigen::Vector3d e2, x1, x2;
@@ -284,15 +293,15 @@ bool validateEssential(const cv::Mat p1, const cv::Mat p2, Eigen::Matrix3d E, bo
                             cnt++;
                         else if ((cnt == 3) && (i == cnt))
                         {
-                            E = E * -1.0;
+                            E *= -1.0;
                             for (int k = 0; k < cnt; k++)
-                                mask.at<bool>(k) = 1;
+                                mask.at<bool>(k) = true;
                             cnt++;
                             //goto tryagain;
                             exitfor = true;
                             break;
                         }
-                        mask.at<bool>(i) = 0;
+                        mask.at<bool>(i) = false;
                         break;
                     }
                 }
@@ -346,7 +355,7 @@ bool validateEssential(const cv::Mat p1, const cv::Mat p2, Eigen::Matrix3d E, bo
  *
  * Return value:		 none
  */
-void getStatsfromVec(const std::vector<double> vals, statVals *stats, bool rejQuartiles, bool roundStd)
+void getStatsfromVec(const std::vector<double> &vals, statVals *stats, bool rejQuartiles, bool roundStd)
 {
     if(vals.empty())
     {
@@ -430,7 +439,7 @@ cv::Mat getTfromTransEssential(cv::Mat Et)
  *
  * Return value:					Vector norm
  */
-double normFromVec(cv::Mat vec)
+double normFromVec(const cv::Mat& vec)
 {
     int n;
     double norm = 0;
@@ -493,11 +502,11 @@ double normFromVec(std::vector<double> vec)
  *
  * Return value:		 none
  */
-void getReprojErrors(cv::Mat Essential, cv::InputArray p1, cv::InputArray p2, bool takeImageCoords, statVals* qp, std::vector<double> *repErr, cv::InputArray K1, cv::InputArray K2, bool EisF)
+void getReprojErrors(const cv::Mat& Essential, cv::InputArray p1, cv::InputArray p2, bool takeImageCoords, statVals* qp, std::vector<double> *repErr, cv::InputArray K1, cv::InputArray K2, bool EisF)
 {
     CV_Assert(!p1.empty() && !p2.empty());
     CV_Assert(!(takeImageCoords && !K1.empty() && !K2.empty()) || EisF);
-    CV_Assert(!((qp == NULL) && (repErr == NULL)));
+    CV_Assert(!((qp == nullptr) && (repErr == nullptr)));
 
     if(EisF && !takeImageCoords)
         takeImageCoords = true;
@@ -551,12 +560,12 @@ void getReprojErrors(cv::Mat Essential, cv::InputArray p1, cv::InputArray p2, bo
         FE = Essential;
     }
 
-    if(repErr != NULL)
+    if(repErr != nullptr)
         computeReprojError2(x1, x2, FE, *repErr);
 
-    if(qp != NULL)
+    if(qp != nullptr)
     {
-        if(repErr == NULL)
+        if(repErr == nullptr)
         {
             computeReprojError2(x1, x2, FE, error);
             getStatsfromVec(error, qp);
@@ -584,7 +593,7 @@ void getReprojErrors(cv::Mat Essential, cv::InputArray p1, cv::InputArray p2, bo
  *
  * Return value:		none
  */
-void computeReprojError1(cv::Mat X1, cv::Mat X2, cv::Mat E, std::vector<double> & error, double *error1)
+void computeReprojError1(cv::Mat X1, cv::Mat X2, const cv::Mat& E, std::vector<double> & error, double *error1)
 {
     CV_Assert((X1.cols >= X1.rows) || ((X1.cols == 1) && (X1.rows == 2)));
     int n = X1.cols;
@@ -627,7 +636,7 @@ void computeReprojError1(cv::Mat X1, cv::Mat X2, cv::Mat E, std::vector<double> 
  *
  * Return value:		none
  */
-void computeReprojError2(cv::Mat X1, cv::Mat X2, cv::Mat E, std::vector<double> & error, double *error1)
+void computeReprojError2(cv::Mat X1, cv::Mat X2, const cv::Mat& E, std::vector<double> & error, double *error1)
 {
     CV_Assert((X1.cols <= X1.rows) || ((X1.cols == 2) && (X1.rows == 1)));
     int n = X1.rows;
@@ -773,7 +782,7 @@ void getRTQuality(Eigen::Vector4d & R, Eigen::Vector4d & Rcalib, Eigen::Vector3d
  *
  * Return value:					Essential matrix
  */
-cv::Mat getEfromRT(cv::Mat R, cv::Mat t)
+cv::Mat getEfromRT(const cv::Mat& R, const cv::Mat& t)
 {
     return getSkewSymMatFromVec(t/normFromVec(t)) * R;
 }
@@ -1077,7 +1086,7 @@ Eigen::Vector4d quatConj(const Eigen::Vector4d & Q) //'transpose' -- inverse rot
     invertedRot(0) = Q(0);
 
     return invertedRot;
-};
+}
 
 /* Normalizes the image coordinates and transfers the image coordinates into
  * cameracoordinates, respectively.
@@ -1159,8 +1168,8 @@ void CamToImgCoordTrans(cv::Mat& points, cv::Mat K)
  */
 bool Remove_LensDist(std::vector<cv::Point2f>& points1,
                      std::vector<cv::Point2f>& points2,
-                     cv::Mat dist1,
-                     cv::Mat dist2)
+                     const cv::Mat& dist1,
+                     const cv::Mat& dist2)
 {
     CV_Assert(points1.size() == points2.size());
 
@@ -1229,7 +1238,7 @@ bool Remove_LensDist(std::vector<cv::Point2f>& points1,
  * Return value:					true:  Everything ok.
  *									false: Undistortion failed
  */
-bool LensDist_Oulu(cv::Point2f distorted, cv::Point2f& corrected, cv::Mat dist, int iters)
+bool LensDist_Oulu(const cv::Point2f& distorted, cv::Point2f& corrected, cv::Mat dist, int iters)
 {
     CV_Assert(dist.cols == 8);
 
@@ -1284,7 +1293,7 @@ bool LensDist_Oulu(cv::Point2f distorted, cv::Point2f& corrected, cv::Mat dist, 
  *
  * Return value:		none
  */
-void compareRTs(cv::Mat R1, cv::Mat R2, cv::Mat t1, cv::Mat t2, double *rdiff, double *tdiff, bool printDiff)
+void compareRTs(const cv::Mat& R1, const cv::Mat& R2, cv::Mat t1, cv::Mat t2, double *rdiff, double *tdiff, bool printDiff)
 {
     Eigen::Matrix3d R1e, R2e;
     Eigen::Vector4d r1quat, r2quat;
@@ -1360,14 +1369,14 @@ int getRectificationParameters(cv::InputArray R,
                               cv::InputArray K2,
                               cv::InputArray distcoeffs1,
                               cv::InputArray distcoeffs2,
-                              cv::Size imageSize,
+                              const cv::Size& imageSize,
                               cv::OutputArray Rect1,
                               cv::OutputArray Rect2,
                               cv::OutputArray K1new,
                               cv::OutputArray K2new,
                               double alpha,
                               bool globRectFunct,
-                              cv::Size newImgSize,
+                              const cv::Size& newImgSize,
                               cv::Rect *roi1,
                               cv::Rect *roi2,
                               cv::OutputArray P1new,
@@ -1448,7 +1457,7 @@ int getRectificationParameters(cv::InputArray R,
  * Return value:						0 :		Everything ok
  */
 int rectifyFusiello(cv::InputArray K1, cv::InputArray K2, cv::InputArray R, cv::InputArray t,
-                    cv::InputArray distcoeffs1, cv::InputArray distcoeffs2, cv::Size imageSize,
+                    cv::InputArray distcoeffs1, cv::InputArray distcoeffs2, const cv::Size& imageSize,
                     cv::OutputArray Rect1, cv::OutputArray Rect2, cv::OutputArray K12new,
                     double alpha, cv::Size newImgSize, cv::Rect *roi1, cv::OutputArray P1new,
                     cv::OutputArray P2new)
@@ -1969,7 +1978,7 @@ void stereoRectify2( InputArray _cameraMatrix1, InputArray _distCoeffs1,
  */
 void cvStereoRectify2( const cv::Mat* _cameraMatrix1, const cv::Mat* _cameraMatrix2,
                       const cv::Mat* _distCoeffs1, const cv::Mat* _distCoeffs2,
-                      cv::Size imageSize, const cv::Mat* matR, const cv::Mat* matT,
+                      const cv::Size& imageSize, const cv::Mat* matR, const cv::Mat* matT,
                       cv::Mat* _R1, cv::Mat* _R2, cv::Mat* _P1, cv::Mat* _P2,
                       cv::Mat* matQ, int flags, double alpha, cv::Size newImgSize,
                       cv::Rect* roi1, cv::Rect* roi2 )
@@ -2418,7 +2427,7 @@ void cvUndistortPoints2(const cv::Mat& src_, cv::Mat& dst_, const cv::Mat& camer
  * Return value:						none
  */
 void icvGetRectanglesV0( const cv::Mat* cameraMatrix, const cv::Mat* distCoeffs,
-                 const cv::Mat* R, const cv::Mat* newCameraMatrix, cv::Size imgSize,
+                 const cv::Mat* R, const cv::Mat* newCameraMatrix, const cv::Size& imgSize,
                  cv::Rect_<float>& inner, cv::Rect_<float>& outer )
 {
     const int N = 9;
@@ -2504,7 +2513,7 @@ void icvGetRectanglesV0( const cv::Mat* cameraMatrix, const cv::Mat* distCoeffs,
  *
  * Return value:						Vergence
  */
-int estimateVergence(cv::Mat R, cv::Mat RR1, cv::Mat RR2, cv::Mat PR1, cv::Mat PR2)
+int estimateVergence(const cv::Mat& R, const cv::Mat& RR1, const cv::Mat& RR2, const cv::Mat& PR1, const cv::Mat& PR2)
 {
     Mat a = R.row(2).t();
     Mat K1 = PR1.colRange(0,3);
@@ -2550,7 +2559,7 @@ int estimateVergence(cv::Mat R, cv::Mat RR1, cv::Mat RR2, cv::Mat PR1, cv::Mat P
  * Return value:						Scaling parameter for the focal length
  */
 double estimateOptimalFocalScale(double alpha, cv::Mat K1, cv::Mat K2, cv::Mat R1, cv::Mat R2, cv::Mat P1, cv::Mat P2,
-                                 cv::Mat dist1, cv::Mat dist2, cv::Size imageSize, cv::Size newImgSize)
+                                 cv::Mat dist1, cv::Mat dist2, const cv::Size& imageSize, cv::Size newImgSize)
 {
     alpha = MIN(alpha, 1.);
 
@@ -2624,7 +2633,18 @@ double estimateOptimalFocalScale(double alpha, cv::Mat K1, cv::Mat K2, cv::Mat R
  *
  * Return:							0:		  Success
  */
-int ShowRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray mapX1, cv::InputArray mapY1, cv::InputArray mapX2, cv::InputArray mapY2, cv::InputArray t, std::string path, cv::Size newImgSize)
+int ShowRectifiedImages(cv::InputArray img1,
+                        cv::InputArray img2,
+                        cv::InputArray mapX1,
+                        cv::InputArray mapY1,
+                        cv::InputArray mapX2,
+                        cv::InputArray mapY2,
+                        cv::InputArray t,
+                        const std::string& path,
+                        const std::string& imgName1,
+                        const std::string& imgName2,
+                        bool showResult,
+                        cv::Size newImgSize)
 {
     CV_Assert(!img1.empty() && !img2.empty() && !mapX1.empty() && !mapY1.empty() && !mapX2.empty() && !mapY2.empty() && !t.empty());
     CV_Assert((img1.rows() == img2.rows()) && (img1.cols() == img2.cols()));
@@ -2643,87 +2663,90 @@ int ShowRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray
 
     cv::namedWindow("Rectification");
 
-  // save rectified images
-  if (path != "")
-  {
-    static int count = 0;
-
-    char buffer[12];
-    sprintf(buffer, "left_%04d.jpg", count);
-    std::string namel = path + "\\" + buffer;
-    sprintf(buffer, "right_%04d.jpg", count);
-    std::string namer = path + "\\" + buffer;
-    count++;
-
-    cv::imwrite(namel, imgRect1);
-    cv::imwrite(namer, imgRect2);
-  }
-
-    int maxHorImgSize, maxVerImgSize;
-    //switch(cam_configuration)
-    //{
-    //case 0:	// Inline configuration
-    int r, c;
-    int rc;
-    if(std::abs(_t.at<double>(0)) > std::abs(_t.at<double>(1)))
+    // save rectified images
+    if (!path.empty())
     {
-        r = 1;
-        c = 2;
-        rc = 1;
-        if(_t.at<double>(0) < 0)
-        {
-            Mat imgRect1_tmp;
-            imgRect1_tmp = imgRect1.clone();
-            imgRect1 = imgRect2.clone();
-            imgRect2 = imgRect1_tmp.clone();
+        string path1;
+        if(path.rfind('/') + 1 == path.size()){
+            path1 = path;
+        }else{
+            path1 = path + "/";
         }
-    }
-    else
-    {
-        r = 2;
-        c = 1;
-        rc = 0;
-        if(_t.at<double>(1) > 0)
-        {
-            Mat imgRect1_tmp;
-            imgRect1_tmp = imgRect1.clone();
-            imgRect1 = imgRect2.clone();
-            imgRect2 = imgRect1_tmp.clone();
+        std::string namel, namer;
+        if(imgName1.empty() || imgName2.empty()) {
+            static int count = 0;
+            char buffer[15];
+            sprintf(buffer, "left_%04d.jpg", count);
+            namel = path1 + buffer;
+            sprintf(buffer, "right_%04d.jpg", count);
+            namer = path1 + buffer;
+            count++;
+        }else{
+            namel = path1 + imgName1 + ".jpg";
+            namer = path1 + imgName2 + ".jpg";
         }
+
+        cv::imwrite(namel, imgRect1);
+        cv::imwrite(namer, imgRect2);
     }
 
-    //Allocate memory for composed image
-    maxHorImgSize = 800;
-    if (newImgSize.width > maxHorImgSize)
-    {
-        maxVerImgSize = (int)((float)maxHorImgSize * (float)newImgSize.height / (float)newImgSize.width);
-        composed = cv::Mat(cv::Size(maxHorImgSize * c, maxVerImgSize * r), CV_8UC3);
-        comCopy = cv::Mat(cv::Size(maxHorImgSize, maxVerImgSize), CV_8UC3);
-    }
-    else
-    {
-        composed = cv::Mat(cv::Size(newImgSize.width * c, newImgSize.height * r), CV_8UC3);
-        comCopy = cv::Mat(cv::Size(newImgSize.width, newImgSize.height), CV_8UC3);
-    }
+    if(showResult) {
+        int maxHorImgSize, maxVerImgSize;
+        int r, c;
+        int rc;
+        if (std::abs(_t.at<double>(0)) > std::abs(_t.at<double>(1))) {
+            r = 1;
+            c = 2;
+            rc = 1;
+            if (_t.at<double>(0) < 0) {
+                Mat imgRect1_tmp;
+                imgRect1_tmp = imgRect1.clone();
+                imgRect1 = imgRect2.clone();
+                imgRect2 = imgRect1_tmp.clone();
+            }
+        } else {
+            r = 2;
+            c = 1;
+            rc = 0;
+            if (_t.at<double>(1) > 0) {
+                Mat imgRect1_tmp;
+                imgRect1_tmp = imgRect1.clone();
+                imgRect1 = imgRect2.clone();
+                imgRect2 = imgRect1_tmp.clone();
+            }
+        }
 
-    // create images to display
-    string str;
-    vector<cv::Mat> show_rect(2);
-    cv::cvtColor(imgRect1, show_rect[0], cv::COLOR_GRAY2RGB);
-    cv::cvtColor(imgRect2, show_rect[1], cv::COLOR_GRAY2RGB);
-    for (int j = 0; j < 2; j++)
-    {
-        cv::resize(show_rect[j], comCopy, cv::Size(comCopy.cols, comCopy.rows));
-        if (j == 0) str = "CAM 1";
-        else str = "CAM 2";
-        cv::putText(comCopy, str.c_str(), cv::Point2d(25, 25), cv::FONT_HERSHEY_SIMPLEX | cv::FONT_ITALIC, 0.7, cv::Scalar(0, 0, 255));
-        comCopy.copyTo(composed(cv::Rect(j * rc * comCopy.cols, j * (rc^1) * comCopy.rows, comCopy.cols ,comCopy.rows)));
-    }
+        //Allocate memory for composed image
+        maxHorImgSize = 800;
+        if (newImgSize.width > maxHorImgSize) {
+            maxVerImgSize = (int) ((float) maxHorImgSize * (float) newImgSize.height / (float) newImgSize.width);
+            composed = cv::Mat(cv::Size(maxHorImgSize * c, maxVerImgSize * r), CV_8UC3);
+            comCopy = cv::Mat(cv::Size(maxHorImgSize, maxVerImgSize), CV_8UC3);
+        } else {
+            composed = cv::Mat(cv::Size(newImgSize.width * c, newImgSize.height * r), CV_8UC3);
+            comCopy = cv::Mat(cv::Size(newImgSize.width, newImgSize.height), CV_8UC3);
+        }
 
-    cv::setMouseCallback("Rectification", on_mouse_move, (void*)(&composed) );
-    cv::imshow("Rectification",composed);
-    cv::waitKey(0);
-    cv::destroyWindow("Rectification");
+        // create images to display
+        string str;
+        vector<cv::Mat> show_rect(2);
+        cv::cvtColor(imgRect1, show_rect[0], cv::COLOR_GRAY2RGB);
+        cv::cvtColor(imgRect2, show_rect[1], cv::COLOR_GRAY2RGB);
+        for (int j = 0; j < 2; j++) {
+            cv::resize(show_rect[j], comCopy, cv::Size(comCopy.cols, comCopy.rows));
+            if (j == 0) str = "CAM 1";
+            else str = "CAM 2";
+            cv::putText(comCopy, str, cv::Point2d(25, 25), cv::FONT_HERSHEY_SIMPLEX | cv::FONT_ITALIC, 0.7,
+                        cv::Scalar(0, 0, 255));
+            comCopy.copyTo(
+                    composed(cv::Rect(j * rc * comCopy.cols, j * (rc ^ 1) * comCopy.rows, comCopy.cols, comCopy.rows)));
+        }
+
+        cv::setMouseCallback("Rectification", on_mouse_move, (void *) (&composed));
+        cv::imshow("Rectification", composed);
+        cv::waitKey(0);
+        cv::destroyWindow("Rectification");
+    }
 
     return 0;
 }
@@ -2804,17 +2827,21 @@ void on_mouse_move(int event, int x, int y, int flags, void* param)
 *
 * Return:						initial delta for SPRT
 */
-double estimateSprtDeltaInit(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, double th, cv::Size imgSize)
+double estimateSprtDeltaInit(const std::vector<cv::DMatch> &matches,
+                             const std::vector<cv::KeyPoint> &kp1,
+                             const std::vector<cv::KeyPoint> &kp2,
+                             const double &th,
+                             const cv::Size &imgSize)
 {
     //Extract coordinates from keypoints
     vector<cv::Point2f> points1, points2;
     vector<cv::Point2f> hull1, hull2;
     double area[2] = { 0, 0 };
     double maxEpipoleArea = 0, sprt_delta = 0;
-    for (size_t i = 0; i < matches.size(); i++)
+    for (auto matche : matches)
     {
-        points1.push_back(kp1[matches[i].queryIdx].pt);
-        points2.push_back(kp2[matches[i].trainIdx].pt);
+        points1.push_back(kp1[matche.queryIdx].pt);
+        points2.push_back(kp2[matche.trainIdx].pt);
     }
 
     //Convex hull of the keypoints
@@ -2849,9 +2876,9 @@ double estimateSprtDeltaInit(std::vector<cv::DMatch> matches, std::vector<cv::Ke
 *
 * Return:						initial epsilon for SPRT
 */
-double estimateSprtEpsilonInit(std::vector<cv::DMatch> matches, unsigned int nrMatchesVfcFiltered)
+double estimateSprtEpsilonInit(const std::vector<cv::DMatch> &matches, const unsigned int &nrMatchesVfcFiltered)
 {
-    double nrMatches = (double)matches.size();
+    auto nrMatches = (double)matches.size();
     double epsilonInit = 0.8 * (double)nrMatchesVfcFiltered / nrMatches;
     epsilonInit = epsilonInit > 0.4 ? 0.4 : epsilonInit;
     epsilonInit = epsilonInit < 0.1 ? 0.1 : epsilonInit;
@@ -2874,14 +2901,14 @@ void getSortedMatchIdx(std::vector<cv::DMatch> matches, std::vector<unsigned int
     size_t i = 0;
     for (i = 0; i < matches.size(); i++)
     {
-        if (matches[i].queryIdx != i)
+        if (matches[i].queryIdx != static_cast<int>(i))
             break;
     }
     if (i < matches.size())
     {
         for (i = 0; i < matches.size(); i++)
         {
-            matches[i].queryIdx = i;
+            matches[i].queryIdx = static_cast<int>(i);
         }
     }
 
@@ -2901,7 +2928,7 @@ void getSortedMatchIdx(std::vector<cv::DMatch> matches, std::vector<unsigned int
 *
 * Return:				true or false
 */
-bool isMatRoationMat(cv::Mat R)
+bool isMatRoationMat(const cv::Mat& R)
 {
     CV_Assert(!R.empty());
 
@@ -2981,7 +3008,7 @@ double getSampsonL2Error(cv::InputArray E, cv::InputArray x1, cv::InputArray x2)
 *
 * Return:				Sampson L2 error
 */
-double getSampsonL2Error(Eigen::Matrix3d E, Eigen::Vector3d x1, Eigen::Vector3d x2)
+double getSampsonL2Error(Eigen::Matrix3d E, const Eigen::Vector3d& x1, Eigen::Vector3d x2)
 {
     double r, rx, ry, temp_err;
     Eigen::Vector3d x2E = x2.transpose() * E;
@@ -3000,7 +3027,7 @@ double getSampsonL2Error(Eigen::Matrix3d E, Eigen::Vector3d x1, Eigen::Vector3d 
 *
 * Return value:		number of inliers
 */
-size_t getInlierMask(std::vector<double> error, double th, cv::Mat & mask)
+size_t getInlierMask(const std::vector<double> &error, const double &th, cv::Mat & mask)
 {
     size_t n = error.size(), nr_inliers = 0;
     mask = cv::Mat::zeros(1, n, CV_8UC1);

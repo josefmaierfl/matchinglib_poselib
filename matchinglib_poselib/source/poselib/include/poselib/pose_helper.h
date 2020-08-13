@@ -68,11 +68,16 @@ typedef struct statVals {
 /* --------------------- Function prototypes --------------------- */
 
 //Calculates the Sampson L1-distance for a point correspondence
-void POSELIB_API SampsonL1(const cv::Mat x1, const cv::Mat x2, const cv::Mat E, double & denom1, double & num);
+void POSELIB_API SampsonL1(const cv::Mat &x1, const cv::Mat &x2, const cv::Mat &E, double & denom1, double & num);
 //Calculates the closest essential matrix
 int POSELIB_API getClosestE(Eigen::Matrix3d & E);
 //Validate the Essential/Fundamental matrix with the oriented epipolar constraint
-bool POSELIB_API validateEssential(const cv::Mat p1, const cv::Mat p2, const Eigen::Matrix3d E, bool EfullCheck = false, cv::InputOutputArray _mask = cv::noArray(), bool tryOrientedEpipolar = false);
+bool POSELIB_API validateEssential(const cv::Mat &p1,
+                                   const cv::Mat &p2,
+                                   Eigen::Matrix3d E,
+                                   bool EfullCheck = false,
+                                   cv::InputOutputArray _mask = cv::noArray(),
+                                   bool tryOrientedEpipolar = false);
 //Checks, if determinants, etc. are too close to 0
 inline bool POSELIB_API nearZero(double d)
 {
@@ -81,27 +86,27 @@ inline bool POSELIB_API nearZero(double d)
     return (d<EPSILON) && (d>-EPSILON);
 }
 //Calculates statistical parameters for the given values in the vector
-void POSELIB_API getStatsfromVec(const std::vector<double> vals, statVals *stats, bool rejQuartiles = false, bool roundStd = true);
+void POSELIB_API getStatsfromVec(const std::vector<double> &vals, statVals *stats, bool rejQuartiles = false, bool roundStd = true);
 //Extracts the 3D translation vector from the translation essential matrix.
 cv::Mat POSELIB_API getTfromTransEssential(cv::Mat Et);
 //Calculates the vector norm.
-double POSELIB_API normFromVec(cv::Mat vec);
+double POSELIB_API normFromVec(const cv::Mat& vec);
 //Calculates the vector norm.
 double POSELIB_API normFromVec(std::vector<double> vec);
 //Calculates the reprojection errors for all correspondences and/or their statistics
-void POSELIB_API getReprojErrors(cv::Mat Essential,
+void POSELIB_API getReprojErrors(const cv::Mat& Essential,
                      cv::InputArray p1,
                      cv::InputArray p2,
                      bool takeImageCoords,
-                     statVals* qp = NULL,
-                     std::vector<double> *repErr = NULL,
+                     statVals* qp = nullptr,
+                     std::vector<double> *repErr = nullptr,
                      cv::InputArray K1 = cv::noArray(),
                      cv::InputArray K2 = cv::noArray(),
                      bool EisF = false);
 //Computes the Sampson distance (first-order geometric error) for the provided point correspondences in the form 2 rows x n columns.
-void POSELIB_API computeReprojError1(cv::Mat X1, cv::Mat X2, cv::Mat E, std::vector<double> & error, double *error1 = NULL);
+void POSELIB_API computeReprojError1(cv::Mat X1, cv::Mat X2, const cv::Mat& E, std::vector<double> & error, double *error1 = nullptr);
 //Computes the Sampson distance (first-order geometric error) for the provided point correspondences in the form n rows x 2 columns.
-void POSELIB_API computeReprojError2(cv::Mat X1, cv::Mat X2, cv::Mat E, std::vector<double> & error, double *error1 = NULL);
+void POSELIB_API computeReprojError2(cv::Mat X1, cv::Mat X2, const cv::Mat& E, std::vector<double> & error, double *error1 = nullptr);
 //Calculates the euler angles from a given rotation matrix.
 void POSELIB_API getAnglesRotMat(cv::InputArray R, double & roll, double & pitch, double & yaw, bool useDegrees = true);
 //Calculates the difference (roation angle) between two rotation quaternions and the distance between two 3D translation vectors.
@@ -111,7 +116,7 @@ void POSELIB_API getRTQuality(cv::Mat & R, cv::Mat & Rcalib, cv::Mat & T,
 void POSELIB_API getRTQuality(Eigen::Vector4d & R, Eigen::Vector4d & Rcalib, Eigen::Vector3d & T,
                   Eigen::Vector3d & Tcalib, double* rdiff, double* tdiff);
 //Calculates the essential matrix from the rotation matrix R and the translation
-cv::Mat POSELIB_API getEfromRT(cv::Mat R, cv::Mat t);
+cv::Mat POSELIB_API getEfromRT(const cv::Mat& R, const cv::Mat& t);
 //Generates a 3x3 skew-symmetric matrix from a 3-vector
 cv::Mat POSELIB_API getSkewSymMatFromVec(cv::Mat t);
 //Converts a (Rotation) Quaternion to a (Rotation) matrix
@@ -143,9 +148,9 @@ void POSELIB_API CamToImgCoordTrans(std::vector<cv::Point2f>& points, cv::Mat K)
 //Transfers coordinates from the camera coordinate system into the the image coordinate system.
 void POSELIB_API CamToImgCoordTrans(cv::Mat& points, cv::Mat K);
 //This function removes the lens distortion for corresponding points
-bool POSELIB_API Remove_LensDist(std::vector<cv::Point2f>& points1, std::vector<cv::Point2f>& points2, cv::Mat dist1, cv::Mat dist2);
+bool POSELIB_API Remove_LensDist(std::vector<cv::Point2f>& points1, std::vector<cv::Point2f>& points2, const cv::Mat& dist1, const cv::Mat& dist2);
 //Calculates the difference (roation angle) between two rotation quaternions and the distance between two 3D translation vectors
-void POSELIB_API compareRTs(cv::Mat R1, cv::Mat R2, cv::Mat t1, cv::Mat t2, double *rdiff, double *tdiff, bool printDiff = false);
+void POSELIB_API compareRTs(const cv::Mat& R1, const cv::Mat& R2, cv::Mat t1, cv::Mat t2, double *rdiff, double *tdiff, bool printDiff = false);
 //Calculation of the rectifying matrices based on the extrinsic and intrinsic camera parameters.
 int POSELIB_API getRectificationParameters(cv::InputArray R,
                               cv::InputArray t,
@@ -153,43 +158,67 @@ int POSELIB_API getRectificationParameters(cv::InputArray R,
                               cv::InputArray K2,
                               cv::InputArray distcoeffs1,
                               cv::InputArray distcoeffs2,
-                              cv::Size imageSize,
+                              const cv::Size& imageSize,
                               cv::OutputArray Rect1,
                               cv::OutputArray Rect2,
                               cv::OutputArray K1new,
                               cv::OutputArray K2new,
                               double alpha = -1,
                               bool globRectFunct = true,
-                              cv::Size newImgSize = cv::Size(),
-                              cv::Rect *roi1 = NULL,
-                              cv::Rect *roi2 = NULL,
+                              const cv::Size& newImgSize = cv::Size(),
+                              cv::Rect *roi1 = nullptr,
+                              cv::Rect *roi2 = nullptr,
                               cv::OutputArray P1new = cv::noArray(),
                               cv::OutputArray P2new = cv::noArray());
 //Estimates the optimal scale for the focal length of the virtuel camera.
 double POSELIB_API estimateOptimalFocalScale(double alpha, cv::Mat K1, cv::Mat K2, cv::Mat R1, cv::Mat R2, cv::Mat P1, cv::Mat P2,
-                                 cv::Mat dist1, cv::Mat dist2, cv::Size imageSize, cv::Size newImgSize);
+                                 cv::Mat dist1, cv::Mat dist2, const cv::Size& imageSize, cv::Size newImgSize);
 //Estimates the vergence (shift of starting point) for correspondence search in the stereo engine.
-int POSELIB_API estimateVergence(cv::Mat R, cv::Mat RR1, cv::Mat RR2, cv::Mat PR1, cv::Mat PR2);
+int POSELIB_API estimateVergence(const cv::Mat& R, const cv::Mat& RR1, const cv::Mat& RR2, const cv::Mat& PR1, const cv::Mat& PR2);
 //This function shows the rectified images.
-int POSELIB_API ShowRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray mapX1, cv::InputArray mapY1, cv::InputArray mapX2, cv::InputArray mapY2, cv::InputArray t, std::string path, cv::Size newImgSize = cv::Size());
-// This function return the rectified images
-int POSELIB_API GetRectifiedImages(cv::InputArray img1, cv::InputArray img2, cv::InputArray mapX1, cv::InputArray mapY1, cv::InputArray mapX2, cv::InputArray mapY2, cv::InputArray t, cv::OutputArray outImg1, cv::OutputArray outImg2, cv::Size newImgSize = cv::Size());
+int POSELIB_API ShowRectifiedImages(cv::InputArray img1,
+                                    cv::InputArray img2,
+                                    cv::InputArray mapX1,
+                                    cv::InputArray mapY1,
+                                    cv::InputArray mapX2,
+                                    cv::InputArray mapY2,
+                                    cv::InputArray t,
+                                    const std::string& path,
+                                    const std::string& imgName1 = "",
+                                    const std::string& imgName2 = "",
+                                    bool showResult = true,
+                                    cv::Size newImgSize = cv::Size());
+// This function returns the rectified images
+int POSELIB_API GetRectifiedImages(cv::InputArray img1,
+                                   cv::InputArray img2,
+                                   cv::InputArray mapX1,
+                                   cv::InputArray mapY1,
+                                   cv::InputArray mapX2,
+                                   cv::InputArray mapY2,
+                                   cv::InputArray t,
+                                   cv::OutputArray outImg1,
+                                   cv::OutputArray outImg2,
+                                   cv::Size newImgSize = cv::Size());
 //This function estimates an initial delta value for the SPRT test used within USAC.
-double estimateSprtDeltaInit(std::vector<cv::DMatch> matches, std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2, double th, cv::Size imgSize);
+double estimateSprtDeltaInit(const std::vector<cv::DMatch> &matches,
+                             const std::vector<cv::KeyPoint> &kp1,
+                             const std::vector<cv::KeyPoint> &kp2,
+                             const double &th,
+                             const cv::Size &imgSize);
 //This function estimates an initial epsilon value for the SPRT test used within USAC.
-double estimateSprtEpsilonInit(std::vector<cv::DMatch> matches, unsigned int nrMatchesVfcFiltered);
+double estimateSprtEpsilonInit(const std::vector<cv::DMatch> &matches, const unsigned int &nrMatchesVfcFiltered);
 //This function generates an index of the matches with the lowest matching costs first.
 void getSortedMatchIdx(std::vector<cv::DMatch> matches, std::vector<unsigned int> & sortedMatchIdx);
 //Checks if a 3x3 matrix is a rotation matrix
-bool POSELIB_API isMatRoationMat(cv::Mat R);
+bool POSELIB_API isMatRoationMat(const cv::Mat& R);
 //Checks if a 3x3 matrix is a rotation matrix
 bool POSELIB_API isMatRoationMat(Eigen::Matrix3d R);
 //Calculates the Sampson L2 error for 1 correspondence
 double POSELIB_API getSampsonL2Error(cv::InputArray E, cv::InputArray x1, cv::InputArray x2);
 //Calculates the Sampson L2 error for 1 correspondence
-double POSELIB_API getSampsonL2Error(Eigen::Matrix3d E, Eigen::Vector3d x1, Eigen::Vector3d x2);
+double POSELIB_API getSampsonL2Error(Eigen::Matrix3d E, const Eigen::Vector3d& x1, Eigen::Vector3d x2);
 //Checks for a given vector of error values if they are inliers or not in respect to threshold th.
-size_t POSELIB_API getInlierMask(std::vector<double> error, double th, cv::Mat & mask);
+size_t POSELIB_API getInlierMask(const std::vector<double> &error, const double &th, cv::Mat & mask);
 //Calculates the angle between two vectors
 double POSELIB_API getAnglesBetwVectors(cv::Mat v1, cv::Mat v2, bool degree = true);
 }
