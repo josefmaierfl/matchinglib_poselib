@@ -307,3 +307,17 @@ The accuracy of estimated poses and rectification can be checked by moving your 
 To change parameters and/or the directory containing images execute `./poselib-test -h` or `./run_docker_base.sh pose -h` to show options.
 
 ## Stand-Alone Executable for Feature Matching <a name="executable-matching"></a>
+
+For testing executbale `matchinglib-test` with default parameters and the provided test images see [here](#quick-matching).
+
+Feature matches can be calculated using all available algorithms (see [here](#support-features) and [here](#support-matching)).
+Algorithm names can be specified as strings like listed [here](#support-features) and [here](#support-matching) with command line options `--f_detect`, `--d_extr`, and `--matcher`.
+
+Feature matches can be calculated for consecutive mono and stereo camera images located within a single folder by either providing only a pre- and/or post-fix using `--l_img_pref` for one image sequence or by providing 2 pre- and/or post-fixes using `--l_img_pref` and `--r_img_pref` for stereo image sequences, respectively.
+By default, matches are not stored but displayed.
+To store keypoints and matches provide option `--output_path`.
+To disable displaying found matches provide option `--showNr -3`.
+
+To start calculating features and matches call `./matchinglib-test [options]` or `./run_docker_base.sh match [options]`.
+
+For additional options and details call `./matchinglib-test -h` or `./run_docker_base.sh match -h`.
