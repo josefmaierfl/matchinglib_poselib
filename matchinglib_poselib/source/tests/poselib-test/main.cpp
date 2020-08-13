@@ -245,13 +245,16 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
                                  "prefix is specified, images with the same prefix flollowing after another are "
                                  "matched and used for pose estimation.>", ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
     cmd.defineOption("l_img_pref", "<Prefix and/or postfix for the left or first images.\n "
-		"It can include a folder structure that follows after the filepath, a file prefix, a '*' indicating the position of the number and a postfix. "
-		"If it is empty, all files from the folder img_path are used (also if l_img_pref only contains a folder ending with '/', every file within this folder is used). "
-		"It is possible to specify only a prefix with or without '*' at the end. "
-		"If a prefix is used, all characters until the first number (excluding) must be provided. "
-		"For a postfix, '*' must be placed before the postfix.\n "
-		"Valid examples : folder/pre_*post, *post, pre_*, pre_, folder/*post, folder/pre_*, folder/pre_, folder/, folder/folder/, folder/folder/pre_*post, ...\n "
-		"For non stereo images (consecutive images), r_img_pref must be omitted.>", ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
+                                   "It can include a folder structure that follows after the filepath, a file prefix, "
+                                   "a '*' indicating the position of the number and a postfix. "
+                                   "If it is empty, all files from the folder img_path are used (also if l_img_pref only "
+                                   "contains a folder ending with '/', every file within this folder is used). "
+                                   "It is possible to specify only a prefix with or without '*' at the end. "
+                                   "If a prefix is used, all characters until the first number (excluding) must be provided. "
+                                   "For a postfix, '*' must be placed before the postfix.\n "
+                                   "Valid examples : folder/pre_*post, *post, pre_*, pre_, folder/*post, folder/pre_*, "
+                                   "folder/pre_, folder/, folder/folder/, folder/folder/pre_*post, ...\n "
+                                   "For non stereo images (consecutive images), r_img_pref must be omitted.>", ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
     cmd.defineOption("r_img_pref", "<Prefix and/or postfix for the right or second images.\n "
 		"For non stereo images (consecutive images), r_img_pref must be empty.\n "
 		"For further details see the description of l_img_pref.>", ArgvParser::OptionRequiresValue);
@@ -307,9 +310,12 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
                                   "0\t No refinement.\n "
                                   "1\t Refinement using template matching.\n "
                                   ">1\t Refinement using the OpenCV function cv::cornerSubPix seperately for both images.>", ArgvParser::OptionRequiresValue);
-    cmd.defineOption("showNr", "<Specifies the number of matches that should be drawn [Default=50]. "
-                               "If the number is set to -1, all matches are drawn. If the number is set to -2, "
-                               "all matches in addition to all not matchable keypoints are drawn.>", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("showNr",
+                     "<Specifies the number of matches that should be drawn [Default=50]. "
+                     "If the number is set to -1, all matches are drawn. If the number is set to -2, "
+                     "all matches in addition to all not matchable keypoints are drawn. "
+                     "If the number is set to -3, no matches are shown.>",
+                     ArgvParser::OptionRequiresValue);
     cmd.defineOption("v", "<Verbose value [Default=7].\n "
                           "0\t Display only pose\n "
                           "1\t Display matching time\n "
@@ -339,7 +345,8 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
         "\n 3\t Nister"
         "\n 4\t Stewenius"
         "\n 5\t Kneip's Eigen solver is applied on the result (the Essential matrix or for USAC: R,t) of RANSAC, ARRSAC, or USAC directly."
-        "\n 6\t Kneip's Eigen solver is applied after extracting R & t and triangulation. This option can be seen as an alternative to bundle adjustment (BA)."
+        "\n 6\t Kneip's Eigen solver is applied after extracting R & t and triangulation. This option can "
+                "be seen as an alternative to bundle adjustment (BA)."
         "\n 2nd digit - choose a weighting function:"
         "\n 0\t Don't use weights"
         "\n 1\t Torr weights (ref: torr dissertation, eqn. 2.25)"
@@ -370,6 +377,8 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
     cmd.defineOption("distcoeffNr", "<Number of used distortion coeffitients in the calibration file. "
                                     "Can be 5 or 8. If not specifyed a default value of 5 is used.>", ArgvParser::OptionRequiresValue);
     cmd.defineOption("histEqual", "<If provided, histogram equalization is applied to the source images.>", ArgvParser::NoOptionAttribute);
+    cmd.defineOption("stepSize", "<Step size in case a mono camera image sequence is used."
+                                 "A step size of e.g. 1 means: (Pose 1: img 1 --> img 2), (Pose 2: img 2 --> img 3), ...>", ArgvParser::OptionRequiresValue);
     cmd.defineOption("cfgUSAC", "<Specifies parameters for USAC. It consists of a combination of 6 digits [Default=311220]. "
         "In the following the options for every digit are explained:\n "
         "1st digit:\n "
@@ -432,7 +441,8 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
         "\n 3\t Nister"
         "\n 4\t Stewenius"
         "\n 5\t Kneip's Eigen solver is applied on the result (the Essential matrix or for USAC: R,t) of RANSAC, ARRSAC, or USAC directly."
-        "\n 6\t Kneip's Eigen solver is applied after extracting R & t and triangulation. This option can be seen as an alternative to bundle adjustment (BA)."
+        "\n 6\t Kneip's Eigen solver is applied after extracting R & t and triangulation. This option can be seen "
+                "as an alternative to bundle adjustment (BA)."
         "\n 2nd digit - choose a weighting function:"
         "\n 0\t Don't use weights"
         "\n 1\t Torr weights (ref: torr dissertation, eqn. 2.25)"
@@ -498,10 +508,9 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 		"1st digit - Factor to increase maxSkipPairs:"
 		"\n 0\t Disable [Default]"
 		"\n 1-9\t Increase maxSkipPairs to std::ceil(maxSkipPairs * (1.0 + (1st digit) * 0.25)) if a specific "
-  "number of stable consecutive poses was detected (defined by 2nd digit)."
+                "number of stable consecutive poses was detected (defined by 2nd digit)."
 		"\n 2nd digit - Number of stable consecutive poses to increase maxSkipPairs:"
-		"\n 0-9\t nr = (2nd digit) + 1"
-		">", ArgvParser::OptionRequiresValue);
+		"\n 0-9\t nr = (2nd digit) + 1>", ArgvParser::OptionRequiresValue);
 	cmd.defineOption("maxRat3DPtsFar", "<For stereo refinement: Maximum ratio [Default=0.4] "
                                     "of 3D points for which their z-value is very large (maxDist3DPtsZ x baseline) "
                                     "compared to the number of all 3D points. Above this threshold, a pose "
@@ -588,7 +597,7 @@ void startEvaluation(ArgvParser& cmd)
     int Halign = 0;
     int BART = 0, BART_stereo = 0;
     bool oneCam = false;
-    int err = 0, verbose = 0;
+    int err = 0, verbose = 0, step = 1;
     vector<string> filenamesl, filenamesr;
     cv::Mat src[2];
     std::vector<cv::DMatch> finalMatches;
@@ -654,6 +663,11 @@ void startEvaluation(ArgvParser& cmd)
     if (cmd.foundOption("subPixRef"))
     {
         subPixRef = stoi(cmd.optionValue("subPixRef"));
+    }
+    //stepSize
+    if (cmd.foundOption("stepSize"))
+    {
+        step = stoi(cmd.optionValue("stepSize"));
     }
 
     if(cmd.foundOption("Halign"))
@@ -1419,7 +1433,6 @@ void startEvaluation(ArgvParser& cmd)
 	}
 
     int failNr = 0;
-	int step = 1;
 	const int evStepStereoStable_tmp = evStepStereoStable + 1;
 	int evStepStereoStable_cnt = evStepStereoStable_tmp;
 	cv::Mat R_stable, t_stable;
@@ -2074,6 +2087,7 @@ void showMatches(const cv::Mat &img1, const cv::Mat &img2,
                  int nrFeatures,
                  bool drawAllKps)
 {
+    if(nrFeatures <= -3) return;
     if(nrFeatures <= 0)
     {
         Mat drawImg;

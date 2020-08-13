@@ -310,10 +310,10 @@ To change parameters and/or the directory containing images execute `./poselib-t
 
 For testing executbale `matchinglib-test` with default parameters and the provided test images see [here](#quick-matching).
 
-Feature matches can be calculated using all available algorithms (see [here](#support-features) and [here](#support-matching)).
+Feature matches can be calculated using all available algorithms (see [here](#support-features), [here](#support-matching), and [here](#support-filtering)).
 Algorithm names can be specified as strings like listed [here](#support-features) and [here](#support-matching) with command line options `--f_detect`, `--d_extr`, and `--matcher`.
 
-Feature matches can be calculated for consecutive mono and stereo camera images located within a single folder by either providing only a pre- and/or post-fix using `--l_img_pref` for one image sequence or by providing 2 pre- and/or post-fixes using `--l_img_pref` and `--r_img_pref` for stereo image sequences, respectively.
+Feature matches can be calculated for multiple mono and stereo camera images located within a single folder by either providing only a pre- and/or post-fix using `--l_img_pref` for one image sequence or by providing 2 pre- and/or post-fixes using `--l_img_pref` and `--r_img_pref` for stereo image sequences, respectively.
 By default, matches are not stored but displayed.
 To store keypoints and matches provide option `--output_path`.
 To disable displaying found matches provide option `--showNr -3`.
@@ -321,3 +321,24 @@ To disable displaying found matches provide option `--showNr -3`.
 To start calculating features and matches call `./matchinglib-test [options]` or `./run_docker_base.sh match [options]`.
 
 For additional options and details call `./matchinglib-test -h` or `./run_docker_base.sh match -h`.
+
+## Stand-Alone Executable for Pose Estimation <a name="executable-pose"></a>
+
+For testing executbale `poselib-test` with default parameters and the provided test data see [here](#quick-pose).
+
+Executable `poselib-test` supports the calculation of feature matches with identical options as for executbale `matchinglib-test` (see [here](#executable-matching)) with subsequent relative pose estimation.
+All available algorithms described/listed [here](#support-pose) can be used.
+For details call `./poselib-test -h` or `./run_docker_base.sh pose -h`.
+
+Realtive poses can be calculated for multiple mono and stereo camera images located within a single folder by either providing only a pre- and/or post-fix using `--l_img_pref` for one image sequence or by providing 2 pre- and/or post-fixes using `--l_img_pref` and `--r_img_pref` for stereo image sequences, respectively.
+In addition, intrinsics calibration data (or at least an estimate with enabled bundle adjustment) must be provided.
+This executable only supports reading intrinsics data for at most 2 cameras (mono, stereo).
+Intrinsics data must be provided with a text file within the provided image directory.
+The data format corresponds to [raw KITTI calibration format](https://s3.eu-central-1.amazonaws.com/avg-kitti/devkit_raw_data.zip).
+The text file must also include extrinsics data which can be set to zero translation and identity rotation matrix.
+Extrinsics data is only used for comparison (which can be disabled) with estimated poses.
+
+To store rectified images provide option `--output_path`.
+To disable displaying found matches, informational output, and rectified images provide options `--v 0 --showNr -3`.
+
+To start calculating features, matches and relative poses call `./poselib-test [options]` or `./run_docker_base.sh pose [options]`.
