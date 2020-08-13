@@ -87,6 +87,18 @@ void showMatches(cv::Mat img1, cv::Mat img2,
                  int nrFeatures,
                  bool drawAllKps = false);
 
+void storeMatches(const std::string &path_filename,
+                  const std::string &kp_type,
+                  const std::string &descr_type,
+                  const std::vector<cv::KeyPoint> &kp1,
+                  const std::vector<cv::KeyPoint> &kp2,
+                  const std::vector<cv::DMatch> &matches);
+std::string extractFileName(const std::string &file);
+std::string concatImgNames(const std::string &file1,
+                           const std::string &file2,
+                           const std::string &detector,
+                           const std::string &extractor);
+
 void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 {
     testing::internal::FilePath program(argv[0]);
@@ -167,7 +179,8 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
     cmd.defineOption("showNr",
                      "<Specifies the number of matches that should be drawn [Default=50]. "
                      "If the number is set to -1, all matches are drawn. If the number is set to -2, "
-                     "all matches in addition to all not matchable keypoints are drawn.>",
+                     "all matches in addition to all not matchable keypoints are drawn. "
+                     "If the number is set to -3, no matches are shown.>",
                      ArgvParser::OptionRequiresValue);
     cmd.defineOption("v",
                      "<Verbose value [Default=3].\n "
@@ -186,6 +199,8 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
                      "Instead of '=' in the string you have to use '+'. If you are using a NMSLIB matcher but no "
                      "parameters are given, the default parameters are used which may leed to unsatisfactory results.>",
                      ArgvParser::OptionRequiresValue);
+    cmd.defineOption("output_path", "<Path where keypoints are saved to. "
+                                    "Only if a path is given, data is stored to disk.>", ArgvParser::OptionRequiresValue);
 
     /// finally parse and handle return codes (display help etc...)
     testing::InitGoogleTest(&argc, argv);
@@ -240,297 +255,366 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
     }
 }
 
-void startEvaluation(ArgvParser& cmd)
-{
-  string img_path, l_img_pref, r_img_pref, f_detect, d_extr, matcher, nmsIdx, nmsQry;
-  string show_str;
-  int showNr, f_nr;
-  bool noRatiot, refineVFC, refineSOF, refineGMS, DynKeyP, drawSingleKps = false;
-  int subPixRef = 0;
-  bool oneCam = false;
-  int err, verbose;
-  vector<string> filenamesl, filenamesr;
-  cv::Mat src[2];
-  std::vector<cv::DMatch> finalMatches;
-  std::vector<cv::KeyPoint> kp1;
-  std::vector<cv::KeyPoint> kp2;
+void startEvaluation(ArgvParser& cmd){
+    string img_path, l_img_pref, r_img_pref, f_detect, d_extr, matcher, nmsIdx, nmsQry, output_path;
+    string show_str;
+    int showNr, f_nr;
+    bool noRatiot, refineVFC, refineSOF, refineGMS, DynKeyP, drawSingleKps = false;
+    int subPixRef = 0;
+    bool oneCam = false;
+    int err, verbose;
+    vector<string> filenamesl, filenamesr;
+    cv::Mat src[2];
+    std::vector<cv::DMatch> finalMatches;
+    std::vector<cv::KeyPoint> kp1;
+    std::vector<cv::KeyPoint> kp2;
 
-  noRatiot = cmd.foundOption("noRatiot");
-  refineVFC = cmd.foundOption("refineVFC");
-  refineSOF = cmd.foundOption("refineSOF");
-  refineGMS = cmd.foundOption("refineGMS");
-  DynKeyP = cmd.foundOption("DynKeyP");
-  
-  if (cmd.foundOption("subPixRef"))
-  {
-	  subPixRef = stoi(cmd.optionValue("subPixRef"));
-  }
+    noRatiot = cmd.foundOption("noRatiot");
+    refineVFC = cmd.foundOption("refineVFC");
+    refineSOF = cmd.foundOption("refineSOF");
+    refineGMS = cmd.foundOption("refineGMS");
+    DynKeyP = cmd.foundOption("DynKeyP");
 
-  if(cmd.foundOption("f_detect"))
-  {
-    f_detect = cmd.optionValue("f_detect");
-  }
-  else
-  {
-    f_detect = "BRISK";
-  }
-
-  if(cmd.foundOption("d_extr"))
-  {
-    d_extr = cmd.optionValue("d_extr");
-  }
-  else
-  {
-    d_extr = "FREAK";
-  }
-
-  if(cmd.foundOption("matcher"))
-  {
-    matcher = cmd.optionValue("matcher");
-  }
-  else
-  {
-    matcher = "GMBSOF";
-  }
-
-  if (cmd.foundOption("nmsIdx"))
-  {
-	  nmsIdx = cmd.optionValue("nmsIdx");
-	  std::replace(nmsIdx.begin(), nmsIdx.end(), '+', '=');
-  }
-  else
-  {
-	  nmsIdx = "";
-  }
-
-  if (cmd.foundOption("nmsQry"))
-  {
-	  nmsQry = cmd.optionValue("nmsQry");
-	  std::replace(nmsQry.begin(), nmsQry.end(), '+', '=');
-  }
-  else
-  {
-	  nmsQry = "";
-  }
-
-
-  if(cmd.foundOption("f_nr"))
-  {
-    f_nr = stoi(cmd.optionValue("f_nr"));
-
-    if(f_nr <= 10)
+    if (cmd.foundOption("subPixRef"))
     {
-      cout << "The specified maximum number of keypoints is too low!" << endl;
-      exit(1);
+        subPixRef = stoi(cmd.optionValue("subPixRef"));
     }
-  }
-  else
-  {
-    f_nr = 5000;
-  }
 
-  if(cmd.foundOption("v"))
-  {
-    verbose = stoi(cmd.optionValue("v"));
-  }
-  else
-  {
-    verbose = 3;
-  }
-
-  if(cmd.foundOption("img_path") && cmd.foundOption("l_img_pref") && !cmd.foundOption("r_img_pref"))
-  {
-    oneCam = true;
-  }
-  else if(cmd.foundOption("img_path") && cmd.foundOption("l_img_pref") && cmd.foundOption("r_img_pref"))
-  {
-    oneCam = false;
-    r_img_pref = cmd.optionValue("r_img_pref");
-  }
-  else
-  {
-    cout << "Image path or file prefixes missing!" << endl;
-    exit(1);
-  }
-
-  img_path = cmd.optionValue("img_path");
-  l_img_pref = cmd.optionValue("l_img_pref");
-
-  if(oneCam)
-  {
-    err = loadImageSequence(img_path, l_img_pref, filenamesl);
-
-    if(err || filenamesl.size() < 2)
+    if(cmd.foundOption("f_detect"))
     {
-      cout << "Could not find sequence of images! Exiting." << endl;
-      exit(0);
-    }
-  }
-  else
-  {
-    err = loadStereoSequence(img_path, l_img_pref, r_img_pref, filenamesl, filenamesr);
-
-    if(err || filenamesl.empty() || filenamesr.empty() || (filenamesl.size() != filenamesr.size()))
-    {
-      cout << "Could not find stereo images! Exiting." << endl;
-      exit(1);
-    }
-  }
-
-  if(cmd.foundOption("showNr"))
-  {
-    show_str = cmd.optionValue("showNr");
-  }
-
-  if(!show_str.empty())
-  {
-    showNr = stoi(show_str);
-
-    drawSingleKps = false;
-    if(showNr == -2)
-    {
-      drawSingleKps = true;
-    }
-  }
-  else
-  {
-    showNr = 50;
-  }
-
-  int failNr = 0;
-
-  for(int i = 0; i < (oneCam ? ((int)filenamesl.size() - 1):(int)filenamesl.size()); i++)
-  {
-    if(oneCam)
-    {
-      src[0] = cv::imread(filenamesl[i],cv::IMREAD_GRAYSCALE);
-      src[1] = cv::imread(filenamesl[i + 1],cv::IMREAD_GRAYSCALE);
+        f_detect = cmd.optionValue("f_detect");
     }
     else
     {
-      src[0] = cv::imread(filenamesl[i],cv::IMREAD_GRAYSCALE);
-      src[1] = cv::imread(filenamesr[i],cv::IMREAD_GRAYSCALE);
+        f_detect = "BRISK";
     }
 
-    err = matchinglib::getCorrespondences(src[0],
-            src[1],
-            finalMatches,
-            kp1,
-            kp2,
-            f_detect,
-            d_extr,
-            matcher,
-            DynKeyP,
-            f_nr,
-            refineVFC,
-            refineGMS,
-            !noRatiot,
-            refineSOF,
-            subPixRef,
-            verbose,
-            nmsIdx,
-            nmsQry);
-
-    if(err)
+    if(cmd.foundOption("d_extr"))
     {
-      if((err == -5) || (err == -6))
-      {
-        cout << "Exiting!" << endl;
-        exit(1);
-      }
-
-      failNr++;
-
-      if((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
-      {
-        cout << "Matching failed! Trying next pair." << endl;
-        continue;
-      }
-      else
-      {
-        cout << "Matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
-        exit(1);
-      }
+        d_extr = cmd.optionValue("d_extr");
+    }
+    else
+    {
+        d_extr = "FREAK";
     }
 
-    showMatches(src[0], src[1], kp1, kp2, finalMatches, showNr, drawSingleKps);
-  }
+    if(cmd.foundOption("matcher"))
+    {
+        matcher = cmd.optionValue("matcher");
+    }
+    else
+    {
+        matcher = "GMBSOF";
+    }
+
+    if (cmd.foundOption("nmsIdx"))
+    {
+        nmsIdx = cmd.optionValue("nmsIdx");
+        std::replace(nmsIdx.begin(), nmsIdx.end(), '+', '=');
+    }
+    else
+    {
+        nmsIdx = "";
+    }
+
+    if (cmd.foundOption("nmsQry"))
+    {
+        nmsQry = cmd.optionValue("nmsQry");
+        std::replace(nmsQry.begin(), nmsQry.end(), '+', '=');
+    }
+    else
+    {
+        nmsQry = "";
+    }
+
+    if (cmd.foundOption("output_path"))
+    {
+        output_path = cmd.optionValue("output_path");
+    }
+    else
+    {
+        output_path = "";
+    }
+
+
+    if(cmd.foundOption("f_nr"))
+    {
+        f_nr = stoi(cmd.optionValue("f_nr"));
+
+        if(f_nr <= 10)
+        {
+            cout << "The specified maximum number of keypoints is too low!" << endl;
+            exit(1);
+        }
+    }
+    else
+    {
+        f_nr = 5000;
+    }
+
+    if(cmd.foundOption("v"))
+    {
+        verbose = stoi(cmd.optionValue("v"));
+    }
+    else
+    {
+        verbose = 3;
+    }
+
+    if(cmd.foundOption("img_path") && cmd.foundOption("l_img_pref") && !cmd.foundOption("r_img_pref"))
+    {
+        oneCam = true;
+    }
+    else if(cmd.foundOption("img_path") && cmd.foundOption("l_img_pref") && cmd.foundOption("r_img_pref"))
+    {
+        oneCam = false;
+        r_img_pref = cmd.optionValue("r_img_pref");
+    }
+    else
+    {
+        cout << "Image path or file prefixes missing!" << endl;
+        exit(1);
+    }
+
+    img_path = cmd.optionValue("img_path");
+    l_img_pref = cmd.optionValue("l_img_pref");
+
+    if(oneCam)
+    {
+        err = loadImageSequence(img_path, l_img_pref, filenamesl);
+
+        if(err || filenamesl.size() < 2)
+        {
+            cout << "Could not find sequence of images! Exiting." << endl;
+            exit(0);
+        }
+    }
+    else
+    {
+        err = loadStereoSequence(img_path, l_img_pref, r_img_pref, filenamesl, filenamesr);
+
+        if(err || filenamesl.empty() || filenamesr.empty() || (filenamesl.size() != filenamesr.size()))
+        {
+            cout << "Could not find stereo images! Exiting." << endl;
+            exit(1);
+        }
+    }
+
+    if(cmd.foundOption("showNr"))
+    {
+        show_str = cmd.optionValue("showNr");
+    }
+
+    if(!show_str.empty())
+    {
+        showNr = stoi(show_str);
+
+        drawSingleKps = false;
+        if(showNr == -2)
+        {
+            drawSingleKps = true;
+        }
+    }
+    else
+    {
+        showNr = 50;
+    }
+
+    int failNr = 0;
+
+    for(int i = 0; i < (oneCam ? ((int)filenamesl.size() - 1):(int)filenamesl.size()); i++)
+    {
+        if(oneCam)
+        {
+            src[0] = cv::imread(filenamesl[i],cv::IMREAD_GRAYSCALE);
+            src[1] = cv::imread(filenamesl[i + 1],cv::IMREAD_GRAYSCALE);
+        }
+        else
+        {
+            src[0] = cv::imread(filenamesl[i],cv::IMREAD_GRAYSCALE);
+            src[1] = cv::imread(filenamesr[i],cv::IMREAD_GRAYSCALE);
+        }
+
+        err = matchinglib::getCorrespondences(src[0],
+                                              src[1],
+                                              finalMatches,
+                                              kp1,
+                                              kp2,
+                                              f_detect,
+                                              d_extr,
+                                              matcher,
+                                              DynKeyP,
+                                              f_nr,
+                                              refineVFC,
+                                              refineGMS,
+                                              !noRatiot,
+                                              refineSOF,
+                                              subPixRef,
+                                              verbose,
+                                              nmsIdx,
+                                              nmsQry);
+
+        if(err)
+        {
+            if((err == -5) || (err == -6))
+            {
+                cout << "Exiting!" << endl;
+                exit(1);
+            }
+
+            failNr++;
+
+            if((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
+            {
+                cout << "Matching failed! Trying next pair." << endl;
+                continue;
+            }
+            else
+            {
+                cout << "Matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
+                exit(1);
+            }
+        }
+
+        showMatches(src[0], src[1], kp1, kp2, finalMatches, showNr, drawSingleKps);
+
+        if(!output_path.empty()) {
+            string img_name12, path_file;
+            if(oneCam){
+                img_name12 = concatImgNames(filenamesl[i], filenamesl[i + 1], f_detect, d_extr);
+            }else{
+                img_name12 = concatImgNames(filenamesl[i], filenamesr[i], f_detect, d_extr);
+            }
+            if(img_name12.empty()) continue;
+            if(output_path.rfind('/') + 1 == output_path.size()){
+                path_file = output_path + img_name12;
+            }else{
+                path_file = output_path + "/" + img_name12;
+            }
+            storeMatches(path_file, f_detect, d_extr, kp1, kp2, finalMatches);
+        }
+    }
+}
+
+std::string concatImgNames(const std::string &file1,
+                           const std::string &file2,
+                           const std::string &detector,
+                           const std::string &extractor){
+    std::string img_name1 = extractFileName(file1);
+    if(img_name1.empty()) return "";
+    std::string img_name2 = extractFileName(file2);
+    if(img_name2.empty()) return "";
+    return img_name1 + "_" + img_name2 + "_" + detector + "_" + extractor + ".yaml";
+}
+
+std::string extractFileName(const std::string &file){
+    size_t pos0 = file.rfind('/');
+    if(pos0 == string::npos) return "";
+    std::string img_name = file.substr(pos0 + 1);
+    pos0 = img_name.rfind('.');
+    if(pos0 == string::npos) return "";
+    return img_name.substr(0, pos0);
 }
 
 void showMatches(cv::Mat img1, cv::Mat img2,
-                 std::vector<cv::KeyPoint> kp1, std::vector<cv::KeyPoint> kp2,
+                 std::vector<cv::KeyPoint> kp1,
+                 std::vector<cv::KeyPoint> kp2,
                  std::vector<cv::DMatch> matches,
                  int nrFeatures,
-                 bool drawAllKps)
-{
-  if(nrFeatures <= 0)
-  {
-    Mat drawImg;
-
-    if(drawAllKps)
+                 bool drawAllKps){
+    if(nrFeatures <= -3) return;
+    if(nrFeatures <= 0)
     {
-      cv::drawMatches( img1, kp1, img2, kp2, matches, drawImg);
-      //imwrite("C:\\work\\matches_final.jpg", drawImg);
+        Mat drawImg;
+
+        if(drawAllKps)
+        {
+            cv::drawMatches( img1, kp1, img2, kp2, matches, drawImg);
+            //imwrite("C:\\work\\matches_final.jpg", drawImg);
+        }else{
+            cv::drawMatches( img1, kp1, img2, kp2, matches, drawImg, Scalar::all(-1), Scalar(43, 112, 175), vector<char>(),
+                             cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+        }
+
+        cv::imshow( "All Matches", drawImg );
     }
     else
     {
-      cv::drawMatches( img1, kp1, img2, kp2, matches, drawImg, Scalar::all(-1), Scalar(43, 112, 175), vector<char>(),
-                       cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+        //Show reduced set of matches
+        {
+            Mat img_match;
+            std::vector<cv::KeyPoint> keypL_reduced;//Left keypoints
+            std::vector<cv::KeyPoint> keypR_reduced;//Right keypoints
+            std::vector<cv::DMatch> matches_reduced;
+            std::vector<cv::KeyPoint> keypL_reduced1;//Left keypoints
+            std::vector<cv::KeyPoint> keypR_reduced1;//Right keypoints
+            std::vector<cv::DMatch> matches_reduced1;
+            int j = 0;
+            size_t keepNMatches = nrFeatures;
+
+            if(matches.size() > keepNMatches)
+            {
+                size_t keepXthMatch = matches.size() / keepNMatches;
+
+                for (unsigned int i = 0; i < matches.size(); i++)
+                {
+                    int idx = matches[i].queryIdx;
+                    keypL_reduced.push_back(kp1[idx]);
+                    matches_reduced.push_back(matches[i]);
+                    matches_reduced.back().queryIdx = i;
+                    keypR_reduced.push_back(kp2[matches_reduced.back().trainIdx]);
+                    matches_reduced.back().trainIdx = i;
+                }
+
+                j = 0;
+
+                for (unsigned int i = 0; i < matches_reduced.size(); i++)
+                {
+                    if((i % (int)keepXthMatch) == 0)
+                    {
+                        keypL_reduced1.push_back(keypL_reduced[i]);
+                        matches_reduced1.push_back(matches_reduced[i]);
+                        matches_reduced1.back().queryIdx = j;
+                        keypR_reduced1.push_back(keypR_reduced[i]);
+                        matches_reduced1.back().trainIdx = j;
+                        j++;
+                    }
+                }
+
+                drawMatches(img1, keypL_reduced1, img2, keypR_reduced1, matches_reduced1, img_match);
+                imshow("Reduced set of matches", img_match);
+            }
+        }
     }
 
-    cv::imshow( "All Matches", drawImg );
-  }
-  else
-  {
-    //Show reduced set of matches
-    {
-      Mat img_match;
-      std::vector<cv::KeyPoint> keypL_reduced;//Left keypoints
-      std::vector<cv::KeyPoint> keypR_reduced;//Right keypoints
-      std::vector<cv::DMatch> matches_reduced;
-      std::vector<cv::KeyPoint> keypL_reduced1;//Left keypoints
-      std::vector<cv::KeyPoint> keypR_reduced1;//Right keypoints
-      std::vector<cv::DMatch> matches_reduced1;
-      int j = 0;
-      size_t keepNMatches = nrFeatures;
+    cv::waitKey(0);
+    cv::destroyAllWindows();
+}
 
-      if(matches.size() > keepNMatches)
-      {
-        size_t keepXthMatch = matches.size() / keepNMatches;
-
-        for (unsigned int i = 0; i < matches.size(); i++)
-        {
-          int idx = matches[i].queryIdx;
-          keypL_reduced.push_back(kp1[idx]);
-          matches_reduced.push_back(matches[i]);
-          matches_reduced.back().queryIdx = i;
-          keypR_reduced.push_back(kp2[matches_reduced.back().trainIdx]);
-          matches_reduced.back().trainIdx = i;
-        }
-
-        j = 0;
-
-        for (unsigned int i = 0; i < matches_reduced.size(); i++)
-        {
-          if((i % (int)keepXthMatch) == 0)
-          {
-            keypL_reduced1.push_back(keypL_reduced[i]);
-            matches_reduced1.push_back(matches_reduced[i]);
-            matches_reduced1.back().queryIdx = j;
-            keypR_reduced1.push_back(keypR_reduced[i]);
-            matches_reduced1.back().trainIdx = j;
-            j++;
-          }
-        }
-
-        drawMatches(img1, keypL_reduced1, img2, keypR_reduced1, matches_reduced1, img_match);
-        imshow("Reduced set of matches", img_match);
-      }
+void storeMatches(const std::string &path_filename,
+                  const std::string &kp_type,
+                  const std::string &descr_type,
+                  const std::vector<cv::KeyPoint> &kp1,
+                  const std::vector<cv::KeyPoint> &kp2,
+                  const std::vector<cv::DMatch> &matches){
+    FileStorage fs(path_filename, FileStorage::WRITE);
+    if (!fs.isOpened()) {
+        cerr << "Failed to open " << path_filename << endl;
+        return;
     }
-  }
 
-  cv::waitKey(0);
-  cv::destroyAllWindows();
+    fs.writeComment("This file contains keypoints and matches.\n");
+
+    fs.writeComment("Type of used keypoint detector");
+    fs << "KeypointDetector" << kp_type;
+    fs.writeComment("Type of used descriptor extractor");
+    fs << "DescriptorExtractor" << descr_type;
+    fs.writeComment("Keypoints in first (query) image");
+    fs << "keypoints1" << kp1;
+    fs.writeComment("Keypoints in second (train) image");
+    fs << "keypoints2" << kp2;
+    fs.writeComment("Found matches");
+    fs << "matches" << matches;
 }
 
 /** @function main */

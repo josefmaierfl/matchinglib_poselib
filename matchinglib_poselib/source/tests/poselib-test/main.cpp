@@ -365,7 +365,7 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
                                "2\t Estimate homographies with a variable threshold>", ArgvParser::OptionRequiresValue);
     cmd.defineOption("showRect", "<If provided, the images are rectified and shown using the estimated pose.>", ArgvParser::NoOptionAttribute);
     cmd.defineOption("output_path", "<Path where rectified images are saved to. "
-                                    "Only if a path is given, the rectified images are stored to memory.>", ArgvParser::OptionRequiresValue);
+                                    "Only if a path is given, the rectified images are stored to disk.>", ArgvParser::OptionRequiresValue);
     cmd.defineOption("distcoeffNr", "<Number of used distortion coeffitients in the calibration file. "
                                     "Can be 5 or 8. If not specifyed a default value of 5 is used.>", ArgvParser::OptionRequiresValue);
     cmd.defineOption("histEqual", "<If provided, histogram equalization is applied to the source images.>", ArgvParser::NoOptionAttribute);
