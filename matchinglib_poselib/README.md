@@ -331,6 +331,7 @@ All available algorithms described/listed [here](#support-pose) can be used.
 For details call `./poselib-test -h` or `./run_docker_base.sh pose -h`.
 
 Realtive poses can be calculated for multiple mono and stereo camera images located within a single folder by either providing only a pre- and/or post-fix using `--l_img_pref` for one image sequence or by providing 2 pre- and/or post-fixes using `--l_img_pref` and `--r_img_pref` for stereo image sequences, respectively.
+For mono camera configurations (frame-to-frame poses and rectified images are calculated), a step size providing option `--stepSize` can be specified.
 In addition, intrinsics calibration data (or at least an estimate with enabled bundle adjustment) must be provided.
 This executable only supports reading intrinsics data for at most 2 cameras (mono, stereo).
 Intrinsics data must be provided with a text file within the provided image directory.
@@ -341,4 +342,8 @@ Extrinsics data is only used for comparison (which can be disabled) with estimat
 To store rectified images provide option `--output_path`.
 To disable displaying found matches, informational output, and rectified images provide options `--v 0 --showNr -3`.
 
+To enable the continious high accurate relative stereo pose estimation which calculates poses based on multiple stereo frames that have identical intrinsics and extrinsics for at least a few frames, provide option `--stereoRef`.
+
 To start calculating features, matches and relative poses call `./poselib-test [options]` or `./run_docker_base.sh pose [options]`.
+
+For additional options and details call `./poselib-test -h` or `./run_docker_base.sh pose -h`.
