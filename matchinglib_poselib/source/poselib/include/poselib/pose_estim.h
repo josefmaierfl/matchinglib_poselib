@@ -65,14 +65,14 @@ namespace poselib
 
 	//Possibilities to refine the model in the inner USAC:
 	enum POSELIB_API RefineAlg {
-		REF_WEIGHTS,
-		REF_8PT_PSEUDOHUBER,
-		REF_EIG_KNEIP,
-		REF_EIG_KNEIP_WEIGHTS,
-		REF_STEWENIUS,
-		REF_STEWENIUS_WEIGHTS,
-		REF_NISTER,
-		REF_NISTER_WEIGHTS
+		REF_WEIGHTS,//Refinement using 8pt algorithm and Torr weights
+		REF_8PT_PSEUDOHUBER,//Refinement using 8pt algorithm and Pseudo-Huber weights
+		REF_EIG_KNEIP,//Refinement using Kneip's Eigen solver and squared norms
+		REF_EIG_KNEIP_WEIGHTS,//Refinement using Kneip's Eigen solver and Pseudo-Huber weights
+		REF_STEWENIUS,//Refinement using Stewenius's 5pt algorithm
+		REF_STEWENIUS_WEIGHTS,//Refinement using Stewenius's 5pt algorithm and Pseudo-Huber weights
+		REF_NISTER,//Refinement using Nister's 5pt algorithm
+		REF_NISTER_WEIGHTS//Refinement using Nister's 5pt algorithm and Pseudo-Huber weights
 	};
 
 	//Possibilities for refinement and weighting after the first estimation with RANSAC, ARRSAC, or USAC (first 8bit choose refinement alg and second 8bit weighting function)
@@ -112,23 +112,23 @@ namespace poselib
 			degenDecisionTh(0.85)
 		{}
 
-		double focalLength;
-		double th_pixels;
-		UsacChkDegenType degeneracyCheck;
-		PoseEstimator estimator;
-		RefineAlg refinealg;
-		bool prevalidateSample;
-		bool noAutomaticProsacParamters;
+		double focalLength;//mean focal length in pixels
+		double th_pixels;//Threshold in pixels
+		UsacChkDegenType degeneracyCheck;//Algorithm used to detect and resolve degenarcy
+		PoseEstimator estimator;//Minimal solver used to estimate essential matrix
+		RefineAlg refinealg;//Linear refinement algorithm in LOSAC for inner refinement
+		bool prevalidateSample;//Enable/disable prevalidation of samples
+		bool noAutomaticProsacParamters;//If true, disables automatic estimation of PROSAC parameters and uses default values
 		int automaticSprtInit;//Check enum SprtInit and its combinations
 		//double sprt_delta_initial;
 		//double sprt_epsilon_initial;
 		//std::vector<unsigned int> *sortedMatchIdx;
-		std::vector<cv::DMatch> *matches;
-		std::vector<cv::KeyPoint> *keypoints1;
-		std::vector<cv::KeyPoint> *keypoints2;
-		unsigned int nrMatchesVfcFiltered;
-		cv::Size imgSize;
-		double degenDecisionTh;//Used for the option UsacChkDegenType::DEGEN_USAC_INTERNAL: Threshold on the fraction of degenerate inliers compared to the E-inlier fraction
+		std::vector<cv::DMatch> *matches;//Pointer to feature matches
+		std::vector<cv::KeyPoint> *keypoints1;//Pointer to keypoints in first image
+		std::vector<cv::KeyPoint> *keypoints2;//Pointer to keypoints in second image
+		unsigned int nrMatchesVfcFiltered;//Number of remaining matches after filtering with SOF, GMS, or VFC
+		cv::Size imgSize;//Size of image
+		double degenDecisionTh;//Used for the option UsacChkDegenType::DEGEN_USAC_INTERNAL: Threshold in pixels on the fraction of degenerate inliers compared to the E-inlier fraction
 	};
 
 
