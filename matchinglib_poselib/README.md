@@ -762,3 +762,16 @@ If this "most likely" pose is found to be stable, the flag `poselib::StereoRefin
 Stability on refined poses `poselib::StereoRefine::R_new` and `poselib::StereoRefine::t_new` is signaled by flag `poselib::StereoRefine::poseIsStable`.
 
 An example can be found in [./matchinglib_poselib/source/tests/poselib-test/main.cpp](./matchinglib_poselib/source/tests/poselib-test/main.cpp).
+
+### ROS <a name="interface-ros"></a>
+
+We provide a ROS interface for this library including all functionalities described above ([matching](#executable-matching), [pose estimation](#executable-pose), and [continuous high accuracy stereo pose estimation](#interface-stereo)).
+The interface continuously reads image data and calculates matches and poses.
+Parameters can be set by providing a launch file and/or dynamically reconfiguring parameters during runtime.
+
+The ROS interface and instructions on how to set-up and use it can be found [here](https://github.com/josefmaierfl/matchinglib_poselib_ros).
+
+## Testing Results on Supported Keypoint, Descriptor, and Matching Algorithm Types <a name="tests-features"></a>
+
+Performance evaluations on keypoint descriptor combinations can be found in
+* [J. Maier et.al., Ground Truth Accuracy and Performance of the Matching Pipeline, 2017](https://openaccess.thecvf.com/content_cvpr_2017_workshops/w10/html/Maier_Ground_Truth_Accuracy_CVPR_2017_paper.html)
