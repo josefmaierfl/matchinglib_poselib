@@ -373,7 +373,7 @@ Information on how to use [SemiRealSequence](https://github.com/josefmaierfl/Sem
 The library is split into 2 main parts: `matchinglib` and `poselib`.
 To use them, install all [required dependencies](#system-dependencies) and [the library itself](#library) and [adopt your CMake](#library).
 
-### Calculation of Sparse Feature Matches <a name="#interface-matching"></a>
+### Calculation of Sparse Feature Matches <a name="interface-matching"></a>
 
 After loading 2 grayscale images `img1` and `img2` in OpenCV format (`cv::Mat`), matches can be calculated by calling function
 ```
@@ -423,9 +423,9 @@ Output variable descriptions:
 
 An example can be found in [./matchinglib_poselib/source/tests/matchinglib-test/main.cpp](./matchinglib_poselib/source/tests/matchinglib-test/main.cpp).
 
-### Calculation of Relative Poses <a name="#interface-pose"></a>
+### Calculation of Relative Poses <a name="interface-pose"></a>
 
-
+#### Preliminaries <a name="interface-pose-preliminaries"></a>
 
 Using matches (e.g. calculated using function `matchinglib::getCorrespondences`), the follwing steps should be performed:
 ```
@@ -442,10 +442,7 @@ poselib::ImgToCamCoordTrans(points1, K0);
 poselib::ImgToCamCoordTrans(points2, K1);
 
 //Undistort
-if (!poselib::Remove_LensDist(points1, points2, dist0_8, dist1_8))
-{
-    ...
-}
+poselib::Remove_LensDist(points1, points2, dist0_8, dist1_8);
 ```
 
 Function `poselib::ImgToCamCoordTrans(std::vector<cv::Point2f>& points, cv::Mat K)` transfers matching keypoint locations `points1` and `points2` from the image into the camera coordinate system using camera matrices of first and second cameras, `cv::Mat K0` and `cv::Mat K1`, respectively.
@@ -454,6 +451,8 @@ Function `poselib::Remove_LensDist(std::vector<cv::Point2f>& points1, std::vecto
 Radial distortion parameters `dist1` and `dist2` correspond to [OpenCV format](https://docs.opencv.org/3.4.9/d9/d0c/group__calib3d.html#ga1019495a2c8d1743ed5cc23fa0daff8c) with 5 or 8 distortion parameters.
 
 Based on distortion-free correspondences in camera coordinates, an Essential matrix can be estimated by one of [above listed robust methods](#support-pose).
+
+#### USAC <a name="interface-pose-usac"></a>
 
 In case you want to use [USAC](http://www.cs.unc.edu/~rraguram/usac/) call function
 ```
@@ -474,8 +473,8 @@ located within [./matchinglib_poselib/source/poselib/include/poselib/pose_estim.
 It can be included with `#include "poselib/pose_estim.h"`.
 
 Input variable descriptions:
-* `cv::Mat p1`: rows x cols = ( n x 2 ) size array (type `CV_64FC1`) of distortion-free keypoint locations in camera coordinates corresponding to `cv::Mat p2`
-* `cv::Mat p2`: rows x cols = ( n x 2 ) size array (type `CV_64FC1`) of distortion-free keypoint locations in camera coordinates corresponding to `cv::Mat p1`
+* `cv::Mat p1`: (rows x cols) = ( n x 2 ) sized array (type `CV_64FC1`) of distortion-free keypoint locations in camera coordinates corresponding to `cv::Mat p2`
+* `cv::Mat p2`: (rows x cols) = ( n x 2 ) sized array (type `CV_64FC1`) of distortion-free keypoint locations in camera coordinates corresponding to `cv::Mat p1`
 * `double th`: Threshold in camera coordinates. It can be converted from image coordinates using <img src="https://render.githubusercontent.com/render/math?math=t\!h_{cam} = t\!h_{pix}\frac{4}{\sqrt{2}\left(f_{1,x} %2B f_{1,y} %2B f_{2,x} %2B f_{2,y}\right)}"> with focal lengths *f* of first and second camera in x- and y- direction
 * `ConfigUSAC cfg`: USAC configuration parameters. See [./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h](./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h)
 * `bool verbose`: Verbosity
@@ -483,11 +482,107 @@ Input variable descriptions:
 Output variable descriptions:
 * `cv::OutputArray E`: Essential matrix in `cv::Mat` format and type `CV_64FC1`
 * `bool isDegenerate`: Returns true if solution is degenerate (i.e. rotation only)
-* `cv::OutputArray inliers`: Inlier mask of size rows x cols = (1 x n) in `cv::Mat` format and type `CV_8UC1`
+* `cv::OutputArray inliers`: Inlier mask of size (rows x cols) = (1 x n) in `cv::Mat` format and type `CV_8UC1`
 * `cv::OutputArray R_degenerate`: Rotation matrix if `isDegenerate=true`
 * `cv::OutputArray inliers_degenerate_R`: Inlier mask (`cv::Mat` format and type `CV_8UC1`) for degenerate solution if `isDegenerate=true`
 * `cv::OutputArray R`: Rotation matrix in case Kneip's Eigen solver was used in `cv::Mat` format and type `CV_64FC1`
-* `cv::OutputArray t`: Translation vector of size rows x cols = (3 x 1) in `cv::Mat` format and type `CV_64FC1`
+* `cv::OutputArray t`: Translation vector of size (rows x cols) = (3 x 1) in `cv::Mat` format and type `CV_64FC1`
 
+#### RANSAC, ARRSAC, and MLESAC <a name="interface-pose-robust"></a>
 
+In case you want to use vanilla RANSAC, ARRSAC, or MLESAC call function
+```
+bool poselib::estimateEssentialMat(cv::OutputArray E,
+        cv::InputArray p1,
+        cv::InputArray p2,
+        const std::string &method,
+        double threshold,
+        bool refine,
+        cv::OutputArray mask = cv::noArray());
+```
+located within [./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h](./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h).
+It can be included with `#include "poselib/pose_estim.h"`.
 
+Input variable descriptions:
+* `cv::InputArray p1`: (rows x cols) = ( n x 2 ) sized array (type `CV_64FC1`) of distortion-free keypoint locations in camera coordinates corresponding to `cv::InputArray p2`
+* `cv::InputArray p2`: (rows x cols) = ( n x 2 ) sized array (type `CV_64FC1`) of distortion-free keypoint locations in camera coordinates corresponding to `cv::InputArray p1`
+* `std::string method`: Robust method to use: `RANSAC`, `ARRSAC`, or `MLESAC`
+* `double threshold`: Threshold in camera coordinates. It can be converted from image coordinates using <img src="https://render.githubusercontent.com/render/math?math=t\!h_{cam} = t\!h_{pix}\frac{4}{\sqrt{2}\left(f_{1,x} %2B f_{1,y} %2B f_{2,x} %2B f_{2,y}\right)}"> with focal lengths *f* of first and second camera in x- and y- direction
+* `bool refine`: If true, the found solution is refined using the 8pt algorithm and Pseudo-Huber weights (only for RANSAC and ARRSAC). The used refinement performs additional checks and optimizations. Better performance can be achieved in most cases if the [refinement described below](#interface-pose-linear-refinement) is used instead.
+
+Output variable descriptions:
+* `cv::OutputArray E`: Essential matrix in `cv::Mat` format and type `CV_64FC1`
+* `cv::OutputArray mask`: Inlier mask of size (rows x cols) = (1 x n) in `cv::Mat` format and type `CV_8UC1`
+
+#### Linear Refinement <a name="interface-pose-linear-refinement"></a>
+
+Robustly estimated essential matrices can be linearly refined using
+
+```
+bool poselib::refineEssentialLinear(cv::InputArray p1,
+		cv::InputArray p2,
+		cv::InputOutputArray E,
+		cv::InputOutputArray mask,
+		int refineMethod,//a combination of poselib::RefinePostAlg
+		size_t & nr_inliers,
+		cv::InputOutputArray R = cv::noArray(),
+		cv::OutputArray t = cv::noArray(),
+		double th = 0.008,
+		size_t num_iterative_steps = 4,
+		double threshold_multiplier = 2.0,
+		double pseudoHuberThreshold_multiplier = 0.1,
+		double maxRelativeInlierCntLoss = 0.15);
+```
+located within [./matchinglib_poselib/source/poselib/include/poselib/pose_linear_refinement.h](./matchinglib_poselib/source/poselib/include/poselib/pose_linear_refinement.h).
+It can be included with `#include "poselib/pose_linear_refinement.h"`.
+
+Input variable descriptions:
+* `cv::InputArray p1`: (rows x cols) = ( n x 2 ) sized array (type `CV_64FC1`) of distortion-free keypoint locations in camera coordinates corresponding to `cv::InputArray p2`
+* `cv::InputArray p2`: (rows x cols) = ( n x 2 ) sized array (type `CV_64FC1`) of distortion-free keypoint locations in camera coordinates corresponding to `cv::InputArray p1`
+* `int refineMethod`: Refinement method: A combination of `enum poselib::RefinePostAlg` located in [./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h](./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h).
+Refinement algorithms `PR_8PT`, `PR_NISTER`, `PR_STEWENIUS` or `PR_KNEIP` can be combined with one of cost functions `PR_TORR_WEIGHTS`, `PR_PSEUDOHUBER_WEIGHTS`, or `PR_NO_WEIGHTS` (least squares solution) using the `|` (or) operator.
+* `double th`:  Threshold in camera coordinates. It can be converted from image coordinates using <img src="https://render.githubusercontent.com/render/math?math=t\!h_{cam} = t\!h_{pix}\frac{4}{\sqrt{2}\left(f_{1,x} %2B f_{1,y} %2B f_{2,x} %2B f_{2,y}\right)}"> with focal lengths *f* of first and second camera in x- and y- direction
+* `size_t num_iterative_steps`: Number of refinement steps *s* performed while iteratively changing the threshold to achieve the highest possible inlier count and accuracy
+* `double threshold_multiplier`: Threshold multiplier *m* is used to calculate the utilized threshold <img src="https://render.githubusercontent.com/render/math?math=t\!h_{use} = m d - (i %2B 1) t\!h_{step}"> with threshold step size <img src="https://render.githubusercontent.com/render/math?math=t\!h_{step} = \frac{m d - d}{s}">, internal threshold <img src="https://render.githubusercontent.com/render/math?math=d = t\!h_{cam}^{2}">, number of refinement steps *s*, and iteration number *i*. The calculated threshold is used to determine the inliers after the new model was calculated.
+* `double pseudoHuberThreshold_multiplier`: Multiplication factor for the threshold `double th` in case the Pseudo-Huber cost function is used as the Pseudo-Huber threshold should typically be smaller than the normal threshold
+* `double maxRelativeInlierCntLoss`: Maximum allowed relative inlier loss during iterative refinement
+
+Input/Output variable descriptions:
+* `cv::InputOutputArray E`: Input: Essential matrix (`cv::Mat` of type `CV_64FC1`) from robust estimation; Output: Refined Essential matrix
+* `cv::InputOutputArray mask`: Inlier mask of size (rows x cols) = (1 x n) in `cv::Mat` format and type `CV_8UC1`
+* `cv::InputOutputArray R`: Rotation matrix in case Kneip's Eigen solver is used
+
+Output variable descriptions:
+* `cv::OutputArray t`: Translation vector (`cv::Mat` of type `CV_64FC1`) in case Kneip's Eigen solver is used
+
+#### Calculation of R & t
+
+For calculating the pose (i.e. rotation matrix R and translation vector t) and triangulated 3D points use function
+```
+int poselib::getPoseTriangPts(cv::InputArray E,
+					 cv::InputArray p1,
+					 cv::InputArray p2,
+					 cv::OutputArray R,
+					 cv::OutputArray t,
+					 cv::OutputArray Q,
+					 cv::InputOutputArray mask = cv::noArray(),
+					 const double dist = 50.0,
+					 bool translatE = false);
+```
+located within [./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h](./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h).
+It can be included with `#include "poselib/pose_estim.h"`.
+
+Input variable descriptions:
+* `cv::InputArray E`: Essential matrix (`cv::Mat` of type `CV_64FC1`)
+* `cv::InputArray p1`: (rows x cols) = ( n x 2 ) sized array (type `CV_64FC1`) of distortion-free keypoint locations in camera coordinates corresponding to `cv::InputArray p2`
+* `cv::InputArray p2`: (rows x cols) = ( n x 2 ) sized array (type `CV_64FC1`) of distortion-free keypoint locations in camera coordinates corresponding to `cv::InputArray p1`
+* `double dist`: Threshold on 3D coordinates depth values (z) based on a normalized translation vector (i.e. base length between cameras is 1)
+* `bool translatE`: Set to true, if the provided Essential matrix corresponds to a translational essential matrix (R corresponds to identity)
+
+Input/Output variable descriptions:
+* `cv::InputOutputArray mask`: Inlier mask of size (rows x cols) = (1 x n) in `cv::Mat` format and type `CV_8UC1`
+
+Output variable descriptions:
+* `cv::OutputArray R`: Rotation matrix (`cv::Mat` of type `CV_64FC1`)
+* `cv::OutputArray t`: Translation vector (`cv::Mat` of type `CV_64FC1`)
+* `cv::OutputArray Q`: Triangulated 3D coordinates
