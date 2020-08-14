@@ -1,5 +1,8 @@
 # MATCHING- AND POSELIB
 
+For details on how to install and use the library see the [readme in the main directory](../README.md)
+
+<!---
 - [Introduction](#introduction)
 - [Supported Keypoint and Descriptor Types](#support-features)
 - [Supported Matching Algorithms](#support-matching)
@@ -830,3 +833,4 @@ Please cite the following papers if you use SemiRealSequence or parts of this co
 }
 ```
 -->
+--->
