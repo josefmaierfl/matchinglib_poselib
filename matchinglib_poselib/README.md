@@ -378,23 +378,23 @@ To use them, install all [required dependencies](#system-dependencies) and [the 
 After loading 2 grayscale images `img1` and `img2` in OpenCV format (`cv::Mat`), matches can be calculated by calling function
 ```
 int matchinglib::getCorrespondences(cv::Mat& img1,
-                       cv::Mat& img2,
-                       std::vector<cv::DMatch> & finalMatches,
-                       std::vector<cv::KeyPoint> & kp1,
-                       std::vector<cv::KeyPoint> & kp2,
-                       std::string featuretype = "FAST",
-                       std::string extractortype = "FREAK",
-                       std::string matchertype = "GMBSOF",
-                       bool dynamicKeypDet = true,
-                       int limitNrfeatures = 8000,
-                       bool VFCrefine = false,
-                       bool GMSrefine = false,
-                       bool ratioTest = true,
-                       bool SOFrefine = false,
-                       int subPixRefine = 0,
-                       int verbose = 0,
-                       std::string idxPars_NMSLIB = "",
-                       std::string queryPars_NMSLIB = "");
+    cv::Mat& img2,
+    std::vector<cv::DMatch> & finalMatches,
+    std::vector<cv::KeyPoint> & kp1,
+    std::vector<cv::KeyPoint> & kp2,
+    std::string featuretype = "FAST",
+    std::string extractortype = "FREAK",
+    std::string matchertype = "GMBSOF",
+    bool dynamicKeypDet = true,
+    int limitNrfeatures = 8000,
+    bool VFCrefine = false,
+    bool GMSrefine = false,
+    bool ratioTest = true,
+    bool SOFrefine = false,
+    int subPixRefine = 0,
+    int verbose = 0,
+    std::string idxPars_NMSLIB = "",
+    std::string queryPars_NMSLIB = "");
 ```
 located in [./matchinglib_poselib/source/matchinglib/include/matchinglib/matchinglib_correspondences.h](./matchinglib_poselib/source/matchinglib/include/matchinglib/matchinglib_correspondences.h).
 Include it with `#include "matchinglib/matchinglib.h"`.
@@ -457,17 +457,17 @@ Based on distortion-free correspondences in camera coordinates, an Essential mat
 In case you want to use [USAC](http://www.cs.unc.edu/~rraguram/usac/) call function
 ```
 int estimateEssentialOrPoseUSAC(const cv::Mat & p1,
-	const cv::Mat & p2,
-	cv::OutputArray E,
-	double th,
-	ConfigUSAC & cfg,
-	bool & isDegenerate,
-	cv::OutputArray inliers = cv::noArray(),
-	cv::OutputArray R_degenerate = cv::noArray(),
-	cv::OutputArray inliers_degenerate_R = cv::noArray(),
-	cv::OutputArray R = cv::noArray(),
-	cv::OutputArray t = cv::noArray(),
-	bool verbose = false)
+    const cv::Mat & p2,
+    cv::OutputArray E,
+    double th,
+    ConfigUSAC & cfg,
+    bool & isDegenerate,
+    cv::OutputArray inliers = cv::noArray(),
+    cv::OutputArray R_degenerate = cv::noArray(),
+    cv::OutputArray inliers_degenerate_R = cv::noArray(),
+    cv::OutputArray R = cv::noArray(),
+    cv::OutputArray t = cv::noArray(),
+    bool verbose = false)
 ```
 located within [./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h](./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h).
 It can be included with `#include "poselib/pose_estim.h"`.
@@ -493,12 +493,12 @@ Output variable descriptions:
 In case you want to use vanilla RANSAC, ARRSAC, or MLESAC call function
 ```
 bool poselib::estimateEssentialMat(cv::OutputArray E,
-        cv::InputArray p1,
-        cv::InputArray p2,
-        const std::string &method,
-        double threshold,
-        bool refine,
-        cv::OutputArray mask = cv::noArray());
+    cv::InputArray p1,
+    cv::InputArray p2,
+    const std::string &method,
+    double threshold,
+    bool refine,
+    cv::OutputArray mask = cv::noArray());
 ```
 located within [./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h](./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h).
 It can be included with `#include "poselib/pose_estim.h"`.
@@ -520,18 +520,18 @@ Robustly estimated essential matrices can be linearly refined using
 
 ```
 bool poselib::refineEssentialLinear(cv::InputArray p1,
-		cv::InputArray p2,
-		cv::InputOutputArray E,
-		cv::InputOutputArray mask,
-		int refineMethod,//a combination of poselib::RefinePostAlg
-		size_t & nr_inliers,
-		cv::InputOutputArray R = cv::noArray(),
-		cv::OutputArray t = cv::noArray(),
-		double th = 0.008,
-		size_t num_iterative_steps = 4,
-		double threshold_multiplier = 2.0,
-		double pseudoHuberThreshold_multiplier = 0.1,
-		double maxRelativeInlierCntLoss = 0.15);
+    cv::InputArray p2,
+    cv::InputOutputArray E,
+    cv::InputOutputArray mask,
+    int refineMethod,//a combination of poselib::RefinePostAlg
+    size_t & nr_inliers,
+    cv::InputOutputArray R = cv::noArray(),
+    cv::OutputArray t = cv::noArray(),
+    double th = 0.008,
+    size_t num_iterative_steps = 4,
+    double threshold_multiplier = 2.0,
+    double pseudoHuberThreshold_multiplier = 0.1,
+    double maxRelativeInlierCntLoss = 0.15);
 ```
 located within [./matchinglib_poselib/source/poselib/include/poselib/pose_linear_refinement.h](./matchinglib_poselib/source/poselib/include/poselib/pose_linear_refinement.h).
 It can be included with `#include "poselib/pose_linear_refinement.h"`.
@@ -560,14 +560,14 @@ Output variable descriptions:
 For calculating the pose (i.e. rotation matrix R and translation vector t) and triangulated 3D points use function
 ```
 int poselib::getPoseTriangPts(cv::InputArray E,
-					 cv::InputArray p1,
-					 cv::InputArray p2,
-					 cv::OutputArray R,
-					 cv::OutputArray t,
-					 cv::OutputArray Q,
-					 cv::InputOutputArray mask = cv::noArray(),
-					 const double dist = 50.0,
-					 bool translatE = false);
+    cv::InputArray p1,
+    cv::InputArray p2,
+    cv::OutputArray R,
+    cv::OutputArray t,
+    cv::OutputArray Q,
+    cv::InputOutputArray mask = cv::noArray(),
+    const double dist = 50.0,
+    bool translatE = false);
 ```
 located within [./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h](./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h).
 It can be included with `#include "poselib/pose_estim.h"`.
@@ -576,7 +576,7 @@ Input variable descriptions:
 * `cv::InputArray E`: Essential matrix (`cv::Mat` of type `CV_64FC1`)
 * `cv::InputArray p1`: (rows x cols) = ( n x 2 ) sized array (type `CV_64FC1`) of distortion-free keypoint locations in camera coordinates corresponding to `cv::InputArray p2`
 * `cv::InputArray p2`: (rows x cols) = ( n x 2 ) sized array (type `CV_64FC1`) of distortion-free keypoint locations in camera coordinates corresponding to `cv::InputArray p1`
-* `double dist`: Threshold on 3D coordinates depth values (z) based on a normalized translation vector (i.e. base length between cameras is 1)
+* `double dist`: Threshold on 3D coordinate depth values (z) based on a normalized translation vector (i.e. base length between cameras is 1)
 * `bool translatE`: Set to true, if the provided Essential matrix corresponds to a translational essential matrix (R corresponds to identity)
 
 Input/Output variable descriptions:
@@ -585,4 +585,142 @@ Input/Output variable descriptions:
 Output variable descriptions:
 * `cv::OutputArray R`: Rotation matrix (`cv::Mat` of type `CV_64FC1`)
 * `cv::OutputArray t`: Translation vector (`cv::Mat` of type `CV_64FC1`)
-* `cv::OutputArray Q`: Triangulated 3D coordinates
+* `cv::OutputArray Q`: Triangulated 3D coordinates of size (rows x cols) = ( n x 3 ) and type `CV_64FC1` (`cv::Mat`)
+
+For only triangulating 3D points with known R & t use
+```
+int poselib::triangPts3D(cv::InputArray R, 
+    cv::InputArray t, 
+    cv::InputArray _points1, 
+    cv::InputArray _points2, 
+    cv::OutputArray Q3D, 
+    cv::InputOutputArray mask = cv::noArray(), 
+    const double dist = 50.0);
+```
+located within [./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h](./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h).
+It can be included with `#include "poselib/pose_estim.h"`.
+
+Input variable descriptions:
+* `cv::InputArray R`: Rotation matrix (`cv::Mat` of type `CV_64FC1`)
+* `cv::InputArray t`: Translation vector (`cv::Mat` of type `CV_64FC1`)
+* `cv::InputArray _points1`: (rows x cols) = ( n x 2 ) sized array (type `CV_64FC1`) of distortion-free keypoint locations in camera coordinates corresponding to `cv::InputArray _points2`
+* `cv::InputArray _points2`: (rows x cols) = ( n x 2 ) sized array (type `CV_64FC1`) of distortion-free keypoint locations in camera coordinates corresponding to `cv::InputArray _points1`
+* `double dist`: Threshold on 3D coordinate depth values (z) based on a normalized translation vector (i.e. base length between cameras is 1)
+
+Input/Output variable descriptions:
+* `cv::InputOutputArray mask`: Inlier mask of size (rows x cols) = (1 x n) in `cv::Mat` format and type `CV_8UC1`
+
+Output variable descriptions:
+* `cv::OutputArray Q3D`: Triangulated 3D coordinates of size (rows x cols) = ( n x 3 ) and type `CV_64FC1` (`cv::Mat`)
+
+#### Bundle Adjustment
+
+Bundle adjustment on extrinsics (R & t) only or on intrinsics (camera matrices) and extrinsics can be performed using
+```
+bool poselib::refineStereoBA(cv::InputArray p1,
+    cv::InputArray p2,
+    cv::InputOutputArray R,
+    cv::InputOutputArray t,
+    cv::InputOutputArray Q,
+    cv::InputOutputArray K1,
+    cv::InputOutputArray K2,
+    bool pointsInImgCoords = false,
+    cv::InputArray mask = cv::noArray(),
+    const double angleThresh = 1.25,
+    const double t_norm_tresh = 0.05);
+```
+located within [./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h](./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h).
+It can be included with `#include "poselib/pose_estim.h"`.
+
+Bundle adjustment on extrinsics only can be performed by providing `p1` and `p2` in camera coordinates and setting `pointsInImgCoords = false`.
+Bundle adjustment on intrinsics and extrinsics can be performed by providing `p1` and `p2` in image coordinates and setting `pointsInImgCoords = true`.
+For transforming correspondences from camera into image coordinates function `void CamToImgCoordTrans(cv::Mat& points, cv::Mat K)` located in [./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h](./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h) can be used.
+
+Input variable descriptions:
+* `cv::InputArray p1`: (rows x cols) = ( n x 2 ) sized array (type `CV_64FC1`) of distortion-free keypoint locations in camera or image coordinates corresponding to `cv::InputArray p2`
+* `cv::InputArray p1`: (rows x cols) = ( n x 2 ) sized array (type `CV_64FC1`) of distortion-free keypoint locations in camera or image coordinates corresponding to `cv::InputArray p1`
+* `bool pointsInImgCoords`: Specifies if correspondences `p1` and `p2` are provided in image or camera coordinates
+* `cv::InputArray mask`: Inlier mask of size (rows x cols) = (1 x n) in `cv::Mat` format and type `CV_8UC1`
+* `double angleThresh`: Threshold angle in degrees. If the difference of input and output rotation is larger this value, it is assumed that bundle adjustment resulted in a wrong local minimum and the initial pose parameters are returned
+* `double t_norm_tresh`: Threshold on the translation vector norm: If the difference of input and output translation vector is larger this value, it is assumed that bundle adjustment resulted in a wrong local minimum and the initial pose parameters are returned
+
+Input/Output variable descriptions:
+* `cv::InputOutputArray R`: Rotation matrix (`cv::Mat` of type `CV_64FC1`)
+* `cv::InputOutputArray t`: Translation vector (`cv::Mat` of type `CV_64FC1`)
+* `cv::InputOutputArray Q`: 3D coordinates of size (rows x cols) = ( n x 3 ) and type `CV_64FC1` (`cv::Mat`)
+* `cv::InputOutputArray K1`: Camera matrix of first camera (`cv::Mat` of type `CV_64FC1`)
+* `cv::InputOutputArray K2`: Camera matrix of second camera (`cv::Mat` of type `CV_64FC1`)
+
+#### Rectification
+
+To calculate rectification matrices use
+```
+int poselib::getRectificationParameters(cv::InputArray R,
+    cv::InputArray t,
+    cv::InputArray K1,
+    cv::InputArray K2,
+    cv::InputArray distcoeffs1,
+    cv::InputArray distcoeffs2,
+    const cv::Size& imageSize,
+    cv::OutputArray Rect1,
+    cv::OutputArray Rect2,
+    cv::OutputArray K1new,
+    cv::OutputArray K2new,
+    double alpha = -1,
+    bool globRectFunct = true,
+    const cv::Size& newImgSize = cv::Size(),
+    cv::Rect *roi1 = nullptr,
+    cv::Rect *roi2 = nullptr,
+    cv::OutputArray P1new = cv::noArray(),
+    cv::OutputArray P2new = cv::noArray());
+```
+located within [./matchinglib_poselib/source/poselib/include/poselib/pose_helper.h](./matchinglib_poselib/source/poselib/include/poselib/pose_helper.h).
+It can be included with `#include "poselib/pose_helper.h"`.
+
+Input variable descriptions:
+* `cv::InputArray R`: Rotation matrix (`cv::Mat` of type `CV_64FC1`)
+* `cv::InputArray t`: Translation vector (`cv::Mat` of type `CV_64FC1`)
+* `cv::InputArray K1`: Camera matrix of first camera (`cv::Mat` of type `CV_64FC1`)
+* `cv::InputArray K2`: Camera matrix of second camera (`cv::Mat` of type `CV_64FC1`)
+* `cv::InputArray distcoeffs1`: Radial distortion parameters of first camera correspond to [OpenCV format](https://docs.opencv.org/3.4.9/d9/d0c/group__calib3d.html#ga1019495a2c8d1743ed5cc23fa0daff8c) with 5 or 8 distortion parameters.
+* `cv::InputArray distcoeffs2`: Radial distortion parameters of second camera correspond to [OpenCV format](https://docs.opencv.org/3.4.9/d9/d0c/group__calib3d.html#ga1019495a2c8d1743ed5cc23fa0daff8c) with 5 or 8 distortion parameters.
+* `cv::Size imageSize`: Size of input images
+* `double alpha`: Free scaling parameter. If it is -1 or absent, the function performs the default
+scaling. Otherwise, the parameter should be between 0 and 1. `alpha=0` means that the rectified
+images are zoomed and shifted so that only valid pixels are visible (no black areas after
+rectification). `alpha=1` means that the rectified image is decimated and shifted so that all
+the pixels from the original images from the cameras are retained in the rectified images
+(no source image pixels are lost). Obviously, any intermediate value yields an intermediate
+result between those two extreme cases.
+* `bool globRectFunct`: Used method for rectification. If true, the method from A. Fusiello, E. Trucco
+and A. Verri: "A compact algorithm for rectification of stereo pairs", 2000. This methode can
+be used for the rectification of cameras with a general form of the extrinsic parameters.
+If false, a slightly changed version (to be more robust) of the OpenCV stereoRectify-function
+is used. This method can be used for stereo cameras with only a small difference in the
+vertical position and small rotations only (the cameras should be nearly parallel).
+* `cv::Size newImgSize`: Optional new image resolution after rectification. The same size should be passed to
+initUndistortRectifyMap() (see the stereo_calib.cpp sample in OpenCV samples directory).
+When (0,0) is passed (default), it is set to the original imageSize . Setting it to larger
+value can help you preserve details in the original image, especially when there is a big radial distortion.
+
+Output variable descriptions:
+* `cv::OutputArray Rect1`: Rectification matrix for the first camera (`cv::Mat` of type `CV_64FC1`)
+* `cv::OutputArray Rect2`: Rectification matrix for the second camera (`cv::Mat` of type `CV_64FC1`)
+* `cv::OutputArray K1new`: New camera matrix for the first camera (`cv::Mat` of type `CV_64FC1`)
+* `cv::OutputArray K2new`: New camera matrix for the second camera (`cv::Mat` of type `CV_64FC1`)
+* `cv::Rect *roi1`: Optional output rectangles inside the first rectified image where all the pixels are valid.
+If `alpha=0`, the ROIs cover the whole images. Otherwise, they are likely to be smaller.
+* `cv::Rect *roi2`: Optional output rectangles inside the second rectified image where all the pixels are valid.
+If `alpha=0`, the ROIs cover the whole images. Otherwise, they are likely to be smaller.
+* `cv::OutputArray P1new`: Optional new projection matrix (`cv::Mat` of type `CV_64FC1`) for the first camera (only available if `globRectFunct=true`)
+* `cv::OutputArray P2new`: Optional new projection matrix (`cv::Mat` of type `CV_64FC1`) for the second camera (only available if `globRectFunct=true`)
+
+After calculating rectification parameters, OpenCV's [initUndistortRectifyMap](https://docs.opencv.org/4.2.0/d9/d0c/group__calib3d.html#ga7dfb72c9cf9780a347fbe3d1c47e5d5a) function for calculating rectification maps and [remap()](https://docs.opencv.org/3.4.9/da/d54/group__imgproc__transform.html#gab75ef31ce5cdfb5c44b6da5f3b908ea4) for remapping source images can be used.
+
+#### Additional information
+
+Additional helpful functions can be found in header files:
+* [./matchinglib_poselib/source/poselib/include/poselib/pose_helper.h](./matchinglib_poselib/source/poselib/include/poselib/pose_helper.h)
+* [./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h](./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h)
+
+An example can be found in [./matchinglib_poselib/source/tests/poselib-test/main.cpp](./matchinglib_poselib/source/tests/poselib-test/main.cpp).
