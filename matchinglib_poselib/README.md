@@ -773,5 +773,60 @@ The ROS interface and instructions on how to set-up and use it can be found [her
 
 ## Testing Results on Supported Keypoint, Descriptor, and Matching Algorithm Types <a name="tests-features"></a>
 
-Performance evaluations on keypoint descriptor combinations can be found in
-* [J. Maier et.al., Ground Truth Accuracy and Performance of the Matching Pipeline, 2017](https://openaccess.thecvf.com/content_cvpr_2017_workshops/w10/html/Maier_Ground_Truth_Accuracy_CVPR_2017_paper.html)
+Performance evaluations on keypoint-descriptor combinations can be found in
+* [J. Maier et.al., Ground Truth Accuracy and Performance of the Matching Pipeline, CVPRW, 2017](https://openaccess.thecvf.com/content_cvpr_2017_workshops/w10/html/Maier_Ground_Truth_Accuracy_CVPR_2017_paper.html)
+* [Descriptor performance on AKAZE detector](./PDF_evaluations_on_keypoints_descriptors_matching/Descriptor_performance_figures_using_AKAZE_detector.pdf)
+* [Descriptor performance on BRISK detector](./PDF_evaluations_on_keypoints_descriptors_matching/Descriptor_performance_figures_using_BRISK_detector.pdf)
+* [Descriptor performance on FAST detector](./PDF_evaluations_on_keypoints_descriptors_matching/Descriptor_performance_figures_using_FAST_detector.pdf)
+* [Descriptor performance on KAZE detector](./PDF_evaluations_on_keypoints_descriptors_matching/Descriptor_performance_figures_using_KAZE_detector.pdf)
+* [Descriptor performance on MSD detector](./PDF_evaluations_on_keypoints_descriptors_matching/Descriptor_performance_figures_using_MSD_detector.pdf)
+* [Descriptor performance on ORB detector](./PDF_evaluations_on_keypoints_descriptors_matching/Descriptor_performance_figures_using_ORB_detector.pdf)
+* [Descriptor performance on SIFT detector](./PDF_evaluations_on_keypoints_descriptors_matching/Descriptor_performance_figures_using_SIFT_detector.pdf)
+* [Performance metrics of keypoint-descriptor combinations](./PDF_evaluations_on_keypoints_descriptors_matching/Performance_metrics_Keypoint-Descriptor-Combinations.pdf)
+* [Evaluations on runtime of descriptors](./PDF_evaluations_on_keypoints_descriptors_matching/Runtime_Descriptors.pdf)
+
+Performance evaluations on matching algorithms can be found in
+* [J. Maier et.al., Guided Matching Based on Statistical Optical Flow for Fast and Robust Correspondence Analysis, ECCV, 2016](https://link.springer.com/chapter/10.1007/978-3-319-46478-7_7)
+* [Supplementary material](https://link.springer.com/chapter/10.1007/978-3-319-46478-7_7#SupplementaryMaterial)
+* [Matching algorithm performance figures](./PDF_evaluations_on_keypoints_descriptors_matching/Matching_algorithms_performance_figures.pdf)
+* [Evaluations on runtime of matching algorithms](./PDF_evaluations_on_keypoints_descriptors_matching/Runtime_Matching_algorithms.pdf)
+
+## Testing Results on Supported Pose Estimation Algorithms <a name="tests-pose"></a>
+
+Coming soon
+
+## Publication <a name="publication"></a>
+
+Please cite the following papers if you use SemiRealSequence or parts of this code in your own work.
+
+```
+@inproceedings{maier2016guided,
+  title={Guided Matching Based on Statistical Optical Flow for Fast and Robust Correspondence Analysis},
+  author={Maier, Josef and Humenberger, Martin and Murschitz, Markus and Zendel, Oliver and Vincze, Markus},
+  booktitle={European Conference on Computer Vision},
+  pages={101--117},
+  year={2016},
+  organization={Springer}
+}
+```
+
+```
+@inproceedings{maier2017ground,
+  title={Ground truth accuracy and performance of the matching pipeline},
+  author={Maier, Josef and Humenberger, Martin and Zendel, Oliver and Vincze, Markus},
+  booktitle={Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition Workshops},
+  pages={29--39},
+  year={2017}
+}
+```
+
+<!--
+```
+@inproceedings{maier2020semireal,
+  title={Unlimited Semi-Real-World Ground Truth Generation for Feature-Based Applications},
+  author={Maier, Josef},
+  booktitle={ACCV},
+  year={2020}
+}
+```
+-->
