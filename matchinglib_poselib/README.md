@@ -555,7 +555,7 @@ Input/Output variable descriptions:
 Output variable descriptions:
 * `cv::OutputArray t`: Translation vector (`cv::Mat` of type `CV_64FC1`) in case Kneip's Eigen solver is used
 
-#### Calculation of R & t
+#### Calculation of R & t <a name="interface-pose-rt"></a>
 
 For calculating the pose (i.e. rotation matrix R and translation vector t) and triangulated 3D points use function
 ```
@@ -613,7 +613,7 @@ Input/Output variable descriptions:
 Output variable descriptions:
 * `cv::OutputArray Q3D`: Triangulated 3D coordinates of size (rows x cols) = ( n x 3 ) and type `CV_64FC1` (`cv::Mat`)
 
-#### Bundle Adjustment
+#### Bundle Adjustment <a name="interface-pose-ba"></a>
 
 Bundle adjustment on extrinsics (R & t) only or on intrinsics (camera matrices) and extrinsics can be performed using
 ```
@@ -651,7 +651,7 @@ Input/Output variable descriptions:
 * `cv::InputOutputArray K1`: Camera matrix of first camera (`cv::Mat` of type `CV_64FC1`)
 * `cv::InputOutputArray K2`: Camera matrix of second camera (`cv::Mat` of type `CV_64FC1`)
 
-#### Rectification
+#### Rectification <a name="interface-pose-rectification"></a>
 
 To calculate rectification matrices use
 ```
@@ -717,10 +717,48 @@ If `alpha=0`, the ROIs cover the whole images. Otherwise, they are likely to be 
 
 After calculating rectification parameters, OpenCV's [initUndistortRectifyMap](https://docs.opencv.org/4.2.0/d9/d0c/group__calib3d.html#ga7dfb72c9cf9780a347fbe3d1c47e5d5a) function for calculating rectification maps and [remap()](https://docs.opencv.org/3.4.9/da/d54/group__imgproc__transform.html#gab75ef31ce5cdfb5c44b6da5f3b908ea4) for remapping source images can be used.
 
-#### Additional information
+#### Additional information <a name="interface-pose-example"></a>
 
 Additional helpful functions can be found in header files:
 * [./matchinglib_poselib/source/poselib/include/poselib/pose_helper.h](./matchinglib_poselib/source/poselib/include/poselib/pose_helper.h)
 * [./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h](./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h)
+
+An example can be found in [./matchinglib_poselib/source/tests/poselib-test/main.cpp](./matchinglib_poselib/source/tests/poselib-test/main.cpp).
+
+### Continuous High Accuracy Stereo Pose Estimation <a name="interface-stereo"></a>
+
+Using this functionality allows to estimate and continuously refine relative camera poses while detecting pose changes to achieve accuracies compareable to offline camera calibration.
+All necessary functions and classes can be found in header file [./matchinglib_poselib/source/poselib/include/poselib/stereo_pose_refinement.h](./matchinglib_poselib/source/poselib/include/poselib/stereo_pose_refinement.h).
+It can be included with `#include "poselib/stereo_pose_refinement.h"`.
+
+First create an object of class `StereoRefine` and provide `struct poselib::ConfigPoseEstimation`.
+A description of each parameter can be found in [./matchinglib_poselib/source/poselib/include/poselib/stereo_pose_refinement.h](./matchinglib_poselib/source/poselib/include/poselib/stereo_pose_refinement.h).
+
+For each available stereo image pair call member function
+```
+int poselib::StereoRefine::addNewCorrespondences(std::vector<cv::DMatch> matches,
+    std::vector<cv::KeyPoint> kp1,
+    std::vector<cv::KeyPoint> kp2,
+    const poselib::ConfigUSAC &cfg)
+```
+
+Input variable descriptions:
+* `std::vector<cv::DMatch> matches`: Matches in [OpenCV format](https://docs.opencv.org/4.2.0/d4/de0/classcv_1_1DMatch.html)
+* `std::vector<cv::KeyPoint> kp1`: Keypoints in first image in [OpenCV format](https://docs.opencv.org/4.2.0/d2/d29/classcv_1_1KeyPoint.html)
+* `std::vector<cv::KeyPoint> kp2`: Keypoints in second image in [OpenCV format](https://docs.opencv.org/4.2.0/d2/d29/classcv_1_1KeyPoint.html)
+* `poselib::ConfigUSAC cfg`: Configuration parameters for USAC. See [./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h](./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h).
+
+Estimated or refined poses can be accessed with member variables
+* `poselib::StereoRefine::R_new`
+* `poselib::StereoRefine::t_new`
+
+The software estimates after a few successful pose estimations/refinements a most likely pose based on the history of pose calculations in a Monte-Carlo similar fashion.
+This pose can be accessed with member variables:
+* `poselib::StereoRefine::R_mostLikely`
+* `poselib::StereoRefine::t_mostLikely`
+
+If this "most likely" pose is found to be stable, the flag `poselib::StereoRefine::mostLikelyPose_stable` is set to true.
+
+Stability on refined poses `poselib::StereoRefine::R_new` and `poselib::StereoRefine::t_new` is signaled by flag `poselib::StereoRefine::poseIsStable`.
 
 An example can be found in [./matchinglib_poselib/source/tests/poselib-test/main.cpp](./matchinglib_poselib/source/tests/poselib-test/main.cpp).
