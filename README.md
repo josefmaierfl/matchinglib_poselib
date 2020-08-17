@@ -39,7 +39,7 @@ For easy interfacing, we provide 3 possibilities to interface the library:
 
 We further provide testing results on various keypoint-descriptor combinations, matching algorithms, and pose estimation algorithms.
 
-##Supported Keypoint and Descriptor Types <a name="support-features"></a>
+## Supported Keypoint and Descriptor Types <a name="support-features"></a>
 
 Currently, all keypoint and descriptor types within [OpenCV](https://docs.opencv.org/4.2.0/d5/d51/group__features2d__main.html) (including [contrib](https://docs.opencv.org/4.2.0/d7/d7a/group__xfeatures2d__experiment.html)) in addition to [BOLD](https://github.com/vbalnt/bold) and [RIFF](http://press.liacs.nl/publications/RIFF%20-%20Retina-inspired%20Invariant%20Fast%20Feature%20Descriptor.pdf) are supported.
 
@@ -589,12 +589,12 @@ Output variable descriptions:
 
 For only triangulating 3D points with known R & t use
 ```
-int poselib::triangPts3D(cv::InputArray R, 
-    cv::InputArray t, 
-    cv::InputArray _points1, 
-    cv::InputArray _points2, 
-    cv::OutputArray Q3D, 
-    cv::InputOutputArray mask = cv::noArray(), 
+int poselib::triangPts3D(cv::InputArray R,
+    cv::InputArray t,
+    cv::InputArray _points1,
+    cv::InputArray _points2,
+    cv::OutputArray Q3D,
+    cv::InputOutputArray mask = cv::noArray(),
     const double dist = 50.0);
 ```
 located within [./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h](./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h).
