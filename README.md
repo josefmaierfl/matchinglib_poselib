@@ -486,7 +486,7 @@ Output variable descriptions:
 * `cv::OutputArray R_degenerate`: Rotation matrix if `isDegenerate=true`
 * `cv::OutputArray inliers_degenerate_R`: Inlier mask (`cv::Mat` format and type `CV_8UC1`) for degenerate solution if `isDegenerate=true`
 * `cv::OutputArray R`: Rotation matrix in case Kneip's Eigen solver was used in `cv::Mat` format and type `CV_64FC1`
-* `cv::OutputArray t`: Translation vector of size (rows x cols) = (3 x 1) in `cv::Mat` format and type `CV_64FC1`
+* `cv::OutputArray t`: Translation vector of size (rows x cols) = (3 x 1) in `cv::Mat` format and type `CV_64FC1` in case Kneip's Eigen solver was used
 
 #### RANSAC, ARRSAC, and MLESAC <a name="interface-pose-robust"></a>
 
@@ -638,7 +638,7 @@ For transforming correspondences from camera into image coordinates function `vo
 
 Input variable descriptions:
 * `cv::InputArray p1`: (rows x cols) = ( n x 2 ) sized array (type `CV_64FC1`) of distortion-free keypoint locations in camera or image coordinates corresponding to `cv::InputArray p2`
-* `cv::InputArray p1`: (rows x cols) = ( n x 2 ) sized array (type `CV_64FC1`) of distortion-free keypoint locations in camera or image coordinates corresponding to `cv::InputArray p1`
+* `cv::InputArray p2`: (rows x cols) = ( n x 2 ) sized array (type `CV_64FC1`) of distortion-free keypoint locations in camera or image coordinates corresponding to `cv::InputArray p1`
 * `bool pointsInImgCoords`: Specifies if correspondences `p1` and `p2` are provided in image or camera coordinates
 * `cv::InputArray mask`: Inlier mask of size (rows x cols) = (1 x n) in `cv::Mat` format and type `CV_8UC1`
 * `double angleThresh`: Threshold angle in degrees. If the difference of input and output rotation is larger this value, it is assumed that bundle adjustment resulted in a wrong local minimum and the initial pose parameters are returned
@@ -693,9 +693,9 @@ the pixels from the original images from the cameras are retained in the rectifi
 (no source image pixels are lost). Obviously, any intermediate value yields an intermediate
 result between those two extreme cases.
 * `bool globRectFunct`: Used method for rectification. If true, the method from A. Fusiello, E. Trucco
-and A. Verri: "A compact algorithm for rectification of stereo pairs", 2000. This methode can
+and A. Verri: "A compact algorithm for rectification of stereo pairs", 2000 is used. This methode can
 be used for the rectification of cameras with a general form of the extrinsic parameters.
-If false, a slightly changed version (to be more robust) of the OpenCV stereoRectify-function
+If false, a slightly changed version (to be more robust) of the OpenCV stereoRectify() function
 is used. This method can be used for stereo cameras with only a small difference in the
 vertical position and small rotations only (the cameras should be nearly parallel).
 * `cv::Size newImgSize`: Optional new image resolution after rectification. The same size should be passed to
@@ -731,7 +731,7 @@ Using this functionality allows to estimate and continuously refine relative cam
 All necessary functions and classes can be found in header file [./matchinglib_poselib/source/poselib/include/poselib/stereo_pose_refinement.h](./matchinglib_poselib/source/poselib/include/poselib/stereo_pose_refinement.h).
 It can be included with `#include "poselib/stereo_pose_refinement.h"`.
 
-First create an object of class `StereoRefine` and provide `struct poselib::ConfigPoseEstimation`.
+First, create an object of class `StereoRefine` and provide `struct poselib::ConfigPoseEstimation`.
 A description of each parameter can be found in [./matchinglib_poselib/source/poselib/include/poselib/stereo_pose_refinement.h](./matchinglib_poselib/source/poselib/include/poselib/stereo_pose_refinement.h).
 
 For each available stereo image pair call member function
