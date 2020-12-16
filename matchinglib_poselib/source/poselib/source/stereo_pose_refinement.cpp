@@ -46,6 +46,13 @@ DISCRIPTION: This file provides functions for pose refinement with multiple ster
 #include <unordered_set>
 #include "opencv2/imgproc.hpp"
 
+#define INTERM_OUT 0
+#if INTERM_OUT == 1
+#include <fstream>
+#include <boost/filesystem.hpp>
+#define ITERMFPATH "/home/maierj/work/python_tests_out/calib_intermed_res/"
+#endif
+
 //#include "poselib/pose_helper.h"
 //#include <memory>
 //#include <numeric>      // std::accumulate
@@ -2691,13 +2698,39 @@ namespace poselib
                 erosion_size = (int)ceil(cfg_pose.minPtsDistance);
             int nr_erosions = 0;
 
+#if INTERM_OUT == 1
+            string fpath = string(ITERMFPATH);
+            boost::filesystem::path p(fpath), p2;
+            string fname_base = "corrs_";
+            p2 = p;
+            p2 /= fname_base + "all_0.png";//Concat paths
+            size_t fcnt = 1, fcnt1 = 0;
+            while (boost::filesystem::exists(p2)) {
+                p2 = p;
+                p2 /= fname_base + "all_" + std::to_string(fcnt++) + ".png";
+            }
+            fcnt--;
+            cv::imwrite(p2.string(), densityImg_init);
+#endif
+
             do
             {
                 cv::Mat struct_elem1 = getStructuringElement(MORPH_ELLIPSE, cv::Size(erosion_size, erosion_size));
                 cv::Mat struct_elem2 = getStructuringElement(MORPH_ELLIPSE, cv::Size(erosion_size + 1, erosion_size + 1));
                 cv::dilate(densityImg, densityImg, struct_elem1, cv::Point(-1, -1), 1, cv::BORDER_CONSTANT, cv::Scalar(0));
                 cv::erode(densityImg, densityImg, struct_elem2, cv::Point(-1, -1), 1, cv::BORDER_CONSTANT, cv::Scalar(0));
+#if INTERM_OUT == 1
+                p2 = p;
+                p2 /= fname_base + "dil_ero_" + std::to_string(fcnt) + "_" + std::to_string(fcnt1) + ".png";
+                cv::imwrite(p2.string(), densityImg);
+#endif
                 cv::bitwise_and(densityImg, densityImg_init, densityImg);
+#if INTERM_OUT == 1
+                p2 = p;
+                p2 /= fname_base + "dil_ero_add_" + std::to_string(fcnt) + "_" + std::to_string(fcnt1) + ".png";
+                fcnt1++;
+                cv::imwrite(p2.string(), densityImg);
+#endif
 
                 vector<cv::Point2i> locations;
                 cv::findNonZero(densityImg, locations);
@@ -3046,6 +3079,26 @@ namespace poselib
         {
             return first.first < second.first;
         });
+
+#if INTERM_OUT == 1
+        string fname = string(ITERMFPATH) + "most_likely_pts.csv";
+        ofstream ptsToFile(fname, std::ofstream::out);
+        ptsToFile << "x;y;z;d" << endl;
+        for (size_t i = 0; i < n_p; i++) {
+            ptsToFile << resPoints[i].at<double>(0) << ";";
+            ptsToFile << resPoints[i].at<double>(1) << ";";
+            ptsToFile << resPoints[i].at<double>(2) << ";";
+            ptsToFile << dist2[i].first << endl;
+        }
+        ptsToFile.close();
+        fname = string(ITERMFPATH) + "center_grav.csv";
+        ptsToFile.open(fname, std::ofstream::out);
+        ptsToFile << "x;y;z" << endl;
+        ptsToFile << RtcG.at<double>(0) << ";";
+        ptsToFile << RtcG.at<double>(1) << ";";
+        ptsToFile << RtcG.at<double>(2) << endl;
+        ptsToFile.close();
+#endif
 
         R_mostLikely = pose_history[index.first->second].R.clone();
         t_mostLikely = pose_history[index.first->second].t.clone();

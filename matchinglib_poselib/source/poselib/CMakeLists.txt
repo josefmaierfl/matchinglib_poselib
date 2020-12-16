@@ -11,6 +11,8 @@ find_package(Clapack REQUIRED)
 
 find_package(SBA REQUIRED)
 
+#find_package(Boost COMPONENTS filesystem system date_time REQUIRED)
+
 SET( Nanoflann_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nanoflann-1.3.0/include")
 
 #
@@ -182,6 +184,7 @@ target_include_directories(${target}
     ${OpenCV_INCLUDE_DIRS}
     ${EIGEN_INCLUDE_DIR}
     ${CLAPACK_INCLUDE_DIRS}
+#    ${Boost_INCLUDE_DIRS}
 
     INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -205,6 +208,7 @@ target_link_libraries(${target}
     ${DEFAULT_LIBRARIES}
     ${OpenCV_LIBS}
     ${CLAPACK_LIBRARIES}
+#    ${Boost_LIBRARIES}
     sba
 
     INTERFACE

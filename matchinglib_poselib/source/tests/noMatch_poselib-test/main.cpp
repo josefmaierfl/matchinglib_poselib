@@ -861,6 +861,7 @@ int SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 
     /// finally parse and handle return codes (display help etc...)
     int result = -1;
+    testing::InitGoogleTest(&argc, argv);
     result = cmd.parse(argc, argv);
     if (result != ArgvParser::NoParserError)
     {
