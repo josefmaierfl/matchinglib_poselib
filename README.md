@@ -793,7 +793,7 @@ Performance evaluations on matching algorithms can be found in
 
 ## Testing Results on Supported Pose Estimation Algorithms <a name="tests-pose"></a>
 
-Coming soon
+Testing results can be found [here](https://github.com/josefmaierfl/autocalib_test_package).
 
 ## Publication <a name="publication"></a>
 
