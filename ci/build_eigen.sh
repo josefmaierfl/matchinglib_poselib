@@ -10,11 +10,14 @@ mkdir ${thirdparty_dir}
 
 cd ${thirdparty_dir}
 Eigen_VERSION=3.3.7
-wget -q http://bitbucket.org/eigen/eigen/get/${Eigen_VERSION}.tar.bz2
-tar xf ${Eigen_VERSION}.tar.bz2
-rm -rf ${Eigen_VERSION}.tar.bz2
-mv eigen-eigen-* eigen-eigen-${Eigen_VERSION}
-cd eigen-eigen-${Eigen_VERSION}
+#wget -q http://bitbucket.org/eigen/eigen/get/${Eigen_VERSION}.tar.bz2
+#tar xf ${Eigen_VERSION}.tar.bz2
+#rm -rf ${Eigen_VERSION}.tar.bz2
+#mv eigen-eigen-* eigen-eigen-${Eigen_VERSION}
+#cd eigen-eigen-${Eigen_VERSION}
+mkdir eigen-${Eigen_VERSION}
+git clone --depth 1 --branch ${Eigen_VERSION} https://gitlab.com/libeigen/eigen.git eigen-${Eigen_VERSION}
+cd eigen-${Eigen_VERSION}
 mkdir -p build && cd build
 cmake ..  -DCMAKE_BUILD_TYPE=Release
 make -j "$(nproc)"
