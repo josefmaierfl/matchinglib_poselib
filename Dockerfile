@@ -34,7 +34,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -
 	libdc1394-22-dev \
 	openexr \
 	libatlas-base-dev \
-	gfortran && apt-get clean
+	gfortran \
+  libhdf5-dev && apt-get clean
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libglu1-mesa-dev mesa-common-dev mesa-utils freeglut3-dev && apt-get clean
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libomp-dev ccache && apt-get clean
 

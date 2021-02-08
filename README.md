@@ -205,7 +205,8 @@ sudo apt-get install wget \
     libdc1394-22-dev \
     openexr \
     libatlas-base-dev \
-    gfortran
+    gfortran \
+    libhdf5-dev
 sudo apt-get install libglu1-mesa-dev mesa-common-dev mesa-utils freeglut3-dev
 sudo apt-get install libomp-dev
 ```
