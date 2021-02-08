@@ -1,0 +1,4 @@
+[submodule "matchinglib_poselib/source/matchinglib/include/annoy"]
+	path = matchinglib_poselib/source/matchinglib/include/annoy
+	url = https://github.com/spotify/annoy.git
+	shallow = true
