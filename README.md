@@ -798,7 +798,7 @@ Testing results can be found [here](https://github.com/josefmaierfl/autocalib_te
 
 ## Publication <a name="publication"></a>
 
-Please cite the following papers if you use SemiRealSequence or parts of this code in your own work.
+Please cite the following papers if you use this library or parts of this code in your own work.
 
 ```
 @inproceedings{maier2016guided,
@@ -820,14 +820,3 @@ Please cite the following papers if you use SemiRealSequence or parts of this co
   year={2017}
 }
 ```
-
-<!--
-```
-@inproceedings{maier2020semireal,
-  title={Unlimited Semi-Real-World Ground Truth Generation for Feature-Based Applications},
-  author={Maier, Josef},
-  booktitle={ACCV},
-  year={2020}
-}
-```
--->
