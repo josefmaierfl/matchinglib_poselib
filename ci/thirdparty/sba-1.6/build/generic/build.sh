@@ -12,7 +12,10 @@ cd ${DIR}
 cd ../
 mkdir linux
 cd linux
-rm ./CMakeCache.txt
+CACHEFILE=./CMakeCache.txt
+if [ -f "$CACHEFILE" ]; then
+    rm $CACHEFILE
+fi
 cmake ../../ -DCMAKE_BUILD_TYPE=Release ${FLAG_BUILD_SHARED_LIBS}
 make -j "$(nproc)"
 if [ $? -ne 0 ]; then
@@ -24,7 +27,9 @@ popd
 cd ../
 mkdir linux_debug
 cd linux_debug
-rm ./CMakeCache.txt
+if [ -f "$CACHEFILE" ]; then
+    rm $CACHEFILE
+fi
 cmake ../../ -DCMAKE_BUILD_TYPE=Debug ${FLAG_BUILD_SHARED_LIBS}
 make -j "$(nproc)"
 sudo make install
