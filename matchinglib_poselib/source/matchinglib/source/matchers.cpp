@@ -48,7 +48,8 @@
 #include "opencv2/calib3d/calib3d.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 
-#include "annoy/annoylib.h"
+#include "annoy/src/kissrandom.h"
+#include "annoy/src/annoylib.h"
 
 //using namespace cv;
 using namespace std;
@@ -914,7 +915,7 @@ namespace matchinglib
       if (descrR.type() == CV_32F)
       {
           //AnnoyIndex<index format, descriptor type,> index(dimension of descriptor)
-          AnnoyIndex<unsigned int, float, Euclidean, RandRandom> index(descrR.cols);
+          AnnoyIndex<unsigned int, float, Euclidean, Kiss32Random, AnnoyIndexMultiThreadedBuildPolicy> index(descrR.cols);
 
           for (unsigned int i = 0; i < nrEntriesR; i++)
           {
@@ -960,7 +961,7 @@ namespace matchinglib
       else if (descrR.type() == CV_64F)
       {
           //AnnoyIndex<index format, descriptor type,> index(dimension of descriptor)
-          AnnoyIndex<unsigned int, double, Euclidean, RandRandom> index(descrR.cols);
+          AnnoyIndex<unsigned int, double, Euclidean, Kiss32Random, AnnoyIndexMultiThreadedBuildPolicy> index(descrR.cols);
 
           for (unsigned int i = 0; i < nrEntriesR; i++)
           {
@@ -1003,6 +1004,52 @@ namespace matchinglib
               }
           }
       }
+      // else if (descrR.type() == CV_8UC1)
+      // {
+      //     //AnnoyIndex<index format, descriptor type,> index(dimension of descriptor)
+      //     AnnoyIndex<unsigned int, unsigned char, Hamming, Kiss32Random, AnnoyIndexMultiThreadedBuildPolicy> index(descrR.cols);
+
+      //     for (unsigned int i = 0; i < nrEntriesR; i++)
+      //     {
+      //         index.add_item(i, (unsigned char*)descrR.data + i * descrDim);
+      //     }
+      //     //index.verbose(true);
+
+      //     if (n_trees)
+      //         index.build(n_trees);
+      //     else
+      //         index.build(10);
+
+      //     for (unsigned int i = 0; i < nrEntriesL; i++)
+      //     {
+      //         vector<unsigned int> idxs;
+      //         vector<unsigned char> distances;
+      //         cv::DMatch match;
+
+      //         if (search_k)
+      //             index.get_nns_by_vector((unsigned char*)descrL.data + i * descrDim, 2, search_k, &idxs, &distances);
+      //         else
+      //             index.get_nns_by_vector((unsigned char*)descrL.data + i * descrDim, 2, (size_t)-1, &idxs, &distances);
+
+      //         if (ratioTest && (idxs.size() > 1))
+      //         {
+      //             if (distances[0] < (0.75f * static_cast<float>(distances[1])))
+      //             {
+      //                 match.distance = static_cast<float>(distances[0]);
+      //                 match.queryIdx = (int)i;
+      //                 match.trainIdx = (int)idxs[0];
+      //                 matches.push_back(match);
+      //             }
+      //         }
+      //         else if (!idxs.empty())
+      //         {
+      //             match.distance = static_cast<float>(distances[0]);
+      //             match.queryIdx = (int)i;
+      //             match.trainIdx = (int)idxs[0];
+      //             matches.push_back(match);
+      //         }
+      //     }
+      // }
       else
       {
           cout << "Wrong descriptor data type for ANNOY! Must be 32bit float or 64bit double." << endl;

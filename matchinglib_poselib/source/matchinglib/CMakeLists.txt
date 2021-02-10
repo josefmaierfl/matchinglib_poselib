@@ -33,6 +33,9 @@ add_subdirectory(thirdparty/gms-1.0)
 
 add_subdirectory(similarity_search)
 
+# Set multithreading support for ANNOY lib
+add_compile_definitions(ANNOYLIB_MULTITHREADED_BUILD)
+
 # Set API export file and macro
 string(TOUPPER ${target} target_upper)
 set(feature_file "include/${target}/${target}_features.h")
