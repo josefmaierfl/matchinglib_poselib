@@ -1,6 +1,7 @@
 # MATCHING- AND POSELIB
 
 - [Introduction](#introduction)
+- [Cloning this Repository](#clone-repo)
 - [Supported Keypoint and Descriptor Types](#support-features)
 - [Supported Matching Algorithms](#support-matching)
 - [Supported Correspondence Filtering Techniques](#support-filtering)
@@ -38,6 +39,10 @@ For easy interfacing, we provide 3 possibilities to interface the library:
 * A ROS interface for reading continuous image data providing a launch file and the possibility to dynamically reconfigure parameters during runtime
 
 We further provide testing results on various keypoint-descriptor combinations, matching algorithms, and pose estimation algorithms.
+
+## Cloning this Repository <a name="clone-repo"></a>
+
+This repository includes git submodules. Use `git clone --recursive https://github.com/josefmaierfl/matchinglib_poselib.git` for ckecking out.
 
 ## Supported Keypoint and Descriptor Types <a name="support-features"></a>
 
