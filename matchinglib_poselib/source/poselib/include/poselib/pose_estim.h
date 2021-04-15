@@ -228,15 +228,19 @@ void POSELIB_API robustEssentialRefine(cv::InputArray points1, cv::InputArray po
 						  cv::InputOutputArray mask = cv::noArray(), int model = 0, bool tryOrientedEpipolar = false, bool normalizeCorrs = false);
 //Bundle adjustment (BA) on motion (=extrinsics) and structure with or without camera metrices.
 bool POSELIB_API refineStereoBA(cv::InputArray p1,
-					cv::InputArray p2,
-					cv::InputOutputArray R,
-					cv::InputOutputArray t,
-					cv::InputOutputArray Q,
-					cv::InputOutputArray K1,
-					cv::InputOutputArray K2,
-					bool pointsInImgCoords = false,
-					cv::InputArray mask = cv::noArray(),
-					const double angleThresh = 1.25,
-					const double t_norm_tresh = 0.05);
-
+								cv::InputArray p2,
+								cv::InputOutputArray R,
+								cv::InputOutputArray t,
+								cv::InputOutputArray Q,
+								cv::InputOutputArray K1,
+								cv::InputOutputArray K2,
+								bool pointsInImgCoords = false,
+								cv::InputArray mask = cv::noArray(),
+								const double angleThresh = 1.25,
+								const double t_norm_tresh = 0.05,
+								const double huber_thresh = -1.0,
+								const bool optimFocalOnly = false,
+								const bool optimMotionOnly = false,
+								cv::InputOutputArray dist1 = cv::noArray(),
+								cv::InputOutputArray dist2 = cv::noArray());
 }

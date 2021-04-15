@@ -5,11 +5,12 @@ ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 USER root
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libvtk7-dev && apt-get clean
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libboost-all-dev && apt-get clean
-RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y software-properties-common apt-utils && apt-get clean
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y software-properties-common apt-utils wget && apt-get clean
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && add-apt-repository -y 'deb http://security.ubuntu.com/ubuntu xenial-security main'
+RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-add-repository -y 'deb https://apt.kitware.com/ubuntu/ bionic main'
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y build-essential cmake pkg-config && apt-get clean
-RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y wget \
-  libtbb2 \
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libtbb2 \
 	libtbb-dev \
 	libglew-dev \
 	qt5-default \

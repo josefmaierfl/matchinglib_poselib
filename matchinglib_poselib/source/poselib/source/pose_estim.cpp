@@ -1076,7 +1076,12 @@ bool refineStereoBA(cv::InputArray p1,
 					bool pointsInImgCoords,
 					cv::InputArray mask,
 					const double angleThresh,
-					const double t_norm_tresh)
+					const double t_norm_tresh,
+					const double huber_thresh,
+					const bool optimFocalOnly,
+					const bool optimMotionOnly,
+					cv::InputOutputArray dist1,
+					cv::InputOutputArray dist2)
 {
     if(p1.empty() || p2.empty() || Q.empty()){
         return false;
@@ -1103,9 +1108,21 @@ bool refineStereoBA(cv::InputArray p1,
 	Mat t_after_refine;
 	Mat K1_tmp, K2_tmp;
 	Mat p1_tmp, p2_tmp, Q_tmp;
+	Mat dist1_tmp, dist2_tmp;
+
+	int optPars = BA_MOTSTRUCT;
+	if (optimMotionOnly){
+		optPars = BA_MOT;
+	}
+
+	double th = huber_thresh;
+	if (th < 0)
+	{
+		th = ROBUST_THRESH;
+	}
 
 	//Prepare input data for the BA interface
-	double * pts3D_vec = nullptr;
+	double *pts3D_vec = nullptr;
 
 	cv::cv2eigen(R.getMat(),R1e);
 	MatToQuat(R1e, R1quat);
@@ -1161,10 +1178,9 @@ bool refineStereoBA(cv::InputArray p1,
 		Eigen::Vector4d R1quat_old2;
 
 		//Convert the threshold into the camera coordinate system
-		double th = ROBUST_THRESH;
 		th = 4.0*th/(std::sqrt((double)2)*(K1.getMat().at<double>(1,1)+K1.getMat().at<double>(2,2)+K2.getMat().at<double>(1,1)+K2.getMat().at<double>(2,2)));
 
-		SBAdriver optiMotStruct(true,BA_MOTSTRUCT,COST_PSEUDOHUBER,th,true,BA_MOTSTRUCT);
+		SBAdriver optiMotStruct(true, optPars, COST_PSEUDOHUBER, th, true, optPars);
 
 		if(optiMotStruct.perform_sba(R_vec,t_vec,pts2D_vec,num2Dpts,pts3D_vec,Q_tmp.rows) < 0)
 		{
@@ -1180,30 +1196,47 @@ bool refineStereoBA(cv::InputArray p1,
 		Mat K2_ = K2.getMat();
 
 		vector<double *> intr_vec;
-		double *intr1, *intr2;
-		intr1 = (double*)malloc(5*sizeof(double));
-		if(intr1 == nullptr) exit(1);
-
-		intr2 = (double*)malloc(5*sizeof(double));
-		if(intr2 == nullptr) exit(1);
-
-		intr1[0] = K1_.at<double>(0,0);
-		intr1[1] = K1_.at<double>(0,2);
-		intr1[2] = K1_.at<double>(1,2);
-		intr1[3] = K1_.at<double>(1,1)/K1_.at<double>(0,0);
-		intr1[4] = 0.0;
+		double intr1[5] = {K1_.at<double>(0, 0), K1_.at<double>(0, 2), K1_.at<double>(1, 2), K1_.at<double>(1, 1) / K1_.at<double>(0, 0), 0.};
 		intr_vec.push_back(intr1);
 
-		intr2[0] = K2_.at<double>(0,0);
-		intr2[1] = K2_.at<double>(0,2);
-		intr2[2] = K2_.at<double>(1,2);
-		intr2[3] = K2_.at<double>(1,1)/K2_.at<double>(0,0);
-		intr2[4] = 0.0;
+		double intr2[5] = {K2_.at<double>(0, 0), K2_.at<double>(0, 2), K2_.at<double>(1, 2), K2_.at<double>(1, 1) / K2_.at<double>(0, 0), 0.};
 		intr_vec.push_back(intr2);
 
-		SBAdriver optiMotStruct(false,BA_MOTSTRUCT,COST_PSEUDOHUBER,ROBUST_THRESH,true,BA_MOTSTRUCT,2,0,0,0,true);
+		int optimInternals = 2;
+		if (optimFocalOnly)
+		{
+			optimInternals = 4;
+		}
 
-		if(optiMotStruct.perform_sba(R_vec,t_vec,pts2D_vec,num2Dpts,pts3D_vec,Q_tmp.rows,nullptr,&intr_vec) < 0)
+		double dist1_arr[5] = {0, 0, 0, 0, 0};
+		double dist2_arr[5] = {0, 0, 0, 0, 0};
+		vector<double *> dist_vec, *dist_vec_ptr = nullptr;
+		if (!dist1.empty() && !dist2.empty())
+		{
+			Mat dist1_ = dist1.getMat();
+			Mat dist2_ = dist2.getMat();
+			if (!nearZero(cv::sum(dist1_)[0]))
+			{
+				for (int i = 0; i < 5; i++)
+				{
+					dist1_arr[i] = dist1_.at<double>(i);
+				}
+			}
+			dist_vec.push_back(dist1_arr);
+			if (!nearZero(cv::sum(dist2_)[0]))
+			{
+				for (int i = 0; i < 5; i++)
+				{
+					dist2_arr[i] = dist2_.at<double>(i);
+				}
+			}
+			dist_vec.push_back(dist2_arr);
+			dist_vec_ptr = &dist_vec;
+		}
+
+		SBAdriver optiMotStruct(false, optPars, COST_PSEUDOHUBER, th, true, optPars, optimInternals, 0, 0, 0, true);
+
+		if (optiMotStruct.perform_sba(R_vec, t_vec, pts2D_vec, num2Dpts, pts3D_vec, Q_tmp.rows, nullptr, &intr_vec, dist_vec_ptr) < 0)
 		{
 			/*this->t = oldRTs.back().second.clone(); //-------------------------------> these two lines are executed within uncalibratedRectify for bundle adjustment with internal paramters (if it fails)
 			delLastPose(true);*/
@@ -1226,8 +1259,18 @@ bool refineStereoBA(cv::InputArray p1,
 		K2_tmp.at<double>(1,2) = intr2[2];
 		K2_tmp.at<double>(1,1) = intr2[3] * intr2[0];
 
-		free(intr1);
-		free(intr2);
+		if (!dist1.empty() && !dist2.empty()){
+			Mat dist1_ = dist1.getMat();
+			Mat dist2_ = dist2.getMat();
+			for (int i = 0; i < 5; i++)
+			{
+				dist1_.at<double>(i) = dist1_arr[i];
+				dist2_.at<double>(i) = dist2_arr[i];
+			}
+		}
+
+		// free(intr1);
+		// free(intr2);
 	}
 
 	//Normalize the translation vector
@@ -1251,22 +1294,24 @@ bool refineStereoBA(cv::InputArray p1,
 	}
 
 	//Store the refined paramteres
-	if(mask.empty())
-	{
-		Q_tmp.copyTo(Q.getMat());
-	}
-	else
-	{
-		Mat mask_ = mask.getMat();
-		Mat Q_ = Q.getMat();
-		int j = 0, n = Q_.rows;
-
-		for(int i = 0; i < n; i++)
+	if (!optimMotionOnly){
+		if (mask.empty())
 		{
-			if(mask_.at<unsigned char>(i))
+			Q_tmp.copyTo(Q.getMat());
+		}
+		else
+		{
+			Mat mask_ = mask.getMat();
+			Mat Q_ = Q.getMat();
+			int j = 0, n = Q_.rows;
+
+			for (int i = 0; i < n; i++)
 			{
-				Q_tmp.row(j).copyTo(Q_.row(i));
-				j++;
+				if (mask_.at<unsigned char>(i))
+				{
+					Q_tmp.row(j).copyTo(Q_.row(i));
+					j++;
+				}
 			}
 		}
 	}
