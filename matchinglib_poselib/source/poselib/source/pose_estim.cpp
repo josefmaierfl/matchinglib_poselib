@@ -1049,9 +1049,11 @@ int triangPts3D(cv::InputArray R, cv::InputArray t, cv::InputArray _points1, cv:
  * the initial motion and structure are stored and the refined data is rejected.
  *
  * InputArray p1						Input  -> Observed point coordinates of the first image in the camera (pointsInImgCoords=false) or image
- *												  (pointsInImgCoords=true) coordinate system (n rows, 2 cols). Points must be undistorted.
+ *												  (pointsInImgCoords=true) coordinate system (n rows, 2 cols). If pointsInImgCoords=false or 
+ 												  dist1 and dist2 are not provided, points must be undistorted.
  * InputArray p2						Input  -> Observed point coordinates of the second image in the camera (pointsInImgCoords=false) or image
- *												  (pointsInImgCoords=true) coordinate system (n rows, 2 cols). Points must be undistorted.
+ *												  (pointsInImgCoords=true) coordinate system (n rows, 2 cols). If pointsInImgCoords=false or 
+ 												  dist1 and dist2 are not provided, points must be undistorted.
  * InputOutputArray R					I/O	   -> Rotation matrix
  * InputOutputArray t					I/O	   -> Translation vector (3 rows x 1 column)
  * InputOutputArray Q					I/O	   -> Triangulated 3D-points (n rows x 3 columns)
@@ -1062,6 +1064,17 @@ int triangPts3D(cv::InputArray R, cv::InputArray t, cv::InputArray _points1, cv:
  * InputOutputArray mask				Input  -> Inlier mask [Default=cv::noArray()]
  * double angleThresh					Input  -> Threshold on the angular difference in degrees between the initial and refined rotation matrices [Default=1.25]
  * double t_norm_tresh					Input  -> Threshold on the norm of the difference between initial and refined translation vectors [Default=0.05]
+ * double huber_thresh					Input  -> Threshold for the Pseudo-Huber cost function in the image coordinate system (pixels)
+ * bool optimFocalOnly					Input  -> If pointsInImgCoords=true, only the focal length is optimized (in addition to extrinsics and optionally
+ * 												  structure and distortion)
+ * bool optimMotionOnly					Input  -> Only extrinsics and intrinsics are optimized, structure remains fixed.
+ * bool fixCamMat						Input  -> All parameters within camera matrices are fixed - only extrinsics, distortion, and/or structure are optimized.
+ * InputOutputArray dist1				I/O	   -> Exactly 5 distortion coeffitients (k1, k2, t1, t2, k3) of the first camera. 
+ * 												  If provided, also dist2 has to be provided. Only if both are provided and pointsInImgCoords=true, 
+ * 												  they are optimized.
+ * InputOutputArray dist2				I/O	   -> Exactly 5 distortion coeffitients (k1, k2, t1, t2, k3) of the second camera. 
+ * 												  If provided, also dist1 has to be provided. Only if both are provided and pointsInImgCoords=true, 
+ * 												  they are optimized.
  *
  * Return value:						true :	Success
  *										false:	Failed
@@ -1080,6 +1093,7 @@ bool refineStereoBA(cv::InputArray p1,
 					const double huber_thresh,
 					const bool optimFocalOnly,
 					const bool optimMotionOnly,
+					const bool fixCamMat,
 					cv::InputOutputArray dist1,
 					cv::InputOutputArray dist2)
 {
@@ -1108,7 +1122,6 @@ bool refineStereoBA(cv::InputArray p1,
 	Mat t_after_refine;
 	Mat K1_tmp, K2_tmp;
 	Mat p1_tmp, p2_tmp, Q_tmp;
-	Mat dist1_tmp, dist2_tmp;
 
 	int optPars = BA_MOTSTRUCT;
 	if (optimMotionOnly){
@@ -1232,6 +1245,10 @@ bool refineStereoBA(cv::InputArray p1,
 			}
 			dist_vec.push_back(dist2_arr);
 			dist_vec_ptr = &dist_vec;
+			if (fixCamMat)
+			{
+				optimInternals = 5;
+			}
 		}
 
 		SBAdriver optiMotStruct(false, optPars, COST_PSEUDOHUBER, th, true, optPars, optimInternals, 0, 0, 0, true);
@@ -1329,18 +1346,379 @@ bool refineStereoBA(cv::InputArray p1,
 	return true;
 }
 
-int estimateEssentialOrPoseUSAC(const cv::Mat & p1,
-	const cv::Mat & p2,
-	cv::OutputArray E,
-	double th,
-	ConfigUSAC & cfg,
-	bool & isDegenerate,
-	cv::OutputArray inliers,
-	cv::OutputArray R_degenerate,
-	cv::OutputArray inliers_degenerate_R,
-	cv::OutputArray R,
-	cv::OutputArray t,
-	bool verbose)
+/* Bundle adjustment (BA) on motion (=extrinsics) and structure with or without camera metrices and/or distortion. 
+ * For refinement of motion and structure without intrinsics, the correspondences p1 and p2 must be in the 
+ * camera coordinate system (pointsInImgCoords=false). Otherwise the correspondences must be
+ * in the image coordinate system (pointsInImgCoords=true). If a mask is provided, only structure elements and correspondences marked as valid
+ * are used for BA. If BA fails or the refined motion differs too much from the initial motion 
+ * (thresholds can be modified with angleThresh and t_norm_tresh), the initial motion and structure are stored and the refined data is rejected.
+ *
+ * InputArray ps						Input  -> Observed point coordinates of all images in the camera (pointsInImgCoords=false) or image
+ *												  (pointsInImgCoords=true) coordinate system (vector<Mat>(n rows, 2 cols)). 
+ *												  If pointsInImgCoords=false or dists are not provided, points must be undistorted. 
+ *												  The ordering must be the same as in "Qs".
+ * InputArray map3D						Input  -> Masks of type char with the same size as Qs for every camera (vector<Mat>(n rows/cols)).
+ * 												  The ordering of corresponding 2D points in "ps" must be the same as in "Qs"
+ * InputOutputArray Rs					I/O	   -> Rotation matrices (vector<Mat>(3 rows, 3 cols))
+ * InputOutputArray ts					I/O	   -> Translation vectors (vector<Mat>(3 rows x 1 column))
+ * InputOutputArray Qs					I/O	   -> Triangulated 3D-points (Mat(n rows x 3 columns))
+ * InputOutputArray Ks					I/O	   -> Camera matrices (vector<Mat>(3 rows, 3 cols))
+
+ * bool pointsInImgCoords				Input  -> Must be true if ps are in image coordinates (pixels) or false if they are in camera coordinates
+ *												  [Default=false]. If true, BA is always performed with intrinsics.
+ * InputArray masks						Input  -> Inlier masks [Default=cv::noArray()]: vector<Mat<unsigned char>>(n rows)
+ * double angleThresh					Input  -> Threshold on the angular difference in degrees between the initial and refined rotation matrices [Default=1.25]
+ * double t_norm_tresh					Input  -> Threshold on the norm of the difference between initial and refined translation vectors [Default=0.05]
+ * double huber_thresh					Input  -> Threshold for the Pseudo-Huber cost function in the image coordinate system (pixels)
+ * bool optimFocalOnly					Input  -> If pointsInImgCoords=true, only the focal length is optimized (in addition to extrinsics and optionally
+ * 												  structure and distortion)
+ * bool optimMotionOnly					Input  -> Only extrinsics and intrinsics are optimized, structure remains fixed.
+ * bool fixCamMat						Input  -> All parameters within camera matrices are fixed - only extrinsics, distortion, and/or structure are optimized.
+ * InputOutputArray dists				I/O	   -> Exactly 5 distortion coeffitients (k1, k2, t1, t2, k3) for all cameras (vector<Mat>(5 coeffitients)). 
+ * 												  Only if pointsInImgCoords=true, they are optimized.
+ *
+ * Return value:						true :	Success
+ *										false:	Failed
+ */
+bool refineMultCamBA(cv::InputArray ps,
+					 cv::InputArray map3D,
+					 cv::InputOutputArray Rs,
+					 cv::InputOutputArray ts,
+					 cv::InputOutputArray Qs,
+					 cv::InputOutputArray Ks,
+					 bool pointsInImgCoords = false,
+					 cv::InputArray masks = cv::noArray(),
+					 const double angleThresh = 1.25,
+					 const double t_norm_tresh = 0.05,
+					 const double huber_thresh = -1.0,
+					 const bool optimFocalOnly = false,
+					 const bool optimMotionOnly = false,
+					 const bool fixCamMat = false,
+					 cv::InputOutputArray dists = cv::noArray())
+{
+	if (ps.empty() || Qs.empty() || map3D.empty() || Rs.empty() || ts.empty() || Ks.empty())
+	{
+		cerr << "Some input variables to BA are empty. Skipping!" << endl;
+		return false;
+	}
+	if (!ps.isMatVector() || !map3D.isMatVector() || !Rs.isMatVector() || !ts.isMatVector() || !Ks.isMatVector())
+	{
+		cerr << "Inputs must be of type vector<Mat>. Skipping!" << endl;
+		return false;
+	}
+	if(!Qs.isMat())
+	{
+		cerr << "Input Qs must be of type Mat. Skipping!" << endl;
+		return false;
+	}
+	Mat Q = Qs.getMat();
+	int nr_Qs = Q.size().height;
+	if(nr_Qs < 15){
+		cerr << "Too less 3D points. Skipping!" << endl;
+		return false;
+	}
+
+	vector<Mat> p2D_vec, map3D_vec, R_mvec, t_mvec, K_vec;
+	ps.getMatVector(p2D_vec);
+	map3D.getMatVector(map3D_vec);
+	Rs.getMatVector(R_mvec);
+	ts.getMatVector(t_mvec);
+	Ks.getMatVector(K_vec);
+	const size_t vecSi = p2D_vec.size();
+	if (map3D_vec.size() != vecSi || R_mvec.size() != vecSi || t_mvec.size() != vecSi || K_vec.size() != vecSi)
+	{
+		cerr << "Inputs of type vector<Mat> must be of same size. Skipping!" << endl;
+		return false;
+	}
+	bool haveMasks = false;
+	vector<Mat> kpMask_vec;
+	if (!masks.empty())
+	{
+		masks.getMatVector(kpMask_vec);
+		if (kpMask_vec.size() != vecSi)
+		{
+			cerr << "Input masks of type vector<Mat> must be of same size as other inputs. Skipping!" << endl;
+			return false;
+		}
+		for (size_t i = 0; i < kpMask_vec.size(); ++i)
+		{
+			const int mSi = kpMask_vec[i].size().area();
+			const int pSi = p2D_vec[i].size().height;
+			if (pSi != mSi)
+			{
+				cerr << "Input mask " << i << " does not have the same size as corresponding 2D features. Skipping BA!" << endl;
+				return false;
+			}
+		}
+		haveMasks = true;
+	}
+	for (size_t i = 0; i < map3D_vec.size(); ++i)
+	{
+		const int mapSi = map3D_vec[i].size().area();
+		const int ones = cv::countNonZero(map3D_vec);
+		int pSi = p2D_vec[i].size().height;
+		if (haveMasks){
+			pSi = kpMask_vec[i].size().area();
+		}
+		if (nr_Qs != mapSi){
+			cerr << "3D map " << i << " does not have the same size as number of available 3D points. Skipping BA!" << endl;
+			return false;
+		}
+		if (ones != pSi){
+			cerr << "3D map " << i << " does not contain the same number of non-zero values as provided 2D correspondences. Skipping BA!" << endl;
+			return false;
+		}
+		if (map3D_vec[i].type() != CV_8SC1){
+			cerr << "3D map " << i << " must be of type char. Skipping BA!" << endl;
+			return false;
+		}
+	}
+	vector<Mat> dist_mvec;
+	bool haveDists = false;
+	if (!dists.empty())
+	{
+		dists.getMatVector(dist_mvec);
+		if (dist_mvec.size() != vecSi)
+		{
+			cerr << "Input dists of type vector<Mat> must be of same size as other inputs. Skipping!" << endl;
+			return false;
+		}
+		haveDists = true;
+	}
+	BAinfo info;
+	std::vector<double> t_norm;
+	std::vector<double *> t_vec;
+	std::vector<double *> R_vec;
+	std::vector<Eigen::Vector4d> Rquat, Rquat_old;
+	double R0[4] = {1.0, 0.0, 0.0, 0.0};
+	double t0[3] = {0.0, 0.0, 0.0};
+	std::vector<double *> pts2D_vec;
+	std::vector<int> num2Dpts;
+	std::vector<char *> map3D_vec_ptr;
+	std::vector<Mat> t_after_refine;
+	Mat Q_tmp;
+	std::vector<Mat> dist_tmp;
+
+	int optPars = BA_MOTSTRUCT;
+	if (optimMotionOnly)
+	{
+		optPars = BA_MOT;
+	}
+
+	double th = huber_thresh;
+	if (th < 0)
+	{
+		th = ROBUST_THRESH;
+	}
+
+	//Prepare input data for the BA interface
+	vector<Mat> pts2d_masked;
+	if (haveMasks){
+		for (size_t i = 0; i < vecSi; ++i){
+			Mat p_ = p2D_vec[i];
+			int n = p_.rows;
+			Mat mask = kpMask_vec[i];
+			Mat p_tmp1;
+			for (int j = 0; j < n; j++)
+			{
+				if (mask.at<unsigned char>(j))
+				{
+					p_tmp1.push_back(p_.row(j));
+				}
+			}
+			pts2d_masked.emplace_back(p_tmp1.clone());
+		}
+	}else{
+		pts2d_masked = p2D_vec;
+	}
+
+	double *pts3D_vec = nullptr;
+	for (size_t i = 0; i < vecSi; ++i)
+	{
+		Eigen::Matrix3d Rei;
+		Eigen::Vector4d Rquati;
+		cv::cv2eigen(R_mvec[i], Rei);
+		MatToQuat(Rei, Rquati);
+		Rquat.push_back(Rquati);
+		R_vec.push_back((double *)Rquat.back().data());
+		t_vec.push_back((double *)t_mvec[i].data);
+		t_after_refine.emplace_back(t_mvec[i].clone());
+	}
+	Rquat_old = Rquat;
+
+	Q_tmp = Q.clone();
+	pts3D_vec = (double *)Q_tmp.data;
+
+	for (size_t i = 0; i < vecSi; ++i){
+		num2Dpts.push_back(pts2d_masked[i].rows);
+		pts2D_vec.push_back((double *)pts2d_masked[i].data);
+		map3D_vec_ptr.push_back((char *)map3D_vec[i].data);
+	}
+
+	int err = 0;
+	bool failed = false;
+	if (!pointsInImgCoords) //BA for extrinsics and structure
+	{
+		Eigen::Vector4d R1quat_old2;
+
+		double f_mean = 0;
+		for (auto &Kx : K_vec){
+			f_mean += (Kx.at<double>(1, 1) + Kx.at<double>(2, 2)) / 2.0;
+		}
+		f_mean /= static_cast<double>(vecSi);
+		th /= f_mean;
+
+		SBAdriver optiMotStruct(true, optPars, COST_PSEUDOHUBER, th, true, optPars);
+
+		err = optiMotStruct.perform_sba(R_vec, t_vec, pts2D_vec, num2Dpts, pts3D_vec, Q_tmp.rows, &map3D_vec_ptr);
+		if(err >= 0){
+			info = optiMotStruct.getFinalSBAinfo();
+			if (info.terminatingReason > 5){
+				failed = true;
+			}
+		}else{
+			failed = true;
+		}		
+	}
+	else //BA with internals
+	{
+		vector<std::array<double, 5>> intr_vec_data;
+		vector<double *> intr_vec;
+		for (auto &Kx : K_vec){
+			intr_vec_data.emplace_back(std::array<double, 5>{{Kx.at<double>(0, 0), Kx.at<double>(0, 2), Kx.at<double>(1, 2), Kx.at<double>(1, 1) / Kx.at<double>(0, 0), Kx.at<double>(0, 1)}});
+			intr_vec.push_back(intr_vec_data.back().data());
+		}
+
+		int optimInternals = 2;
+		if (optimFocalOnly)
+		{
+			optimInternals = 4;
+		}
+
+		vector<double *> dist_vec, *dist_vec_ptr = nullptr;
+		if (haveDists)
+		{
+			for (auto &distX : dist_mvec)
+			{
+				dist_tmp.emplace_back(distX.clone());
+				dist_vec.push_back((double *)distX.data);
+			}
+			dist_vec_ptr = &dist_vec;
+			if (fixCamMat)
+			{
+				optimInternals = 5;
+			}
+		}
+
+		SBAdriver optiMotStruct(false, optPars, COST_PSEUDOHUBER, th, true, optPars, optimInternals, 0, 0, 0, true);
+
+		err = optiMotStruct.perform_sba(R_vec, t_vec, pts2D_vec, num2Dpts, pts3D_vec, Q_tmp.rows, &map3D_vec_ptr, &intr_vec, dist_vec_ptr);
+		if (err >= 0)
+		{
+			info = optiMotStruct.getFinalSBAinfo();
+			if (info.terminatingReason > 5)
+			{
+				failed = true;
+			}else{
+				for (size_t i = 0; i < vecSi; ++i)
+				{
+					std::array<double, 5> &arr = intr_vec_data[i];
+					Mat K = K_vec[i];
+					K.at<double>(0, 0) = arr[0];
+					K.at<double>(0, 1) = arr[4];
+					K.at<double>(0, 2) = arr[1];
+					K.at<double>(1, 2) = arr[2];
+					K.at<double>(1, 1) = arr[3] * arr[0];
+				}
+			}
+		}
+		else
+		{
+			failed = true;
+		}
+	}
+
+	if (!failed){
+		for (size_t i = 0; i < vecSi; ++i)
+		{
+			Mat t_new = t_mvec[i].clone();
+			Mat t_old = t_after_refine[i].clone();
+			//Normalize the translation vectors
+			double t_norm1 = normFromVec(t_new);
+			if (std::abs(t_norm1 - 1.0) > 1e-4)
+			{
+				t_new /= t_norm1;
+			}
+			double t_norm2 = normFromVec(t_after_refine[i]);
+			if (std::abs(t_norm2 - 1.0) > 1e-4)
+			{
+				t_old /= t_norm2;
+			}
+
+			//Check for the difference of extrinsics before and after BA to detect possible local minimas
+			Eigen::Vector3d t1e, t2e;
+			t1e << t_old.at<double>(0), t_old.at<double>(1), t_old.at<double>(2);
+			t2e << t_new.at<double>(0), t_new.at<double>(1), t_new.at<double>(2);
+
+			double r_diff, t_diff;
+			getRTQuality(Rquat_old[i], Rquat[i], t1e, t2e, &r_diff, &t_diff);
+			r_diff = r_diff / PI * 180.0;
+			if ((abs(r_diff) > angleThresh) || (t_diff > t_norm_tresh))
+			{
+				failed = true;
+				break;
+			}
+		}
+	}
+
+	if(failed){
+		int i = 0;
+		for (auto &&old_t : t_after_refine)
+		{
+			t_mvec[i++] = std::move(old_t);
+		}
+		if (pointsInImgCoords && haveDists)
+		{
+			i = 0;
+			for (auto &&distX : dist_tmp)
+			{
+				dist_mvec[i++] = std::move(distX);
+			}
+		}
+		return false; //BA failed
+	}
+
+	//Store the refined paramteres
+	if (!optimMotionOnly)
+	{
+		Q_tmp.copyTo(Q);
+	}
+
+	Eigen::Matrix3d Rei;
+	Eigen::Vector4d Rquati;
+
+	for (size_t i = 0; i < vecSi; ++i)
+	{
+		Mat Rq_new;
+		cv::eigen2cv(Rquat[i], Rq_new);
+		quatToMatrix(R_mvec[i], Rq_new);
+	}
+
+	return true;
+}
+
+int estimateEssentialOrPoseUSAC(const cv::Mat &p1,
+								const cv::Mat &p2,
+								cv::OutputArray E,
+								double th,
+								ConfigUSAC &cfg,
+								bool &isDegenerate,
+								cv::OutputArray inliers,
+								cv::OutputArray R_degenerate,
+								cv::OutputArray inliers_degenerate_R,
+								cv::OutputArray R,
+								cv::OutputArray t,
+								bool verbose)
 {
 	//const double degenerateDecisionThreshold = 0.85;//Used for the option UsacChkDegenType::DEGEN_USAC_INTERNAL: Threshold on the fraction of degenerate inliers compared to the E-inlier fraction
 	USACConfig::EssentialMatEstimatorUsed used_estimator;
