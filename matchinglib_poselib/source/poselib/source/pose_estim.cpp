@@ -1490,7 +1490,7 @@ bool refineMultCamBA(cv::InputArray ps,
 	std::vector<double> t_norm;
 	std::vector<double *> t_vec;
 	std::vector<double *> R_vec;
-	std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>> Rquat, Rquat_old;
+	std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>> Rquat(vecSi), Rquat_old;
 	double R0[4] = {1.0, 0.0, 0.0, 0.0};
 	double t0[3] = {0.0, 0.0, 0.0};
 	std::vector<double *> pts2D_vec;
@@ -1539,9 +1539,9 @@ bool refineMultCamBA(cv::InputArray ps,
 		Eigen::Matrix3d Rei;
 		Eigen::Vector4d Rquati;
 		cv::cv2eigen(R_mvec[i], Rei);
-		MatToQuat(Rei, Rquati);
-		Rquat.push_back(Rquati);
-		R_vec.push_back((double *)Rquat.back().data());
+		MatToQuat(Rei, Rquat[i]);
+		// Rquat.push_back(Rquati);
+		R_vec.push_back((double *)Rquat[i].data());
 		t_vec.push_back((double *)t_mvec[i].data);
 		t_after_refine.emplace_back(t_mvec[i].clone());
 	}
