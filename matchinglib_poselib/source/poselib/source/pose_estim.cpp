@@ -45,6 +45,7 @@
 #include "five-point-nister/five-point.hpp"
 #include "BA_driver.h"
 #include "usac/usac_estimations.h"
+#include <Eigen/StdVector>
 
 using namespace cv;
 using namespace std;
@@ -1489,7 +1490,7 @@ bool refineMultCamBA(cv::InputArray ps,
 	std::vector<double> t_norm;
 	std::vector<double *> t_vec;
 	std::vector<double *> R_vec;
-	std::vector<Eigen::Vector4d> Rquat, Rquat_old;
+	std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>> Rquat, Rquat_old;
 	double R0[4] = {1.0, 0.0, 0.0, 0.0};
 	double t0[3] = {0.0, 0.0, 0.0};
 	std::vector<double *> pts2D_vec;
