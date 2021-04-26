@@ -1455,7 +1455,7 @@ bool refineMultCamBA(cv::InputArray ps,
 	for (size_t i = 0; i < map3D_vec.size(); ++i)
 	{
 		const int mapSi = map3D_vec[i].size().area();
-		const int ones = cv::countNonZero(map3D_vec);
+		const int ones = cv::countNonZero(map3D_vec[i]);
 		int pSi = p2D_vec[i].size().height;
 		if (haveMasks){
 			pSi = kpMask_vec[i].size().area();
