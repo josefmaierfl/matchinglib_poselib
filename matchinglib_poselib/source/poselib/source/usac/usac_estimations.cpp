@@ -434,13 +434,17 @@ int estimateEssentialMatUsac(const cv::Mat & p1,
 
 	//Problem specific parameters (for estimating a essential matrix)
 	c_essential.focalLength = focalLength; //The focal length of the camera (for 2 different cameras, use the mean focal length if they are not completely different)
-	c_essential.hDegenThreshold = 6.5 * th;//inlier threshold for the h-degeneracy test, --------------> maybe should be changed
+	c_essential.hDegenThreshold = 1.5 * th;//inlier threshold for the h-degeneracy test, --------------> maybe should be changed
 	c_essential.maxUpgradeSamples = 8000;//maximum number of 2-point samples to draw in the model upgrade loop, --------------> maybe should be changed
 	c_essential.refineMethod = refineMethod;//The used method for refinement in inner RANSAC
 	c_essential.rotDegenThesholdPix = th_pixels;//Threshold in pixels
 	c_essential.used_estimator = used_estimator;//specifies a specific minimal solver from OpenGV
 	c_essential.ransacLikeUpgradeDegenerate = true;//Specifies if the upgrade of a degenerate model H to a higher order model E should be performed with a minimal solver (true) or the original method implemented in USAC (false)
-	c_essential.enableHDegen = false; //Should remain disbled (false). Enable the H degeneracy check and upgrade to full model (H degeneracy is not a problem for the 5pt algorithm)
+	if (refineMethod == USACConfig::REFINE_8PT_PSEUDOHUBER || refineMethod == USACConfig::REFINE_WEIGHTS){
+		c_essential.enableHDegen = true;
+	}else{
+		c_essential.enableHDegen = false;	   //Should remain disabled (false). Enable the H degeneracy check and upgrade to full model (H degeneracy is not a problem for the 5pt algorithm)
+	}
 	c_essential.enableUpgradeDegenPose = true; //Enable the upgrade from degenerate configurations R or no Motion to R-> R+t or no Motion -> t
 
 	ConfigParamsEssential cfg(c_com, c_pro, c_sprt, c_lo, c_essential, verbose_);
