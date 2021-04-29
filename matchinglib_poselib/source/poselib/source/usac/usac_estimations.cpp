@@ -365,6 +365,14 @@ int estimateEssentialMatUsac(const cv::Mat & p1,
 	c_com.prevalidateSample = true; //specifies whether samples are to be prevalidated prior to model generation
 	c_com.prevalidateModel = true; //specifies whether models are to be prevalidated prior to verification against data points
 	c_com.testDegeneracy = checkDegeneracy; //specifies whether degeneracy testing is to be performed
+	if (checkDegeneracy && (refineMethod == USACConfig::REFINE_8PT_PSEUDOHUBER || refineMethod == USACConfig::REFINE_WEIGHTS))
+	{
+		c_com.testDegeneracyLOSAC = true;
+	}
+	else
+	{
+		c_com.testDegeneracyLOSAC = false; //Enable the H degeneracy check if the 8pt algorithm is used and upgrade to full model
+	}
 	if (sortedMatchIdx.empty())
 		c_com.randomSamplingMethod = USACConfig::SAMP_UNIFORM; //normal random sampling
 	else
@@ -434,7 +442,7 @@ int estimateEssentialMatUsac(const cv::Mat & p1,
 
 	//Problem specific parameters (for estimating a essential matrix)
 	c_essential.focalLength = focalLength; //The focal length of the camera (for 2 different cameras, use the mean focal length if they are not completely different)
-	c_essential.hDegenThreshold = 1.5 * th;//inlier threshold for the h-degeneracy test, --------------> maybe should be changed
+	c_essential.hDegenThreshold = 2.0 * th;//inlier threshold for the h-degeneracy test, --------------> maybe should be changed
 	c_essential.maxUpgradeSamples = 8000;//maximum number of 2-point samples to draw in the model upgrade loop, --------------> maybe should be changed
 	c_essential.refineMethod = refineMethod;//The used method for refinement in inner RANSAC
 	c_essential.rotDegenThesholdPix = th_pixels;//Threshold in pixels

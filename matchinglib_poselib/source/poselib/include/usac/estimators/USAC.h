@@ -103,6 +103,7 @@ class USAC
 		bool			usac_prevalidate_sample_;
 		bool			usac_prevalidate_model_;
 		bool			usac_test_degeneracy_;
+		bool			usac_test_degeneracy_LOSAC_;
 		unsigned int	usac_num_data_points_;  
 		unsigned int	usac_num_data_points_degen;
 		USACConfig::RandomSamplingMethod	   usac_sampling_method_;
@@ -216,6 +217,7 @@ void USAC<ProblemType>::initParamsUSAC(const ConfigParams& cfg)
 	usac_prevalidate_sample_	= cfg.common.prevalidateSample;
 	usac_prevalidate_model_		= cfg.common.prevalidateModel;
 	usac_test_degeneracy_		= cfg.common.testDegeneracy;
+	usac_test_degeneracy_LOSAC_ = cfg.common.testDegeneracyLOSAC;
 	usac_sampling_method_		= cfg.common.randomSamplingMethod;
 	usac_verif_method_			= cfg.common.verifMethod;
 	usac_local_opt_method_      = cfg.common.localOptMethod;
@@ -534,6 +536,26 @@ bool USAC<ProblemType>::solve()
                           << usac_results_.best_inlier_count_;
             }
 			unsigned int lo_inlier_count = locallyOptimizeSolution(usac_results_.best_inlier_count_);
+
+			if (usac_test_degeneracy_LOSAC_)
+			{
+				if (verbose)
+				{
+					std::cout << "Testing for degeneracy (" << lo_inlier_count << ")" << std::endl;
+				}
+				static_cast<ProblemType *>(this)->testSolutionDegeneracy(&degenerate_model, &upgrade_model);
+				if (degenerate_model && upgrade_model)
+				{
+					// complete model
+					unsigned int upgrade_inliers = static_cast<ProblemType *>(this)->upgradeDegenerateModel();
+					if (upgrade_inliers > lo_inlier_count)
+					{
+						lo_inlier_count = upgrade_inliers;
+						upgrade_successful = true;
+					}
+				}
+			}
+
 			if (lo_inlier_count > usac_results_.best_inlier_count_)
 			{
 				usac_results_.best_inlier_count_ = lo_inlier_count;

@@ -1612,6 +1612,7 @@ bool refineMultCamBA(cv::InputArray ps,
 		}
 
 		SBAdriver optiMotStruct(false, optPars, COST_PSEUDOHUBER, th, true, optPars, optimInternals, 0, 0, 0, true);
+		optiMotStruct.setVerbosityLevel(5);
 
 		err = optiMotStruct.perform_sba(R_vec, t_vec, pts2D_vec, num2Dpts, pts3D_vec, Q_tmp.rows, &map3D_vec_ptr, &intr_vec, dist_vec_ptr);
 		if (err >= 0)
