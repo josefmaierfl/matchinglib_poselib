@@ -1585,9 +1585,13 @@ bool refineMultCamBA(cv::InputArray ps,
 	{
 		vector<std::array<double, 5>> intr_vec_data;
 		vector<double *> intr_vec;
-		for (auto &Kx : K_vec){
-			intr_vec_data.emplace_back(std::array<double, 5>{{Kx.at<double>(0, 0), Kx.at<double>(0, 2), Kx.at<double>(1, 2), Kx.at<double>(1, 1) / Kx.at<double>(0, 0), Kx.at<double>(0, 1)}});
-			intr_vec.push_back(intr_vec_data.back().data());
+		for (auto &Kx : K_vec)
+		{
+			intr_vec_data.push_back(std::array<double, 5>{{Kx.at<double>(0, 0), Kx.at<double>(0, 2), Kx.at<double>(1, 2), Kx.at<double>(1, 1) / Kx.at<double>(0, 0), Kx.at<double>(0, 1)}});
+		}
+		for (auto &iv : intr_vec_data)
+		{
+			intr_vec.push_back(iv.data());
 		}
 
 		int optimInternals = 2;
@@ -1612,6 +1616,7 @@ bool refineMultCamBA(cv::InputArray ps,
 		}
 
 		SBAdriver optiMotStruct(false, optPars, COST_PSEUDOHUBER, th, true, optPars, optimInternals, 0, 0, 0, true);
+		optiMotStruct.setVerbosityLevel(5);
 
 		err = optiMotStruct.perform_sba(R_vec, t_vec, pts2D_vec, num2Dpts, pts3D_vec, Q_tmp.rows, &map3D_vec_ptr, &intr_vec, dist_vec_ptr);
 		if (err >= 0)
@@ -1646,12 +1651,12 @@ bool refineMultCamBA(cv::InputArray ps,
 			Mat t_old = t_after_refine[i].clone();
 			//Normalize the translation vectors
 			double t_norm1 = normFromVec(t_new);
-			if (std::abs(t_norm1 - 1.0) > 1e-4)
+			if (!nearZero(t_norm1) && std::abs(t_norm1 - 1.0) > 1e-4)
 			{
 				t_new /= t_norm1;
 			}
 			double t_norm2 = normFromVec(t_after_refine[i]);
-			if (std::abs(t_norm2 - 1.0) > 1e-4)
+			if (!nearZero(t_norm1) && std::abs(t_norm2 - 1.0) > 1e-4)
 			{
 				t_old /= t_norm2;
 			}
