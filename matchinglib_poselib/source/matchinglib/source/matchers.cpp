@@ -112,14 +112,15 @@ namespace matchinglib
    *                  -3:     Matching algorithm failed
    *                  -4:     Too less keypoits
    */
-  int getMatches(std::vector<cv::KeyPoint> const& keypoints1, std::vector<cv::KeyPoint> const& keypoints2,
-                 const cv::Mat &descriptors1, const cv::Mat &descriptors2, cv::Size imgSi, std::vector<cv::DMatch> & finalMatches,
-                 const std::string &matcher_name, bool VFCrefine, bool ratioTest, const std::string &descriptor_name, std::string idxPars_NMSLIB, std::string queryPars_NMSLIB)
+  int getMatches(std::vector<cv::KeyPoint> const &keypoints1, std::vector<cv::KeyPoint> const &keypoints2,
+                 const cv::Mat &descriptors1, const cv::Mat &descriptors2, cv::Size imgSi, std::vector<cv::DMatch> &finalMatches,
+                 const std::string &matcher_name, bool VFCrefine, bool ratioTest, const std::string &descriptor_name, std::string idxPars_NMSLIB, std::string queryPars_NMSLIB, const size_t nr_threads)
   {
     CV_Assert(descriptors1.type() == descriptors2.type());
     int err;
+    const size_t nr_threads_ = nr_threads > 0 ? nr_threads : NMSLIB_SEARCH_THREADS;
 
-    if((keypoints1.size() < 15) || (keypoints2.size() < 15))
+    if ((keypoints1.size() < 15) || (keypoints2.size() < 15))
     {
       cout << "Too less keypoits!" << endl;
       return -4;
@@ -155,10 +156,9 @@ namespace matchinglib
         cout << "Performing GMbSOF with ratio test!" << endl;
       }
 
-      err = AdvancedMatching( matcher, keypoints1, keypoints2, descriptors1, descriptors2, imgSi,
-                              finalMatches);//, true, 0.3, 3.5,  2, false, NULL, NULL, NULL, NULL, imgs[0], imgs[1]);
+      err = AdvancedMatching(matcher, keypoints1, keypoints2, descriptors1, descriptors2, imgSi, finalMatches, true, 0.3, 3.5, 2, false, nullptr, nullptr, nullptr, nullptr, cv::noArray(), cv::noArray(), nr_threads_); //, imgs[0], imgs[1]);
 
-      if(err)
+      if (err)
       {
         cout << "GMbSOF failed with code " << err << endl;
         return -3;
@@ -186,39 +186,39 @@ namespace matchinglib
         string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "initSearchAttempts=2,efSearch=10" : queryPars_NMSLIB;
         if (descriptors1.type() == CV_32F)
         {
-            nmslibMatching<float>(descriptors1,
-                descriptors2,
-                finalMatches,
-                "sw-graph",
-                "l2",
-                idxPars,
-                queryPars,
-                ratioTest,
-                NMSLIB_SEARCH_THREADS);
+          nmslibMatching<float>(descriptors1,
+                                descriptors2,
+                                finalMatches,
+                                "sw-graph",
+                                "l2",
+                                idxPars,
+                                queryPars,
+                                ratioTest,
+                                nr_threads_);
         }
         else if (descriptors1.type() == CV_8U)
         {
-            nmslibMatching<int>(descriptors1,
-                descriptors2,
-                finalMatches,
-                "sw-graph",
-                "bit_hamming",
-                idxPars,
-                queryPars,
-                ratioTest,
-                NMSLIB_SEARCH_THREADS);
+          nmslibMatching<int>(descriptors1,
+                              descriptors2,
+                              finalMatches,
+                              "sw-graph",
+                              "bit_hamming",
+                              idxPars,
+                              queryPars,
+                              ratioTest,
+                              nr_threads_);
         }
         else if (descriptors1.type() == CV_64F)
         {
-            nmslibMatching<double>(descriptors1,
-                descriptors2,
-                finalMatches,
-                "sw-graph",
-                "l2",
-                idxPars,
-                queryPars,
-                ratioTest,
-                NMSLIB_SEARCH_THREADS);
+          nmslibMatching<double>(descriptors1,
+                                 descriptors2,
+                                 finalMatches,
+                                 "sw-graph",
+                                 "l2",
+                                 idxPars,
+                                 queryPars,
+                                 ratioTest,
+                                 nr_threads_);
         }
         else
         {
@@ -233,39 +233,39 @@ namespace matchinglib
         string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "efSearch=10" : queryPars_NMSLIB;
         if (descriptors1.type() == CV_32F)
         {
-            nmslibMatching<float>(descriptors1,
-                descriptors2,
-                finalMatches,
-                "hnsw",
-                "l2",
-                idxPars,
-                queryPars,
-                ratioTest,
-                NMSLIB_SEARCH_THREADS);
+          nmslibMatching<float>(descriptors1,
+                                descriptors2,
+                                finalMatches,
+                                "hnsw",
+                                "l2",
+                                idxPars,
+                                queryPars,
+                                ratioTest,
+                                nr_threads_);
         }
         else if (descriptors1.type() == CV_8U)
         {
-            nmslibMatching<int>(descriptors1,
-                descriptors2,
-                finalMatches,
-                "hnsw",
-                "bit_hamming",
-                idxPars,
-                queryPars,
-                ratioTest,
-                NMSLIB_SEARCH_THREADS);
+          nmslibMatching<int>(descriptors1,
+                              descriptors2,
+                              finalMatches,
+                              "hnsw",
+                              "bit_hamming",
+                              idxPars,
+                              queryPars,
+                              ratioTest,
+                              nr_threads_);
         }
         else if (descriptors1.type() == CV_64F)
         {
-            nmslibMatching<double>(descriptors1,
-                descriptors2,
-                finalMatches,
-                "hnsw",
-                "l2",
-                idxPars,
-                queryPars,
-                ratioTest,
-                NMSLIB_SEARCH_THREADS);
+          nmslibMatching<double>(descriptors1,
+                                 descriptors2,
+                                 finalMatches,
+                                 "hnsw",
+                                 "l2",
+                                 idxPars,
+                                 queryPars,
+                                 ratioTest,
+                                 nr_threads_);
         }
         else
         {
@@ -311,27 +311,27 @@ namespace matchinglib
         }
         if (descriptors1.type() == CV_32F)
         {
-            nmslibMatching<float>(descriptors1,
-                descriptors2,
-                finalMatches,
-                "vptree",
-                "l2",
-                idxPars,
-                queryPars,
-                ratioTest,
-                NMSLIB_SEARCH_THREADS);
+          nmslibMatching<float>(descriptors1,
+                                descriptors2,
+                                finalMatches,
+                                "vptree",
+                                "l2",
+                                idxPars,
+                                queryPars,
+                                ratioTest,
+                                nr_threads_);
         }
         else if (descriptors1.type() == CV_64F)
         {
-            nmslibMatching<double>(descriptors1,
-                descriptors2,
-                finalMatches,
-                "vptree",
-                "l2",
-                idxPars,
-                queryPars,
-                ratioTest,
-                NMSLIB_SEARCH_THREADS);
+          nmslibMatching<double>(descriptors1,
+                                 descriptors2,
+                                 finalMatches,
+                                 "vptree",
+                                 "l2",
+                                 idxPars,
+                                 queryPars,
+                                 ratioTest,
+                                 nr_threads_);
         }
         else
         {
@@ -345,27 +345,27 @@ namespace matchinglib
         string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "" : queryPars_NMSLIB;
         if (descriptors1.type() == CV_32F)
         {
-            nmslibMatching<float>(descriptors1,
-                descriptors2,
-                finalMatches,
-                "mvptree",
-                "l2",
-                idxPars,
-                queryPars,
-                ratioTest,
-                NMSLIB_SEARCH_THREADS);
+          nmslibMatching<float>(descriptors1,
+                                descriptors2,
+                                finalMatches,
+                                "mvptree",
+                                "l2",
+                                idxPars,
+                                queryPars,
+                                ratioTest,
+                                nr_threads_);
         }
         else if (descriptors1.type() == CV_64F)
         {
-            nmslibMatching<double>(descriptors1,
-                descriptors2,
-                finalMatches,
-                "mvptree",
-                "l2",
-                idxPars,
-                queryPars,
-                ratioTest,
-                NMSLIB_SEARCH_THREADS);
+          nmslibMatching<double>(descriptors1,
+                                 descriptors2,
+                                 finalMatches,
+                                 "mvptree",
+                                 "l2",
+                                 idxPars,
+                                 queryPars,
+                                 ratioTest,
+                                 nr_threads_);
         }
         else
         {
@@ -379,27 +379,27 @@ namespace matchinglib
         string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "" : queryPars_NMSLIB;
         if (descriptors1.type() == CV_32F)
         {
-            nmslibMatching<float>(descriptors1,
-                descriptors2,
-                finalMatches,
-                "ghtree",
-                "l2",
-                idxPars,
-                queryPars,
-                ratioTest,
-                NMSLIB_SEARCH_THREADS);
+          nmslibMatching<float>(descriptors1,
+                                descriptors2,
+                                finalMatches,
+                                "ghtree",
+                                "l2",
+                                idxPars,
+                                queryPars,
+                                ratioTest,
+                                nr_threads_);
         }
         else if (descriptors1.type() == CV_64F)
         {
-            nmslibMatching<double>(descriptors1,
-                descriptors2,
-                finalMatches,
-                "ghtree",
-                "l2",
-                idxPars,
-                queryPars,
-                ratioTest,
-                NMSLIB_SEARCH_THREADS);
+          nmslibMatching<double>(descriptors1,
+                                 descriptors2,
+                                 finalMatches,
+                                 "ghtree",
+                                 "l2",
+                                 idxPars,
+                                 queryPars,
+                                 ratioTest,
+                                 nr_threads_);
         }
         else
         {
@@ -413,27 +413,27 @@ namespace matchinglib
         string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "" : queryPars_NMSLIB;
         if (descriptors1.type() == CV_32F)
         {
-            nmslibMatching<float>(descriptors1,
-                descriptors2,
-                finalMatches,
-                "list_clusters",
-                "l2",
-                idxPars,
-                queryPars,
-                ratioTest,
-                NMSLIB_SEARCH_THREADS);
+          nmslibMatching<float>(descriptors1,
+                                descriptors2,
+                                finalMatches,
+                                "list_clusters",
+                                "l2",
+                                idxPars,
+                                queryPars,
+                                ratioTest,
+                                nr_threads_);
         }
         else if (descriptors1.type() == CV_64F)
         {
-            nmslibMatching<double>(descriptors1,
-                descriptors2,
-                finalMatches,
-                "list_clusters",
-                "l2",
-                idxPars,
-                queryPars,
-                ratioTest,
-                NMSLIB_SEARCH_THREADS);
+          nmslibMatching<double>(descriptors1,
+                                 descriptors2,
+                                 finalMatches,
+                                 "list_clusters",
+                                 "l2",
+                                 idxPars,
+                                 queryPars,
+                                 ratioTest,
+                                 nr_threads_);
         }
         else
         {
@@ -445,27 +445,27 @@ namespace matchinglib
     {
         if (descriptors1.type() == CV_32F)
         {
-            nmslibMatching<float>(descriptors1,
-                descriptors2,
-                finalMatches,
-                "satree",
-                "l2",
-                "",
-                "",
-                ratioTest,
-                NMSLIB_SEARCH_THREADS);
+          nmslibMatching<float>(descriptors1,
+                                descriptors2,
+                                finalMatches,
+                                "satree",
+                                "l2",
+                                "",
+                                "",
+                                ratioTest,
+                                nr_threads_);
         }
         else if (descriptors1.type() == CV_64F)
         {
-            nmslibMatching<double>(descriptors1,
-                descriptors2,
-                finalMatches,
-                "satree",
-                "l2",
-                "",
-                "",
-                ratioTest,
-                NMSLIB_SEARCH_THREADS);
+          nmslibMatching<double>(descriptors1,
+                                 descriptors2,
+                                 finalMatches,
+                                 "satree",
+                                 "l2",
+                                 "",
+                                 "",
+                                 ratioTest,
+                                 nr_threads_);
         }
         else
         {
@@ -477,39 +477,39 @@ namespace matchinglib
     {
         if (descriptors1.type() == CV_32F)
         {
-            nmslibMatching<float>(descriptors1,
-                descriptors2,
-                finalMatches,
-                "seq_search",
-                "l2",
-                "",
-                "",
-                ratioTest,
-                NMSLIB_SEARCH_THREADS);
+          nmslibMatching<float>(descriptors1,
+                                descriptors2,
+                                finalMatches,
+                                "seq_search",
+                                "l2",
+                                "",
+                                "",
+                                ratioTest,
+                                nr_threads_);
         }
         else if (descriptors1.type() == CV_8U)
         {
-            nmslibMatching<int>(descriptors1,
-                descriptors2,
-                finalMatches,
-                "seq_search",
-                "bit_hamming",
-                "",
-                "",
-                ratioTest,
-                NMSLIB_SEARCH_THREADS);
+          nmslibMatching<int>(descriptors1,
+                              descriptors2,
+                              finalMatches,
+                              "seq_search",
+                              "bit_hamming",
+                              "",
+                              "",
+                              ratioTest,
+                              nr_threads_);
         }
         else if (descriptors1.type() == CV_64F)
         {
-            nmslibMatching<double>(descriptors1,
-                descriptors2,
-                finalMatches,
-                "seq_search",
-                "l2",
-                "",
-                "",
-                ratioTest,
-                NMSLIB_SEARCH_THREADS);
+          nmslibMatching<double>(descriptors1,
+                                 descriptors2,
+                                 finalMatches,
+                                 "seq_search",
+                                 "l2",
+                                 "",
+                                 "",
+                                 ratioTest,
+                                 nr_threads_);
         }
         else
         {

@@ -209,13 +209,14 @@ namespace matchinglib
    *                        -8:     Descriptor type not supported
    *                        -9:     Wrong SOF grid format
    */
-  int AdvancedMatching(cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
+  int AdvancedMatching(cv::Ptr<cv::DescriptorMatcher> &descriptorMatcher,
                        std::vector<KeyPoint> const &keypoints1, std::vector<KeyPoint> const &keypoints2,
-                       Mat const& descriptors1, Mat const& descriptors2, cv::Size imgSi,
-                       std::vector<DMatch>& filteredMatches12, bool finalCrossCheck, double validationTH,
+                       Mat const &descriptors1, Mat const &descriptors2, cv::Size imgSi,
+                       std::vector<DMatch> &filteredMatches12, bool finalCrossCheck, double validationTH,
                        double stdMult, int BFknn, bool filterSmallFlow,
                        std::vector<float> *costRatios, std::vector<float> *distRatios,
-                       double *estiInlRatio, std::vector<cv::DMatch> *initFilteredMatches, cv::InputArray img1, cv::InputArray img2)
+                       double *estiInlRatio, std::vector<cv::DMatch> *initFilteredMatches, cv::InputArray img1, cv::InputArray img2,
+                       const size_t nr_threads_)
   {
     if((keypoints1.size() < MIN_INIT_KEYPS_FOR_MATCHING) || (keypoints2.size() < MIN_INIT_KEYPS_FOR_MATCHING))
     {
@@ -1107,7 +1108,7 @@ namespace matchinglib
       }
       else//Perform matching on multiple CPU cores
       {
-        const size_t nr_threads = 8;
+        const size_t nr_threads = nr_threads_ > 0 ? nr_threads_ : 8;
         size_t nrFirstXKeys = keypoints1.size() / nr_threads;
         size_t keyPsIdx = 0;
         vector<size_t> nr_keypoints;
@@ -1253,7 +1254,7 @@ namespace matchinglib
         }
         else//Perform matching on multiple CPU cores
         {
-          const size_t nr_threads = 8;
+          const size_t nr_threads = nr_threads_ > 0 ? nr_threads_ : 8;
           size_t nrFirstXKeys = keypoints1.size() / nr_threads;
           size_t keyPsIdx = 0;
           vector<size_t> nr_keypoints;
@@ -1368,7 +1369,7 @@ namespace matchinglib
         }
         else//Perform matching on multiple CPU cores
         {
-          const size_t nr_threads = 8;
+          const size_t nr_threads = nr_threads_ > 0 ? nr_threads_ : 8;
           size_t nrFirstXKeys = keypoints2.size() / nr_threads;
           size_t keyPsIdx = 0;
           vector<size_t> nr_keypoints;
@@ -1503,7 +1504,7 @@ namespace matchinglib
         }
         else //Perform matching on multiple CPU cores
         {
-          const size_t nr_threads = 8;
+          const size_t nr_threads = nr_threads_ > 0 ? nr_threads_ : 8;
           size_t nrFirstXKeys = keypoints1.size() / nr_threads;
           size_t keyPsIdx = 0;
           vector<size_t> nr_keypoints;
@@ -1645,7 +1646,7 @@ namespace matchinglib
           }
           else//Perform matching on multiple CPU cores
           {
-            const size_t nr_threads = 8;
+            const size_t nr_threads = nr_threads_ > 0 ? nr_threads_ : 8;
             size_t nrFirstXKeys = keypoints2.size() / nr_threads;
             size_t keyPsIdx = 0;
             vector<size_t> nr_keypoints;

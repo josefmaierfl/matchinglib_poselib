@@ -59,9 +59,9 @@ namespace matchinglib
 
 //Matches 2 feature sets with an user selectable matching algorithm.
   int MATCHINGLIB_API getMatches(const std::vector<cv::KeyPoint> &keypoints1, const std::vector<cv::KeyPoint> &keypoints2,
-                                 cv::Mat const& descriptors1, cv::Mat const& descriptors2, cv::Size imgSi, std::vector<cv::DMatch> & finalMatches,
-                                 std::string const& matcher_name = "GMBSOF", bool VFCrefine = false, bool ratioTest = true, 
-								 std::string const& descriptor_name = "", std::string idxPars_NMSLIB = "", std::string queryPars_NMSLIB = "");
+                                 cv::Mat const &descriptors1, cv::Mat const &descriptors2, cv::Size imgSi, std::vector<cv::DMatch> &finalMatches,
+                                 std::string const &matcher_name = "GMBSOF", bool VFCrefine = false, bool ratioTest = true,
+                                 std::string const &descriptor_name = "", std::string idxPars_NMSLIB = "", std::string queryPars_NMSLIB = "", const size_t nr_threads = 0);
 
   int MATCHINGLIB_API getMatches_OpticalFlow(const std::vector<cv::KeyPoint> &keypoints_prev, const std::vector<cv::KeyPoint> &keypoints_next,
       cv::Mat &img_prev, cv::Mat const& img_next, std::vector<cv::DMatch> & finalMatches,

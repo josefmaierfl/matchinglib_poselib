@@ -75,15 +75,16 @@ namespace matchinglib
   /* --------------------- Function prototypes --------------------- */
 
 //Matches large sets of keypoints very effective and finds more correct matches than with BF matching
-  int AdvancedMatching( cv::Ptr<cv::DescriptorMatcher>& descriptorMatcher,
-                        std::vector<cv::KeyPoint> const& keypoints1, std::vector<cv::KeyPoint> const& keypoints2,
-                        cv::Mat const& descriptors1, cv::Mat const& descriptors2, cv::Size imgSi,
-                        std::vector<cv::DMatch>& filteredMatches12, bool finalCrossCheck = true, double validationTH = 0.3,
-                        double stdMult = 3.5, int BFknn = 2, bool filterSmallFlow = false,
-                        std::vector<float> *costRatios = NULL, std::vector<float> *distRatios = NULL,
-                        double *estiInlRatio = NULL, std::vector<cv::DMatch> *initFilteredMatches = NULL, cv::InputArray img1 = cv::noArray(),
-                        cv::InputArray img2 = cv::noArray());
-//Generates a grid-based statistical flow for many areas over the whole image.
+  int AdvancedMatching(cv::Ptr<cv::DescriptorMatcher> &descriptorMatcher,
+                       std::vector<cv::KeyPoint> const &keypoints1, std::vector<cv::KeyPoint> const &keypoints2,
+                       cv::Mat const &descriptors1, cv::Mat const &descriptors2, cv::Size imgSi,
+                       std::vector<cv::DMatch> &filteredMatches12, bool finalCrossCheck = true, double validationTH = 0.3,
+                       double stdMult = 3.5, int BFknn = 2, bool filterSmallFlow = false,
+                       std::vector<float> *costRatios = nullptr, std::vector<float> *distRatios = nullptr,
+                       double *estiInlRatio = nullptr, std::vector<cv::DMatch> *initFilteredMatches = nullptr, cv::InputArray img1 = cv::noArray(),
+                       cv::InputArray img2 = cv::noArray(),
+                       const size_t nr_threads_ = 0);
+  //Generates a grid-based statistical flow for many areas over the whole image.
   int getStatisticalMatchingPositions(const EMatFloat2 keyP1, const EMatFloat2 keyP2, cv::Size imgSi,
                                       std::vector<std::vector<cv::Point3f>> & gridSearchParams, float *gridElemSize,
                                       cv::OutputArray mask = cv::noArray(), bool filterSmallFlow = false,
