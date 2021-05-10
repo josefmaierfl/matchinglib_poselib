@@ -93,7 +93,8 @@ opengv::complexEssentials_t fivept_stewenius_weight(
 		Q.row(i) = row;
 	}
 
-	Eigen::JacobiSVD< Eigen::MatrixXd > SVD(Q, Eigen::ComputeFullV);
+	// Eigen::JacobiSVD< Eigen::MatrixXd > SVD(Q, Eigen::ComputeFullV);
+	Eigen::BDCSVD<Eigen::MatrixXd> SVD(Q, Eigen::ComputeFullV);
 	Eigen::Matrix<double, 9, 4> EE = SVD.matrixV().block(0, 5, 9, 4);
 	opengv::complexEssentials_t complexEssentials;
 	opengv::relative_pose::modules::fivept_stewenius_main(EE, complexEssentials);
@@ -139,7 +140,8 @@ opengv::essentials_t fivept_nister_weight(
 		Q.row(i) = row;
 	}
 
-	Eigen::JacobiSVD< Eigen::MatrixXd > SVD(Q, Eigen::ComputeFullV);
+	// Eigen::JacobiSVD< Eigen::MatrixXd > SVD(Q, Eigen::ComputeFullV);
+	Eigen::BDCSVD<Eigen::MatrixXd> SVD(Q, Eigen::ComputeFullV);
 	Eigen::Matrix<double, 9, 4> EE = SVD.matrixV().block(0, 5, 9, 4);
 	opengv::essentials_t essentials;
 	opengv::relative_pose::modules::fivept_nister_main(EE, essentials);
@@ -264,7 +266,10 @@ opengv::essential_t eightpt_weight(
 		A.row(i) *= weight / weightnorm;
 	}
 
-	Eigen::JacobiSVD< Eigen::MatrixXd > SVD(
+	// Eigen::JacobiSVD< Eigen::MatrixXd > SVD(
+	// 	A,
+	// 	Eigen::ComputeFullU | Eigen::ComputeFullV);
+	Eigen::BDCSVD<Eigen::MatrixXd> SVD(
 		A,
 		Eigen::ComputeFullU | Eigen::ComputeFullV);
 	Eigen::Matrix<double, 9, 1> f = SVD.matrixV().col(8);
@@ -275,7 +280,10 @@ opengv::essential_t eightpt_weight(
 	F_temp.col(2) = f.block<3, 1>(6, 0);
 	opengv::essential_t F = F_temp.transpose();
 
-	Eigen::JacobiSVD< Eigen::MatrixXd > SVD2(
+	// Eigen::JacobiSVD< Eigen::MatrixXd > SVD2(
+	// 	F,
+	// 	Eigen::ComputeFullU | Eigen::ComputeFullV);
+	Eigen::BDCSVD<Eigen::MatrixXd> SVD2(
 		F,
 		Eigen::ComputeFullU | Eigen::ComputeFullV);
 	Eigen::Matrix3d S = Eigen::Matrix3d::Zero();
