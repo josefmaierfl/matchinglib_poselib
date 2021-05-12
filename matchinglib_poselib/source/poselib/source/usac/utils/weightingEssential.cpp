@@ -51,9 +51,10 @@ DISCRIPTION: This file provides functions for linear refinement of Essential mat
 
 
 void SampsonL1_Eigen(const opengv::bearingVector_t & x1, const opengv::bearingVector_t & x2, const opengv::essential_t & E, double & denom1, double & num);
+Eigen::Matrix<double, 9, 1> solveUsingEigenVectors(const Eigen::MatrixXd &A);
 
 opengv::complexEssentials_t fivept_stewenius_weight(
-	const opengv::relative_pose::CentralRelativeWeightingAdapter & adapter)
+	const opengv::relative_pose::CentralRelativeWeightingAdapter &adapter)
 {
 	opengv::Indices idx(adapter.getNumberCorrespondences());
 	return fivept_stewenius_weight(adapter, idx);
@@ -269,10 +270,11 @@ opengv::essential_t eightpt_weight(
 	// Eigen::JacobiSVD< Eigen::MatrixXd > SVD(
 	// 	A,
 	// 	Eigen::ComputeFullU | Eigen::ComputeFullV);
-	Eigen::BDCSVD<Eigen::MatrixXd> SVD(
-		A,
-		Eigen::ComputeFullU | Eigen::ComputeFullV);
-	Eigen::Matrix<double, 9, 1> f = SVD.matrixV().col(8);
+	// Eigen::BDCSVD<Eigen::MatrixXd> SVD(
+	// 	A,
+	// 	Eigen::ComputeFullU | Eigen::ComputeFullV);
+	// Eigen::Matrix<double, 9, 1> f = SVD.matrixV().col(8);
+	Eigen::Matrix<double, 9, 1> f = solveUsingEigenVectors(A);
 
 	Eigen::MatrixXd F_temp(3, 3);
 	F_temp.col(0) = f.block<3, 1>(0, 0);
@@ -295,4 +297,35 @@ opengv::essential_t eightpt_weight(
 
 	opengv::essential_t essential = U * S * Vtr;
 	return essential;
+}
+
+Eigen::Matrix<double, 9, 1> solveUsingEigenVectors(const Eigen::MatrixXd &A){
+	Eigen::MatrixXd A2 = A.transpose() * A;
+	Eigen::EigenSolver<Eigen::Matrix<double, 9, 9>> eigA(A2);
+	int i = 0;
+	for (i = 0; i < 9; i++)
+	{
+		if (fabs(eigA.eigenvalues().real()[i]) < __DBL_EPSILON__)
+			break;
+	}
+	if (i < 8)
+	{
+		Eigen::BDCSVD<Eigen::MatrixXd> SVD(
+			A,
+			Eigen::ComputeFullU | Eigen::ComputeFullV);
+		return SVD.matrixV().col(8);
+	}
+
+	double smallestEigVal = fabs(eigA.eigenvalues().real()[0]);
+	int smallestEigValIdx = 0;
+	for (i = 1; i < 9; i++)
+	{
+		if (fabs(eigA.eigenvalues().real()[i]) < smallestEigVal)
+		{
+			smallestEigVal = fabs(eigA.eigenvalues().real()[i]);
+			smallestEigValIdx = i;
+		}
+	}
+
+	return eigA.eigenvectors().col(smallestEigValIdx).real();
 }
