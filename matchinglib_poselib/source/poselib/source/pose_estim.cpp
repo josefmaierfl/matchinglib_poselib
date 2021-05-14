@@ -1292,8 +1292,8 @@ bool refineStereoBA(cv::InputArray p1,
 	}
 
 	//Normalize the translation vector
-	t_norm = normFromVec(t_);
-	if(std::abs(t_norm-1.0) > 1e-4)
+	t_norm = cv::norm(t_);
+	if(!nearZero(t_norm) && std::abs(t_norm - 1.0) > 1e-4)
 		t_ /= t_norm;
 
 	//Check for the difference of extrinsics before and after BA to detect possible local minimas
@@ -1650,13 +1650,13 @@ bool refineMultCamBA(cv::InputArray ps,
 			Mat t_new = t_mvec[i].clone();
 			Mat t_old = t_after_refine[i].clone();
 			//Normalize the translation vectors
-			double t_norm1 = normFromVec(t_new);
+			double t_norm1 = cv::norm(t_new);
 			if (!nearZero(t_norm1) && std::abs(t_norm1 - 1.0) > 1e-4)
 			{
 				t_new /= t_norm1;
 			}
-			double t_norm2 = normFromVec(t_after_refine[i]);
-			if (!nearZero(t_norm1) && std::abs(t_norm2 - 1.0) > 1e-4)
+			double t_norm2 = cv::norm(t_after_refine[i]);
+			if (!nearZero(t_norm2) && std::abs(t_norm2 - 1.0) > 1e-4)
 			{
 				t_old /= t_norm2;
 			}
