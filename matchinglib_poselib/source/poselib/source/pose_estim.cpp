@@ -1496,9 +1496,10 @@ bool refineMultCamBA(cv::InputArray ps,
 	std::vector<double *> pts2D_vec;
 	std::vector<int> num2Dpts;
 	std::vector<char *> map3D_vec_ptr;
-	std::vector<Mat> t_after_refine;
+	std::vector<Mat> t_save, K_save;
 	Mat Q_tmp;
 	std::vector<Mat> dist_tmp;
+	std::vector<double> f_rel_diff;
 
 	int optPars = BA_MOTSTRUCT;
 	if (optimMotionOnly)
@@ -1543,7 +1544,7 @@ bool refineMultCamBA(cv::InputArray ps,
 		// Rquat.push_back(Rquati);
 		R_vec.push_back((double *)Rquat[i].data());
 		t_vec.push_back((double *)t_mvec[i].data);
-		t_after_refine.emplace_back(t_mvec[i].clone());
+		t_save.emplace_back(t_mvec[i].clone());
 	}
 	Rquat_old = Rquat;
 
@@ -1588,6 +1589,7 @@ bool refineMultCamBA(cv::InputArray ps,
 		for (auto &Kx : K_vec)
 		{
 			intr_vec_data.push_back(std::array<double, 5>{{Kx.at<double>(0, 0), Kx.at<double>(0, 2), Kx.at<double>(1, 2), Kx.at<double>(1, 1) / Kx.at<double>(0, 0), Kx.at<double>(0, 1)}});
+			K_save.emplace_back(Kx.clone());
 		}
 		for (auto &iv : intr_vec_data)
 		{
@@ -1635,6 +1637,11 @@ bool refineMultCamBA(cv::InputArray ps,
 					K.at<double>(0, 2) = arr[1];
 					K.at<double>(1, 2) = arr[2];
 					K.at<double>(1, 1) = arr[3] * arr[0];
+					if(K_save[i].at<double>(0, 0) > arr[0]){
+						f_rel_diff.push_back(K_save[i].at<double>(0, 0) / arr[0]);
+					}else{
+						f_rel_diff.push_back(arr[0] / K_save[i].at<double>(0, 0));
+					}
 				}
 			}
 		}
@@ -1648,14 +1655,14 @@ bool refineMultCamBA(cv::InputArray ps,
 		for (size_t i = 0; i < vecSi; ++i)
 		{
 			Mat t_new = t_mvec[i].clone();
-			Mat t_old = t_after_refine[i].clone();
+			Mat t_old = t_save[i].clone();
 			//Normalize the translation vectors
 			double t_norm1 = cv::norm(t_new);
 			if (!nearZero(t_norm1) && std::abs(t_norm1 - 1.0) > 1e-4)
 			{
 				t_new /= t_norm1;
 			}
-			double t_norm2 = cv::norm(t_after_refine[i]);
+			double t_norm2 = cv::norm(t_save[i]);
 			if (!nearZero(t_norm2) && std::abs(t_norm2 - 1.0) > 1e-4)
 			{
 				t_old /= t_norm2;
@@ -1669,7 +1676,16 @@ bool refineMultCamBA(cv::InputArray ps,
 			double r_diff, t_diff;
 			getRTQuality(Rquat_old[i], Rquat[i], t1e, t2e, &r_diff, &t_diff);
 			r_diff = r_diff / PI * 180.0;
-			if ((abs(r_diff) > angleThresh) || (t_diff > t_norm_tresh))
+			double rf_factor = 1.0, tf_factor = 1.0;
+			if (!f_rel_diff.empty())
+			{
+				tf_factor = std::min(f_rel_diff[i], 2.0);
+				rf_factor = std::max(1.0, 0.9 * tf_factor);
+				tf_factor = std::min(1.5 * tf_factor, 2.0);
+			}
+			const double angleThresh2 = rf_factor * angleThresh;
+			const double t_norm_tresh2 = tf_factor * t_norm_tresh;
+			if ((abs(r_diff) > angleThresh2) || (t_diff > t_norm_tresh2))
 			{
 				failed = true;
 				break;
@@ -1679,7 +1695,7 @@ bool refineMultCamBA(cv::InputArray ps,
 
 	if(failed){
 		int i = 0;
-		for (auto &&old_t : t_after_refine)
+		for (auto &&old_t : t_save)
 		{
 			t_mvec[i++] = std::move(old_t);
 		}
@@ -1689,6 +1705,11 @@ bool refineMultCamBA(cv::InputArray ps,
 			for (auto &&distX : dist_tmp)
 			{
 				dist_mvec[i++] = std::move(distX);
+			}
+		}
+		if(!K_save.empty()){
+			for (size_t i = 0; i < vecSi; ++i){
+				K_save[i].copyTo(K_vec[i]);
 			}
 		}
 		return false; //BA failed
