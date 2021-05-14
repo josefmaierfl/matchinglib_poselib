@@ -208,6 +208,7 @@ target_link_libraries(${target}
     ${DEFAULT_LIBRARIES}
     ${OpenCV_LIBS}
     ${CLAPACK_LIBRARIES}
+    Threads::Threads
 #    ${Boost_LIBRARIES}
     sba
 

@@ -45,6 +45,9 @@ if (OPENMP_FOUND)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
 # 
 # Compile definitions
 # 
@@ -110,6 +113,7 @@ if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU" OR "${CMAKE_CXX_COMPILER_ID}" MATCH
         -Wuninitialized
         -Wmissing-field-initializers
         -msse4.2
+        -pthread
         $<$<CXX_COMPILER_ID:GNU>:
             -Wmaybe-uninitialized
             
