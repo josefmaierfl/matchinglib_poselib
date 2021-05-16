@@ -2503,7 +2503,6 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
 
 cleanup:
   /* just in case... */
-  globs.intrcalib=nullptr;
   globs.nccalib=0;
   globs.ncdist=0;
 
@@ -2514,8 +2513,9 @@ cleanup:
   if(covimgpts) free(covimgpts);
   if(vmask) free(vmask);
   if(globs.intrcalib) free(globs.intrcalib);
+  globs.intrcalib = nullptr;
 
-return ret;
+  return ret;
 }
 
 /* Extracts the rotation and translation from the parameter vector deliverd by the Sparse Bundleadjustment
