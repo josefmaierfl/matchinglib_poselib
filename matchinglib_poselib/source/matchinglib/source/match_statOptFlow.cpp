@@ -1157,7 +1157,7 @@ namespace matchinglib
         vector<int> errvec(nr_threads);
         #pragma omp parallel for
 
-        for(int i = 0; i < (const int)nr_threads; i++)
+        for(size_t i = 0; i < nr_threads; i++)
         {
 #if FILTER_WITH_CD_RATIOS
           errvec[i] = guidedMatching(gridSearchParams, gridElemSize, threadkeyPs[i], threadDescriptors[i], descriptors2, keypts2idx,
@@ -1169,7 +1169,7 @@ namespace matchinglib
         }
 
         {
-          int errcnt = 0;
+          size_t errcnt = 0;
 
           for(size_t i = 1; i < nr_threads; i++)
           {
@@ -1303,7 +1303,7 @@ namespace matchinglib
           vector<int> errvec(nr_threads);
           #pragma omp parallel for
 
-          for(int i = 0; i < (const int)nr_threads; i++)
+          for (size_t i = 0; i < nr_threads; i++)
           {
 #if FILTER_WITH_CD_RATIOS
             errvec[i] = guidedMatching(gridSearchParams, gridElemSize, threadkeyPs[i], threadDescriptors[i], descriptors2, keypts2idx,
@@ -1315,7 +1315,7 @@ namespace matchinglib
           }
 
           {
-            int errcnt = 0;
+            size_t errcnt = 0;
 
             for(size_t i = 1; i < nr_threads; i++)
             {
@@ -1416,14 +1416,14 @@ namespace matchinglib
           vector<int> errvec(nr_threads);
           #pragma omp parallel for
 
-          for(int i = 0; i < (const int)nr_threads; i++)
+          for (size_t i = 0; i < nr_threads; i++)
           {
             errvec[i] = guidedMatching(gridSearchParams_inv, gridElemSize, threadkeyPs[i], threadDescriptors[i], descriptors1, keypts1idx,
                                        threadkeypIndexes1[i], imgSi, threadmatches12[i]/*, threadmprops12[i]*/);
           }
 
           {
-            int errcnt = 0;
+            size_t errcnt = 0;
 
             for(size_t i = 1; i < nr_threads; i++)
             {
@@ -1553,7 +1553,7 @@ namespace matchinglib
           vector<int> errvec(nr_threads);
           #pragma omp parallel for
 
-          for(int i = 0; i < (const int)nr_threads; i++)
+          for (size_t i = 0; i < nr_threads; i++)
           {
 #if FILTER_WITH_CD_RATIOS
             errvec[i] = guidedMatching(gridSearchParams, gridElemSize, threadkeyPs[i], threadDescriptors[i], descriptors2, keypts2idx,
@@ -1565,7 +1565,7 @@ namespace matchinglib
           }
 
           {
-            int errcnt = 0;
+            size_t errcnt = 0;
 
             for(size_t i = 1; i < nr_threads; i++)
             {
@@ -1693,14 +1693,14 @@ namespace matchinglib
             vector<int> errvec(nr_threads);
             #pragma omp parallel for
 
-            for(int i = 0; i < (const int)nr_threads; i++)
+            for (size_t i = 0; i < nr_threads; i++)
             {
               errvec[i] = guidedMatching(gridSearchParams_inv, gridElemSize, threadkeyPs[i], threadDescriptors[i], descriptors1, keypts1idx,
                                          threadkeypIndexes1[i], imgSi, threadmatches12[i], BFknn/*, threadmprops12[i]*/);
             }
 
             {
-              int errcnt = 0;
+              size_t errcnt = 0;
 
               for(size_t i = 1; i < nr_threads; i++)
               {

@@ -1194,7 +1194,7 @@ bool refineStereoBA(cv::InputArray p1,
 		//Convert the threshold into the camera coordinate system
 		th = 4.0*th/(std::sqrt((double)2)*(K1.getMat().at<double>(1,1)+K1.getMat().at<double>(2,2)+K2.getMat().at<double>(1,1)+K2.getMat().at<double>(2,2)));
 
-		SBAdriver optiMotStruct(true, optPars, COST_PSEUDOHUBER, th, true, optPars);
+		SBAdriver optiMotStruct(true, optPars, COST_PSEUDOHUBER, th, optPars);
 
 		if(optiMotStruct.perform_sba(R_vec,t_vec,pts2D_vec,num2Dpts,pts3D_vec,Q_tmp.rows) < 0)
 		{
@@ -1252,7 +1252,7 @@ bool refineStereoBA(cv::InputArray p1,
 			}
 		}
 
-		SBAdriver optiMotStruct(false, optPars, COST_PSEUDOHUBER, th, true, optPars, optimInternals, 0, 0, 0, true);
+		SBAdriver optiMotStruct(false, optPars, COST_PSEUDOHUBER, th, optPars, optimInternals, 0, 0, 0, true);
 
 		if (optiMotStruct.perform_sba(R_vec, t_vec, pts2D_vec, num2Dpts, pts3D_vec, Q_tmp.rows, nullptr, &intr_vec, dist_vec_ptr) < 0)
 		{
@@ -1387,15 +1387,15 @@ bool refineMultCamBA(cv::InputArray ps,
 					 cv::InputOutputArray ts,
 					 cv::InputOutputArray Qs,
 					 cv::InputOutputArray Ks,
-					 bool pointsInImgCoords = false,
-					 cv::InputArray masks = cv::noArray(),
-					 const double angleThresh = 1.25,
-					 const double t_norm_tresh = 0.05,
-					 const double huber_thresh = -1.0,
-					 const bool optimFocalOnly = false,
-					 const bool optimMotionOnly = false,
-					 const bool fixCamMat = false,
-					 cv::InputOutputArray dists = cv::noArray())
+					 bool pointsInImgCoords,
+					 cv::InputArray masks,
+					 const double angleThresh,
+					 const double t_norm_tresh,
+					 const double huber_thresh,
+					 const bool optimFocalOnly,
+					 const bool optimMotionOnly,
+					 const bool fixCamMat,
+					 cv::InputOutputArray dists)
 {
 	if (ps.empty() || Qs.empty() || map3D.empty() || Rs.empty() || ts.empty() || Ks.empty())
 	{
@@ -1491,8 +1491,8 @@ bool refineMultCamBA(cv::InputArray ps,
 	std::vector<double *> t_vec;
 	std::vector<double *> R_vec;
 	std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>> Rquat(vecSi), Rquat_old;
-	double R0[4] = {1.0, 0.0, 0.0, 0.0};
-	double t0[3] = {0.0, 0.0, 0.0};
+	// double R0[4] = {1.0, 0.0, 0.0, 0.0};
+	// double t0[3] = {0.0, 0.0, 0.0};
 	std::vector<double *> pts2D_vec;
 	std::vector<int> num2Dpts;
 	std::vector<char *> map3D_vec_ptr;
@@ -1570,7 +1570,7 @@ bool refineMultCamBA(cv::InputArray ps,
 		f_mean /= static_cast<double>(vecSi);
 		th /= f_mean;
 
-		SBAdriver optiMotStruct(true, optPars, COST_PSEUDOHUBER, th, true, optPars);
+		SBAdriver optiMotStruct(true, optPars, COST_PSEUDOHUBER, th, optPars);
 
 		err = optiMotStruct.perform_sba(R_vec, t_vec, pts2D_vec, num2Dpts, pts3D_vec, Q_tmp.rows, &map3D_vec_ptr);
 		if(err >= 0){
@@ -1617,7 +1617,7 @@ bool refineMultCamBA(cv::InputArray ps,
 			}
 		}
 
-		SBAdriver optiMotStruct(false, optPars, COST_PSEUDOHUBER, th, true, optPars, optimInternals, 0, 0, 0, true);
+		SBAdriver optiMotStruct(false, optPars, COST_PSEUDOHUBER, th, optPars, optimInternals, 0, 0, 0, true);
 		//optiMotStruct.setVerbosityLevel(5);
 
 		err = optiMotStruct.perform_sba(R_vec, t_vec, pts2D_vec, num2Dpts, pts3D_vec, Q_tmp.rows, &map3D_vec_ptr, &intr_vec, dist_vec_ptr);

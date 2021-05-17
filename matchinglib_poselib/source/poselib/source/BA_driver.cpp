@@ -41,6 +41,8 @@
 **********************************************************************************************************/
 
 #include <cmath>
+#include <memory>
+#include <exception>
 
 #include "BA_driver.h"
 
@@ -103,6 +105,7 @@ struct globs_{
 	int unfixCam0Intr; /* If not zero, the intrinsic and distortion paramters of the first cam are variable and
 	                    * its rotation and translation are kept fixed*/
 } globs;
+std::shared_ptr<double> globs_intrcalib_sptr;
 
 /* unit quaternion from vector part */
 #define _MK_QUAT_FRM_VEC(q, v){                                     \
@@ -110,17 +113,16 @@ struct globs_{
   (q)[0]=sqrt(1.0 - (q)[1]*(q)[1] - (q)[2]*(q)[2]- (q)[3]*(q)[3]);  \
 }
 
+    /* --------------------- Function prototypes --------------------- */
 
-/* --------------------- Function prototypes --------------------- */
-
-int writeMotToOutput(double *motstruct, double *initrot, int cnp, int nframes, 
-					 std::vector<double *> *Rquats_out, std::vector<double *> *trans_out, bool useInpAsOutp);
+int writeMotToOutput(double *motstruct, double *initrot, int cnp, int nframes,
+                     std::vector<double *> *Rquats_out, std::vector<double *> *trans_out);
 
 void writeStructToOutput(double *motstruct, int cnp, int pnp, int nframes, int numpts3D, double *pts3D_out);
 
-int writeIntrinsicsToOutput(double *motstruct, int cnp, int nframes, std::vector<double *> *intrParms_out, bool useInpAsOutp);
+int writeIntrinsicsToOutput(double *motstruct, int cnp, int nframes, std::vector<double *> *intrParms_out);
 
-int writeDistToOutput(double *motstruct, int cnp, int nframes, std::vector<double *> *dist_out, bool useInpAsOutp);
+int writeDistToOutput(double *motstruct, int cnp, int nframes, std::vector<double *> *dist_out);
 
 void convertCostToPseudoHuber(double *ImgProjEsti, double *ImgProjMeas, int mnp, double thresh = ROBUST_THRESH);
 
@@ -1811,14 +1813,10 @@ static void img_projsKDS_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, i
  *											  Rotation quaternions have the scalar part as their first 
  *											  element, i.e. a rotation by angle TH around the unit vector 
  *											  U=(Ux, Uy, Uz) should be specified as
- *											  cos(TH/2) Ux*sin(TH/2) Uy*sin(TH/2) Uz*sin(TH/2). If the variable 
- *											  useInputVarsAsOutput = 1, the result from BA is written back to this
- *											  memory adresses
+ *											  cos(TH/2) Ux*sin(TH/2) Uy*sin(TH/2) Uz*sin(TH/2). 
  * vector<double *> & trans			Input & Output  -> Vector of pointers to translations of the form [x,y,z].
  *											  Each vector element represents data for one frame (or camera) 
  *											  beginning with the first one (typically [0,0,0]).
- *											  If the variable useInputVarsAsOutput = 1, the result from BA is
- *											  written back to this memory adresses
  * vector<double *> pts2D			Input  -> Vector of pointers to the image projections per frame of the
  *											  form [x1,y1,x2,y2,...xn,yn]. 
  *											  Each vector element represents data for one frame (or camera) 
@@ -1834,9 +1832,7 @@ static void img_projsKDS_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, i
  *											  the same order as the structure elements (pts3D).
  * vector<int> num2Dpts				Input  -> number of image projections per frame (camera)
  * double *pts3D					Input & Output  -> Pointer to the structure elements (euclidean 3D points)
- *											  of the form [X1,Y1,Z1,X2,Y2,Z2,...Xn,Yn,Zn]. If the variable
- *											  useInputVarsAsOutput = 1, the result from BA is written back
- *											  to this memory adress
+ *											  of the form [X1,Y1,Z1,X2,Y2,Z2,...Xn,Yn,Zn]. 
  * int numpts3D						Input  -> number of structure elements
  * vector<char *> *mask2Dpts		Input  -> If not NULL, this variable points to a vector of pointers
  *											  whereas each of these pointers holds a mask for a specific
@@ -1849,8 +1845,7 @@ static void img_projsKDS_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, i
  *											  beginning with the first one. If this pointer is NULL, the 
  *											  image projections must be in the camera coordinate system 
  *											  (K^(-1)*x). Otherwise, the must be in the image coordinate
- *											  system. If the variable useInputVarsAsOutput = 1, the result 
- *											  from BA is written back to this memory adresses
+ *											  system. 
  * vector<double *> *dist			Input & Output  -> Pointer to the vector of distortion coeffitients for
  *											  each camera (stored in arrays with size 5 -> [k1,k2,k3,k4,k5] 
  *											  with k1 (2nd order), k2 (4th order) and k5 (6th order) beeing 
@@ -1867,8 +1862,7 @@ static void img_projsKDS_jac_x(double *p, struct sba_crsm *idxij, int *rcidxs, i
  *											  The distorted point in pixel coordinates is given by K*x_d, 
  *											  K being the intrinsics. Note that zero-based indexing is used 
  *											  above, Bouguet's page conforms to Matlab's convention and uses 
- *											  one-based indexing! If the variable useInputVarsAsOutput = 1, 
- *											  the result from BA is written back to this memory adresses
+ *											  one-based indexing!
  * vector<double *> *cov2Dpts		Input  -> Pointer to a vector of pointers containing arrays of covariances
  *											  for each provided image projection of the form
  *											  [covx1^2,covx1y1,covx1y1,covy1^2,covx2^2,covx2y2,covx2y2,covy2^2,...
@@ -1898,8 +1892,10 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
   double *motstruct, *motstruct_copy, *imgpts, *covimgpts, *initrot;
   double *imgpts_tmp = 0;
   double *covimgpts_tmp = 0;
+  std::shared_ptr<double> motstruct_sptr, initrot_sptr, imgpts_sptr, covimgpts_sptr, motstruct_copy_sptr;
 
   char *vmask;
+  std::shared_ptr<char> vmask_sptr;
   //double opts[SBA_OPTSSZ], info[SBA_INFOSZ];
   double phi;
   //int expert, analyticjac, verbose=0;
@@ -1992,20 +1988,20 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
   }
 
   //Allocate memory for the BA parameter vector
-  motstruct=(double *)malloc((nframes*cnp + numpts3D*pnp)*sizeof(double));
+  motstruct_sptr.reset(new double[nframes * cnp + numpts3D * pnp]);
+  motstruct = motstruct_sptr.get();
+  // motstruct = (double *)malloc((nframes * cnp + numpts3D * pnp) * sizeof(double));
   if(motstruct== nullptr){
-    /*fprintf(stderr, "memory allocation for 'motstruct' failed\n");
-    exit(1);*/
 	  return -2; //Memory allocation failed
   }
 
   //Allocate memory for the initial rotations (BA calculates the best fitting difference to these rotations)
-  initrot=(double *)malloc((nframes*FULLQUATSZ)*sizeof(double)); // Note: this assumes quaternions for rotations!
+  initrot_sptr.reset(new double[nframes * FULLQUATSZ]);
+  initrot = initrot_sptr.get();
+  // initrot = (double *)malloc((nframes * FULLQUATSZ) * sizeof(double)); // Note: this assumes quaternions for rotations!
   if(initrot== nullptr){
-    /*fprintf(stderr, "memory allocation for 'initrot' failed\n");
-    exit(1);*/
-	  free(motstruct);
-	  return -2; //Memory allocation failed
+    // free(motstruct);
+    return -2; //Memory allocation failed
   }
 
   //Store the camera parameters to the BA parameter vector (initial BA start values)
@@ -2063,33 +2059,34 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
   memcpy(motstruct_tmp, pts3D, numpts3D*pnp*sizeof(double));
   /* note that if howto==BA_STRUCT the rotation parts of motstruct actually equal the initial rotations! */
 
-
-  imgpts=(double *)malloc(numprojs*mnp*sizeof(double));
+  imgpts_sptr.reset(new double[numprojs * mnp]);
+  imgpts = imgpts_sptr.get();
+  // imgpts = (double *)malloc(numprojs * mnp * sizeof(double));
   if(imgpts== nullptr){
-    /*fprintf(stderr, "memory allocation for 'imgpts' failed\n");
-    exit(1);*/
-	  free(motstruct);
-	  free(initrot);
+	  // free(motstruct);
+	  // free(initrot);
 	  return -2; //Memory allocation failed
   }
 
-  vmask = (char *)malloc(numpts3D * nframes * sizeof(char));
+  vmask_sptr.reset(new char[numpts3D * nframes]);
+  vmask = vmask_sptr.get();
+  // vmask = (char *)malloc(numpts3D * nframes * sizeof(char));
   if(vmask==nullptr){
-    /*fprintf(stderr, "memory allocation for 'vmask' failed\n");
-    exit(1);*/
-	ret = -2; //Memory allocation failed
-	goto cleanup;
+	// ret = -2; //Memory allocation failed
+	// goto cleanup;
+    return -2; //Memory allocation failed
   }
 
   if(cov2Dpts != nullptr)
   {
-	    covimgpts=(double *)malloc(numprojs*mnp*mnp*sizeof(double));
-		if(covimgpts==nullptr){
-		  /*fprintf(stderr, "memory allocation for 'covimgpts' failed\n");
-		  exit(1);*/
-		  ret = -2; //Memory allocation failed
-		  goto cleanup;
-		}
+    covimgpts_sptr.reset(new double[numprojs * mnp * mnp]);
+    covimgpts = covimgpts_sptr.get();
+    // covimgpts = (double *)malloc(numprojs * mnp * mnp * sizeof(double));
+    if(covimgpts==nullptr){
+		  // ret = -2; //Memory allocation failed
+		  // goto cleanup;
+      return -2; //Memory allocation failed
+    }
   }
   else
 	  covimgpts = nullptr;
@@ -2124,13 +2121,17 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
   else
   {
 	  memset(vmask, 0, numpts3D * nframes * sizeof(char)); /* clear vmask */
-  
-	  int *pts2D_pt_cnt = (int *)malloc(nframes*sizeof(int));
-	  if(pts2D_pt_cnt == nullptr)
+
+    std::shared_ptr<int> pts2D_pt_cnt_sptr;
+    pts2D_pt_cnt_sptr.reset(new int[nframes]);
+    int *pts2D_pt_cnt = pts2D_pt_cnt_sptr.get();
+    // int *pts2D_pt_cnt = (int *)malloc(nframes * sizeof(int));
+    if(pts2D_pt_cnt == nullptr)
 	  {
-		  ret = -2; //Memory allocation failed
-		  goto cleanup;
-	  }
+		  // ret = -2; //Memory allocation failed
+		  // goto cleanup;
+      return -2; //Memory allocation failed
+    }
 	  memset(pts2D_pt_cnt,0,nframes*sizeof(int));
 	  for(i = 0; i < numpts3D; ++i)
 	  {
@@ -2154,7 +2155,7 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
 			  }
 		  }
 	  }
-	  free(pts2D_pt_cnt);
+	  // free(pts2D_pt_cnt);
   }
   
   if(costfunc)
@@ -2175,26 +2176,29 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
 	  {
 		  globs.calibcams = 1;
 
-		  globs.intrcalib=(double *)malloc(5*sizeof(double));
-		  if(globs.intrcalib==nullptr){
-			  /*fprintf(stderr, "memory allocation for 'globs.intrcalib' failed\n");
-			  exit(1);*/
-			  ret = -2; //Memory allocation failed
-			  goto cleanup;
-		  }
-		  memcpy(globs.intrcalib,(*intrParms)[0],5*sizeof(double));
+      globs_intrcalib_sptr.reset(new double[5]);
+      globs.intrcalib = globs_intrcalib_sptr.get();
+      // globs.intrcalib = (double *)malloc(5 * sizeof(double));
+      if (globs.intrcalib == nullptr)
+      {
+			  // ret = -2; //Memory allocation failed
+			  // goto cleanup;
+        return -2; //Memory allocation failed
+      }
+      memcpy(globs.intrcalib,(*intrParms)[0],5*sizeof(double));
 	  }
 	  else
 	  {
 		  globs.calibcams = nframes;
 
-		  globs.intrcalib=(double *)malloc(5*nframes*sizeof(double));
+      globs_intrcalib_sptr.reset(new double[5 * nframes]);
+      globs.intrcalib = globs_intrcalib_sptr.get();
+      // globs.intrcalib=(double *)malloc(5*nframes*sizeof(double));
 		  if(globs.intrcalib==nullptr){
-			  /*fprintf(stderr, "memory allocation for 'globs.intrcalib' failed\n");
-			  exit(1);*/
-			  ret = -2; //Memory allocation failed
-			  goto cleanup;
-		  }
+			  // ret = -2; //Memory allocation failed
+			  // goto cleanup;
+        return -2; //Memory allocation failed
+      }
 		  for(i = 0; i < nframes; ++i)
 			  memcpy(globs.intrcalib + i*5,(*intrParms)[i],5*sizeof(double));
 	  }
@@ -2280,11 +2284,14 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
     break;
 
     case BA_MOT_MOTSTRUCT: /* BA for motion only; if error too large, then BA for motion & structure */
-      if((motstruct_copy=(double *)malloc((nframes*cnp + numpts3D*pnp)*sizeof(double)))==nullptr){
-        /*fprintf(stderr, "memory allocation failed in sba_driver()!\n");
-        exit(1);*/
-		ret = -2; //Memory allocation failed
-		goto cleanup;
+      motstruct_copy_sptr.reset(new double[nframes * cnp + numpts3D * pnp]);
+      motstruct_copy = motstruct_copy_sptr.get();
+      // motstruct_copy = (double *)malloc((nframes * cnp + numpts3D * pnp) * sizeof(double));
+      if (motstruct_copy == nullptr)
+      {
+        // ret = -2; //Memory allocation failed
+        // goto cleanup;
+        return -2; //Memory allocation failed
       }
 
       memcpy(motstruct_copy, motstruct, (nframes*cnp + numpts3D*pnp)*sizeof(double)); // save starting point for later use
@@ -2320,27 +2327,29 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
                               analyticjac? (fixedcal? img_projRTS_jac : (havedist? img_projKDRTS_jac : img_projKRTS_jac)) : nullptr,
                               (void *)(&globs), MAXITER2, verbose, opts, info);
       }
-      free(motstruct_copy);
+      // free(motstruct_copy);
 
     break;
 
     default:
       /*fprintf(stderr, "unknown BA method \"%d\" in sba_driver()!\n", howto);
       exit(1);*/
-	  ret = -1;
-	  goto cleanup;
-  }
-  #if BA_DEBUG
+      // ret = -1;
+      // goto cleanup;
+      return -1; //unknown BA method
+    }
+#if BA_DEBUG
   end_time=clock();
   #endif
 
   if(n==SBA_ERROR) //goto cleanup;
   {
-	  ret = -3;
-	  goto cleanup;
+	  // ret = -3;
+	  // goto cleanup;
+    return -3;
   }
-  
-  #if BA_DEBUG
+
+#if BA_DEBUG
   fflush(stdout);
   fprintf(stdout, "SBA using %d 3D pts, %d frames and %d image projections, %d variables\n", numpts3D, nframes, numprojs, nvars);
   if(havedist) sprintf(tbuf, " (%d fixed)", globs.ncdist);
@@ -2365,154 +2374,106 @@ int SBAdriver::perform_sba(std::vector<double *> & Rquats,
 
   switch(prnt){
     case BA_NONE:
-		goto cleanup;
-    break;
+      // goto cleanup;
+      return ret;
 
     case BA_MOTSTRUCT:
-		if(writeMotToOutput(motstruct,initrot,cnp,nframes,
-							useInputVarsAsOutput ? &Rquats : &Rquats_out,
-							useInputVarsAsOutput ? &trans : &trans_out,
-							useInputVarsAsOutput) < 0) goto cleanup;
-		writeStructToOutput(motstruct,cnp,pnp,nframes,numpts3D,useInputVarsAsOutput ? pts3D : pts3D_out);
+		if(writeMotToOutput(motstruct,initrot,cnp,nframes, &Rquats, &trans) < 0){
+      // goto cleanup;
+      return ret;
+    }
+		writeStructToOutput(motstruct,cnp,pnp,nframes,numpts3D, pts3D);
 		if(intrParms)
 		{
-			if(writeIntrinsicsToOutput(motstruct,cnp,nframes,
-									   useInputVarsAsOutput ? intrParms : &intrParms_out,
-									   useInputVarsAsOutput) < 0)
+			if(writeIntrinsicsToOutput(motstruct,cnp,nframes, intrParms) < 0)
 			{
-				/*for(int j = 0; j < nframes; ++j)
-				{
-					free(Rquats_out.at(j));
-					free(trans_out.at(j));
-				}
-				Rquats_out.clear();
-				trans_out.clear();*/
-				goto cleanup;
-			}
+				// goto cleanup;
+        return ret;
+      }
 			if(dist)
 			{
-				if(writeDistToOutput(motstruct,cnp,nframes,useInputVarsAsOutput ? dist : &dist_out,useInputVarsAsOutput) < 0)
+				if(writeDistToOutput(motstruct,cnp,nframes, dist) < 0)
 				{
-					/*for(int j = 0; j < nframes; ++j)
-					{
-						free(Rquats_out.at(j));
-						free(trans_out.at(j));
-						free(intrParms_out.at(j));
-					}
-					Rquats_out.clear();
-					trans_out.clear();
-					intrParms_out.clear();*/
-					goto cleanup;
-				}
+					// goto cleanup;
+          return ret;
+        }
 			}
 		}
     break;
 
     case BA_MOT:
-		if(writeMotToOutput(motstruct,initrot,cnp,nframes,
-							useInputVarsAsOutput ? &Rquats : &Rquats_out,
-							useInputVarsAsOutput ? &trans : &trans_out,
-							useInputVarsAsOutput) < 0) goto cleanup;
+		if(writeMotToOutput(motstruct,initrot,cnp,nframes, &Rquats, &trans) < 0){
+      // goto cleanup;
+      return ret;
+    }
 		if(intrParms)
 		{
-			if(writeIntrinsicsToOutput(motstruct,cnp,nframes,
-									   useInputVarsAsOutput ? intrParms : &intrParms_out,
-									   useInputVarsAsOutput) < 0)
+			if(writeIntrinsicsToOutput(motstruct,cnp,nframes, intrParms) < 0)
 			{
-				/*for(int j = 0; j < nframes; ++j)
-				{
-					free(Rquats_out.at(j));
-					free(trans_out.at(j));
-				}
-				Rquats_out.clear();
-				trans_out.clear();*/
-				goto cleanup;
-			}
+				// goto cleanup;
+        return ret;
+      }
 			if(dist)
 			{
-				if(writeDistToOutput(motstruct,cnp,nframes,useInputVarsAsOutput ? dist : &dist_out,useInputVarsAsOutput) < 0)
+				if(writeDistToOutput(motstruct,cnp,nframes, dist) < 0)
 				{
-					/*for(int j = 0; j < nframes; ++j)
-					{
-						free(Rquats_out.at(j));
-						free(trans_out.at(j));
-						free(intrParms_out.at(j));
-					}
-					Rquats_out.clear();
-					trans_out.clear();
-					intrParms_out.clear();*/
-					goto cleanup;
-				}
+					// goto cleanup;
+          return ret;
+        }
 			}
 		}
     break;
 
     case BA_STRUCT:
-		writeStructToOutput(motstruct,cnp,pnp,nframes,numpts3D,useInputVarsAsOutput ? pts3D : pts3D_out);
-    break;
+      writeStructToOutput(motstruct,cnp,pnp,nframes,numpts3D, pts3D);
+      break;
 
 	case BA_MOT_MOTSTRUCT:
-		if(writeMotToOutput(motstruct,initrot,cnp,nframes,
-							useInputVarsAsOutput ? &Rquats : &Rquats_out,
-							useInputVarsAsOutput ? &trans : &trans_out,
-							useInputVarsAsOutput) < 0) goto cleanup;
-		if(motstruct_after_mot)
-			writeStructToOutput(motstruct,cnp,pnp,nframes,numpts3D,useInputVarsAsOutput ? pts3D : pts3D_out);
+		if(writeMotToOutput(motstruct,initrot,cnp,nframes, &Rquats, &trans) < 0){
+      // goto cleanup;
+      return ret;
+    } 
+		if(motstruct_after_mot){
+			writeStructToOutput(motstruct,cnp,pnp,nframes,numpts3D, pts3D);
+    }
 		if(intrParms)
 		{
-			if(writeIntrinsicsToOutput(motstruct,cnp,nframes,
-									   useInputVarsAsOutput ? intrParms : &intrParms_out,
-									   useInputVarsAsOutput) < 0)
+			if(writeIntrinsicsToOutput(motstruct,cnp,nframes, intrParms) < 0)
 			{
-				/*for(int j = 0; j < nframes; ++j)
-				{
-					free(Rquats_out.at(j));
-					free(trans_out.at(j));
-				}
-				Rquats_out.clear();
-				trans_out.clear();*/
-				goto cleanup;
-			}
+				// goto cleanup;
+        return ret;
+      }
 			if(dist)
 			{
-				if(writeDistToOutput(motstruct,cnp,nframes,useInputVarsAsOutput ? dist : &dist_out,useInputVarsAsOutput) < 0)
+				if(writeDistToOutput(motstruct,cnp,nframes, dist) < 0)
 				{
-					/*for(int j = 0; j < nframes; ++j)
-					{
-						free(Rquats_out.at(j));
-						free(trans_out.at(j));
-						free(intrParms_out.at(j));
-					}
-					Rquats_out.clear();
-					trans_out.clear();
-					intrParms_out.clear();*/
-					goto cleanup;
-				}
+					// goto cleanup;
+          return ret;
+        }
 			}
 		}
 	break;
 
     default:
-		ret = -1;
+		  ret = -1;
 #if BA_DEBUG
-        fprintf(stderr, "unknown print option \"%d\" in sba_driver()!\n", prnt);
-        //exit(1);
+      fprintf(stderr, "unknown print option \"%d\" in sba_driver()!\n", prnt);
 #endif
   }
 
 
-cleanup:
+// cleanup:
   /* just in case... */
   globs.nccalib=0;
   globs.ncdist=0;
 
-  if(motstruct) free(motstruct);
-  if(imgpts) free(imgpts);
-  if(initrot) free(initrot); 
+  // if(motstruct) free(motstruct);
+  // if(imgpts) free(imgpts);
+  // if(initrot) free(initrot); 
   globs.rot0params=nullptr;
-  if(covimgpts) free(covimgpts);
-  if(vmask) free(vmask);
-  if(globs.intrcalib) free(globs.intrcalib);
+  // if(covimgpts) free(covimgpts);
+  // if(vmask) free(vmask);
+  // if(globs.intrcalib) free(globs.intrcalib);
   globs.intrcalib = nullptr;
 
   return ret;
@@ -2529,14 +2490,12 @@ cleanup:
  *											  with size 4 -> [w,x,y,z])
  * vector<double *> *trans_out		Output -> Pointer to the vector of translations (stored in arrays
  *											  with size 3 -> [x,y,z])
- * bool useInpAsOutp				Input  -> Specifies if the data from SBA is copied back to the provided 
- *											  initial data structures (already allocated memory)
  *
  * Return value:					 0:		  Everything ok
  *									-1:		  Memory allocation failed
  */
 int writeMotToOutput(double *motstruct, double *initrot, int cnp, int nframes, 
-					 std::vector<double *> *Rquats_out, std::vector<double *> *trans_out, bool useInpAsOutp)
+					 std::vector<double *> *Rquats_out, std::vector<double *> *trans_out)
 {
 	for(int i = 0; i < nframes; ++i)
 	{
@@ -2544,23 +2503,7 @@ int writeMotToOutput(double *motstruct, double *initrot, int cnp, int nframes,
 		double *v, qs[FULLQUATSZ], *q0, *prd, *trans;
 
 		/** Get the rotational part **/
-		if(useInpAsOutp)
-			prd = Rquats_out->at(i);
-		else
-		{
-			prd = (double *)malloc(FULLQUATSZ*sizeof(double));
-			if(prd == nullptr)
-			{
-				for(int j = 0; j < i; ++j)
-				{
-					free(Rquats_out->at(j));
-					free(trans_out->at(j));
-				}
-				Rquats_out->clear();
-				trans_out->clear();
-				return -1; //Memory allocation failed
-			}
-		}
+		prd = Rquats_out->at(i);
 
 		/* retrieve the vector part */
 		v=motstruct + (i+1)*cnp - 6; // note the +1, we access the motion parameters from the right, assuming 3 for translation!
@@ -2578,35 +2521,11 @@ int writeMotToOutput(double *motstruct, double *initrot, int cnp, int nframes,
 			prd[2] *= -1.0;
 			prd[3] *= -1.0;
 		}
-		if(!useInpAsOutp)
-			Rquats_out->push_back(prd);
 
-		/** Get the translational part **/
-
-		if(useInpAsOutp)
-			trans = trans_out->at(i);
-		else
-		{
-			trans = (double *)malloc(3*sizeof(double));
-			if(trans == nullptr)
-			{
-				free(Rquats_out->at(i));
-				for(int j = 0; j < i; ++j)
-				{
-					free(Rquats_out->at(j));
-					free(trans_out->at(j));
-				}
-				Rquats_out->clear();
-				trans_out->clear();
-				return -1; //Memory allocation failed
-			}
-		}
-
+		/** Get the translational part **/		
+		trans = trans_out->at(i);
 		v += 3; //skip the 3 parameters for rotation
-
 		memcpy(trans,v,3*sizeof(double));
-		if(!useInpAsOutp)
-			trans_out->push_back(trans);
 	}
 	return 0;
 }
@@ -2638,37 +2557,18 @@ void writeStructToOutput(double *motstruct, int cnp, int pnp, int nframes, int n
  * int nframes						Input  -> Number of frames
  * vector<double *> *intrParms_out	Output -> Pointer to the vector of camera intriniscs (stored
  *											  in arrays with size 5 -> [fu,u0,v0,ar,s] with ar=fv/fu)
- * bool useInpAsOutp				Input  -> Specifies if the data from SBA is copied back to the provided 
- *											  initial data structures (already allocated memory)
  *
  * Return value:					 0:		  Everything ok
  *									-1:		  Memory allocation failed
  */
-int writeIntrinsicsToOutput(double *motstruct, int cnp, int nframes, std::vector<double *> *intrParms_out, bool useInpAsOutp)
+int writeIntrinsicsToOutput(double *motstruct, int cnp, int nframes, std::vector<double *> *intrParms_out)
 {
 	for(int i = 0; i < nframes; ++i)
 	{
 		double *intr, *v;
 
 		v = motstruct + i*cnp;
-
-		if(useInpAsOutp)
-			memcpy(intrParms_out->at(i),v,5*sizeof(double));
-		else
-		{
-			intr = (double *)malloc(5*sizeof(double));
-			if(intr == nullptr)
-			{
-				for(int j = 0; j < i; ++j)
-				{
-					free(intrParms_out->at(j));
-				}
-				intrParms_out->clear();
-				return -1; //Memory allocation failed
-			}
-			memcpy(intr,v,5*sizeof(double));
-			intrParms_out->push_back(intr);
-		}
+		memcpy(intrParms_out->at(i),v,5*sizeof(double));
 	}
 	return 0;
 }
@@ -2683,37 +2583,18 @@ int writeIntrinsicsToOutput(double *motstruct, int cnp, int nframes, std::vector
  *											  arrays with size 5 -> [k1,k2,k3,k4,k5] with k1 (2nd order), 
  *											  k2 (4th order) and k5 (6th order) beeing the radial and
  *											  k3 and k4 beeing the tangential distortion coeffitients.
- * bool useInpAsOutp				Input  -> Specifies if the data from SBA is copied back to the provided 
- *											  initial data structures (already allocated memory)
  *
  * Return value:					 0:		  Everything ok
  *									-1:		  Memory allocation failed
  */
-int writeDistToOutput(double *motstruct, int cnp, int nframes, std::vector<double *> *dist_out, bool useInpAsOutp)
+int writeDistToOutput(double *motstruct, int cnp, int nframes, std::vector<double *> *dist_out)
 {
 	for(int i = 0; i < nframes; ++i)
 	{
 		double *disto, *v;
 
 		v = motstruct + i*cnp + 5;
-
-		if(useInpAsOutp)
-			memcpy(dist_out->at(i),v,5*sizeof(double));
-		else
-		{
-			disto = (double *)malloc(5*sizeof(double));
-			if(disto == nullptr)
-			{
-				for(int j = 0; j < i; ++j)
-				{
-					free(dist_out->at(j));
-				}
-				dist_out->clear();
-				return -1; //Memory allocation failed
-			}
-			memcpy(disto,v,5*sizeof(double));
-			dist_out->push_back(disto);
-		}
+		memcpy(dist_out->at(i),v,5*sizeof(double));
 	}
 	return 0;
 }

@@ -117,28 +117,22 @@ typedef struct BAinfo {
 class POSELIB_API SBAdriver
 {
 private:
+	bool fixedcal;
+	int howto;
+	int costfunc;
+	double costThresh;
+	int prnt;
+	int nccalib;
+	int ncdist;
+	int nconstframes;
+	int nconst3Dpts;
+	bool cam0IntrVarRtFix;
 	int expert;
 	int analyticjac;
 	int verbose;
 	double opts[SBA_OPTSSZ];
-	int prnt;
-	int howto;
-	bool fixedcal;
-	int nccalib;
-	int nconstframes;
-	int ncdist;
-	int nconst3Dpts;
 	double info[SBA_INFOSZ];
-	bool useInputVarsAsOutput;
-	int costfunc;
-	double costThresh;
-	bool cam0IntrVarRtFix;
-
-	std::vector<double *> Rquats_out;
-	std::vector<double *> trans_out;
-	std::vector<double *> intrParms_out;
-	std::vector<double *> dist_out;
-	double *pts3D_out;
+		
 public:
 
 
@@ -174,12 +168,6 @@ public:
 	 * double cost_tresh				Input  -> The threshold for the cost function. The default value should only
 	 *											  be used when working in image coordinates and with the pseudo-huber
 	 *											  cost function. Otherwise, please use a different threshold.
-	 * bool BAuseInputVarsAsOutput		Input  -> If true, the results from BA are written back to the input
-	 *											  variables of the function perform_sba. If false, the results
-	 *											  from SBA can be read via the different get-methods. In this
-	 *											  case, be careful, because the memory which holds the
-	 *											  results from BA is deallocated after the lifetime of this
-	 *											  object.
 	 * int SlnPrnt						Input  -> Specifies, which results should be written back to the input
 	 *											  variables (if BAuseInputVarsAsOutput = true) or which results
 	 *											  are available through the get-methods (if
@@ -232,7 +220,6 @@ public:
 			  int BAhowto = BA_MOTSTRUCT,
 			  int costfunction = COST_PSEUDOHUBER,
 			  double cost_tresh = ROBUST_THRESH,
-			  bool BAuseInputVarsAsOutput = true,
 			  int SlnPrnt = BA_MOT,
 			  int BAnccalib = 1,
 			  int BAncdist = 0,
@@ -243,7 +230,6 @@ public:
 	  howto(BAhowto),
 	  costfunc(costfunction),
 	  costThresh(cost_tresh),
-	  useInputVarsAsOutput(BAuseInputVarsAsOutput),
 	  prnt(SlnPrnt),
 	  nccalib(BAnccalib),
 	  ncdist(BAncdist),
@@ -270,23 +256,6 @@ public:
 					   //drops below this threshold
 		//uncomment to force termination if the relative reduction in the RMS reprojection error drops below 1E-05:
 		opts[4]=1E-05;
-	}
-
-	//Destructor
-	~SBAdriver()
-	{
-		for(size_t j = 0; j < Rquats_out.size(); ++j)
-			free(Rquats_out.at(j));
-		for(size_t j = 0; j < trans_out.size(); ++j)
-			free(trans_out.at(j));
-		for(size_t j = 0; j < intrParms_out.size(); ++j)
-			free(intrParms_out.at(j));
-		for(size_t j = 0; j < dist_out.size(); ++j)
-			free(dist_out.at(j));
-		Rquats_out.clear();
-		trans_out.clear();
-		intrParms_out.clear();
-		dist_out.clear();
 	}
 
 	void setFixedIntrCal(bool BAfixedcal)
@@ -362,39 +331,7 @@ public:
 		sln_info.firstClapackError = info[10];
 
 		return sln_info;
-	}
-
-	int getRotQuats(std::vector<double *> *Rquats)
-	{
-		if(useInputVarsAsOutput || Rquats_out.size() == 0)
-			return -1;
-		*Rquats = Rquats_out;
-		return 0;
-	}
-
-	int getTranslation(std::vector<double *> *trans)
-	{
-		if(useInputVarsAsOutput || trans_out.size() == 0)
-			return -1;
-		*trans = trans_out;
-		return 0;
-	}
-
-	int getCamIntrinsics(std::vector<double *> *intrParms)
-	{
-		if(useInputVarsAsOutput || intrParms_out.size() == 0)
-			return -1;
-		*intrParms = intrParms_out;
-		return 0;
-	}
-
-	int getDistortionCoefs(std::vector<double *> *dist)
-	{
-		if(useInputVarsAsOutput || dist_out.size() == 0)
-			return -1;
-		*dist = dist_out;
-		return 0;
-	}
+	}	
 
 	//Performs Bundle Adjustment (BA) by a Sparse Bundleadjustment Algorithm (SBA)
 	int perform_sba(std::vector<double *> & Rquats,
