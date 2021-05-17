@@ -44,7 +44,7 @@
 
 /* If 1, debug information is available
  * if 0, no debug information is available*/
-#define BA_DEBUG 1
+#define BA_DEBUG 0
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -132,7 +132,7 @@ private:
 	int verbose;
 	double opts[SBA_OPTSSZ];
 	double info[SBA_INFOSZ];
-		
+
 public:
 
 
