@@ -1492,7 +1492,7 @@ bool refineMultCamBA(cv::InputArray ps,
 	std::vector<double *> R_vec;
 	std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>> Rquat(vecSi), Rquat_old;
 	// double R0[4] = {1.0, 0.0, 0.0, 0.0};
-	// double t0[3] = {0.0, 0.0, 0.0};
+	// double t0[3] = {0.0, 0.0, 0.0}; 
 	std::vector<double *> pts2D_vec;
 	std::vector<int> num2Dpts;
 	std::vector<char *> map3D_vec_ptr;
