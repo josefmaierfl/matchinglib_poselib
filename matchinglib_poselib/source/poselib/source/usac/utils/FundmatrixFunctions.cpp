@@ -502,7 +502,7 @@ namespace FTools
 			p += 9;
 		}
 
-		delete A;
+		delete[] A;
 
 		return 1;
 	}

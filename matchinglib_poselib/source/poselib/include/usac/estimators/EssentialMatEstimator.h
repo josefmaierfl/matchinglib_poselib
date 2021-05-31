@@ -89,6 +89,7 @@ public:
         models_denorm_.clear();
         adapter.reset();
         adapter_denorm.reset();
+        deleteWaldTestHistory(wald_test_history_);
     };
 
 public:
@@ -114,6 +115,16 @@ private:
     inline void testSolutionDegeneracyNoMot(bool* degenerateModel);
     inline bool evaluateModelRot(const opengv::rotation_t &model, unsigned int* numInliers, unsigned int* numPointsTested);
     inline bool evaluateModelTrans(const opengv::translation_t &model, unsigned int* numInliers, unsigned int* numPointsTested);
+
+    void deleteWaldTestHistory(TestHistorySPRT* wald_test_history_){
+        if (wald_test_history_){
+            if (wald_test_history_->prev_){
+                deleteWaldTestHistory(wald_test_history_->prev_);
+            }
+            delete wald_test_history_;
+            wald_test_history_ = nullptr;
+        }
+    }
 
 private:
     double*		 input_points_denorm_;					    // stores pointer to original input points
@@ -361,6 +372,7 @@ void EssentialMatEstimator::cleanupProblem()
     }
     models_denorm_.clear();
     degen_outlier_flags_.clear();
+    deleteWaldTestHistory(wald_test_history_);
 }
 
 

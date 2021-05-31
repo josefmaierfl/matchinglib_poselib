@@ -16,7 +16,9 @@ namespace MathTools
 	double s,h,r,t,sv;
 	int i,j,k,mm,nm,ms;
 	if(m<n) return -1;
-	w=(double *)calloc(m+n,sizeof(double)); e=w+m;
+	w = new double[m + n]();
+	// w = (double *)calloc(m + n, sizeof(double));
+	e = w + m;
 	for(i=0,mm=m,nm=n-1,p=a; i<n ;++i,--mm,--nm,p+=n+1){
 		if(mm>1){ sv=h=0.;
 		for(j=0,q=p,s=0.; j<mm ;++j,q+=n){
@@ -61,7 +63,8 @@ namespace MathTools
 		for(j=0,p=v+i; j<n ;++j,p+=n) *p= - *p;
 		}
 	}
-	free(w);
+	delete[] w;
+	// free(w);
 	return 0;
 	}
 
@@ -109,7 +112,8 @@ namespace MathTools
 	{ double *p0,*p,*q,*w;
 	int i,j,k,mm;
 	double s,h;
-	w=(double *)calloc(m,sizeof(double));
+	w = new double[m]();
+	// w=(double *)calloc(m,sizeof(double));
 	p0=a+n*n-1; i=n-1; mm=m-n;
 	if(mm==0){ *p0=1.; p0-=n+1; --i; ++mm;}
 	for(; i>=0 ;--i,++mm,p0-=n+1){
@@ -129,7 +133,8 @@ namespace MathTools
 			for(j=0,p=p0+n,q=p0+1; j<mm ;++j,p+=n) *p= *q++ =0.;
 		}
 	}
-	free(w);
+	delete[] w;
+	// free(w);
 	}
 
 	/*  qrbdu1.c    CCMATH mathematics library source code.
@@ -204,7 +209,9 @@ namespace MathTools
 	double s,h,r,t,sv;
 	int i,j,k,mm,nm,ms;
 	if(m<n) return -1;
-	w=(double *)calloc(m+n,sizeof(double)); e=w+m;
+	w = new double[m + n]();
+	// w=(double *)calloc(m+n,sizeof(double));
+	e=w+m;
 	for(i=0,mm=m,nm=n-1,p=a; i<n ;++i,--mm,--nm,p+=n+1){
 		if(mm>1){ sv=h=0.;
 		for(j=0,q=p,s=0.; j<mm ;++j,q+=n){
@@ -249,7 +256,8 @@ namespace MathTools
 		for(j=0,p=v+i; j<n ;++j,p+=n) *p= - *p;
 		}
 	}
-	free(w);
+	delete[] w;
+	// free(w);
 	return 0;
 	}
 
@@ -264,7 +272,8 @@ namespace MathTools
 	{ double *p0,*q0,*p,*q,*w;
 	int i,j,k,mm;
 	double s,h;
-	w=(double *)calloc(m,sizeof(double));
+	w = new double[m]();
+	// w=(double *)calloc(m,sizeof(double));
 	for(i=0,mm=m*m,q=u; i<mm ;++i) *q++ =0.;
 	p0=a+n*n-1; q0=u+m*m-1; mm=m-n; i=n-1;
 	for(j=0; j<mm ;++j,q0-=m+1) *q0=1.;
@@ -286,7 +295,8 @@ namespace MathTools
 			for(j=0,p=q0+1,q=q0+m; j<mm ;++j,q+=m) *q= *p++ =0.;
 		}
 	}
-	free(w);
+	delete[] w;
+	// free(w);
 	}
 
 	/*  qrbdv.c    CCMATH mathematics library source code.
@@ -360,8 +370,10 @@ namespace MathTools
 	{ int lc,*le; double s,t,tq=0.,zr=1.e-15;
 	double *pa,*pd,*ps,*p,*q,*q0;
 	int i,j,k,m;
-	le=(int *)malloc(n*sizeof(int));
-	q0=(double *)malloc(n*sizeof(double));
+	le = new int[n];
+	// le=(int *)malloc(n*sizeof(int));
+	q0 = new double[n];
+	// q0 = (double *)malloc(n * sizeof(double));
 	for(j=0,pa=pd=a; j<n ;++j,++pa,pd+=n+1){
 		if(j>0){
 			for(i=0,q=q0,p=pa; i<n ;++i,p+=n) *q++ = *p;
@@ -375,7 +387,14 @@ namespace MathTools
 		for(k=j+1,ps=pd; k<n ;++k){
 			if((t=fabs(*(ps+=n)))>s){ s=t; lc=k;}
 		}
-		tq=tq>s?tq:s; if(s<zr*tq){ free(le-j); free(q0); return -1;}
+		tq=tq>s?tq:s; 
+		if(s<zr*tq){
+			delete[] le;
+			delete[] q0;
+			// free(le - j);
+			// free(q0); 
+			return -1;
+			}
 		*le++ =lc;
 		if(lc!=j){
 			for(k=0,p=a+n*j,q=a+n*lc; k<n ;++k){
@@ -419,7 +438,9 @@ namespace MathTools
 			t=*p; *p=*q; *q=t;
 		}
 	}
-	free(le); free(q0);
+	delete[] le;
+	delete[] q0;
+	// free(le); free(q0);
 	return 0;
 	}
 

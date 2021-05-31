@@ -175,7 +175,7 @@ int estimateFundMatrixUsac(cv::InputArray p1,
 	ConfigParamsFund cfg(c_com, c_pro, c_sprt, c_lo, c_fund, verbose_);
 
 	// initialize the fundamental matrix estimation problem
-	auto fund = new FundMatrixEstimator;
+	std::unique_ptr<FundMatrixEstimator> fund(new FundMatrixEstimator);
 	fund->initParamsUSAC(cfg);
 	fund->initDataUSAC(cfg);
 	fund->initProblem(cfg, &pointData[0]);
@@ -275,7 +275,7 @@ int estimateFundMatrixUsac(cv::InputArray p1,
 	// clean up
 	pointData.clear();
 	fund->cleanupProblem();
-	delete fund;
+	// delete fund;
 
 	return(EXIT_SUCCESS);
 }
@@ -458,7 +458,7 @@ int estimateEssentialMatUsac(const cv::Mat & p1,
 	ConfigParamsEssential cfg(c_com, c_pro, c_sprt, c_lo, c_essential, verbose_);
 
 	// initialize the fundamental matrix estimation problem
-	auto fund = new EssentialMatEstimator;
+	std::unique_ptr<EssentialMatEstimator> fund(new EssentialMatEstimator);
 	fund->initParamsUSAC(cfg);
 	fund->initDataUSAC(cfg);
 	fund->initProblem(cfg, &pointData[0]);
@@ -728,7 +728,7 @@ int estimateEssentialMatUsac(const cv::Mat & p1,
 	// clean up
 	pointData.clear();
 	fund->cleanupProblem();
-	delete fund;
+	// delete fund;
 
 	return(EXIT_SUCCESS);
 }
@@ -826,7 +826,7 @@ int estimateRotationMatUsac(const cv::Mat & p1,
 	ConfigParamsRotationMat cfg(c_com, c_pro, c_sprt, c_lo, verbose_);
 
 	// initialize the fundamental matrix estimation problem
-	auto fund = new RotationMatEstimator;
+	std::unique_ptr<RotationMatEstimator> fund(new RotationMatEstimator);
 	fund->initParamsUSAC(cfg);
 	fund->initDataUSAC(cfg);
 	fund->initProblem(cfg, &pointData[0]);
@@ -887,7 +887,7 @@ int estimateRotationMatUsac(const cv::Mat & p1,
 	// clean up
 	pointData.clear();
 	fund->cleanupProblem();
-	delete fund;
+	// delete fund;
 
 	return(EXIT_SUCCESS);
 }
@@ -1054,7 +1054,7 @@ int upgradeEssentialMatDegenUsac(const cv::Mat & p1,
 	ConfigParamsEssential cfg(c_com, c_pro, c_sprt, c_lo, c_essential, verbose_);
 
 	// initialize the fundamental matrix estimation problem
-	auto fund = new EssentialMatEstimator;
+	std::unique_ptr<EssentialMatEstimator> fund(new EssentialMatEstimator);
 	fund->initParamsUSAC(cfg);
 	fund->initDataUSAC(cfg);
 	fund->initProblem(cfg, &pointData[0]);
@@ -1153,7 +1153,7 @@ int upgradeEssentialMatDegenUsac(const cv::Mat & p1,
 	// clean up
 	pointData.clear();
 	fund->cleanupProblem();
-	delete fund;
+	// delete fund;
 
 	return(EXIT_SUCCESS);
 }
