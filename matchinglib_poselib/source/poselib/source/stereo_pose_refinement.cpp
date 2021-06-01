@@ -1044,7 +1044,7 @@ namespace poselib
         if (kdTreeLeft)
         {
             kdTreeLeft->killTree();
-            kdTreeLeft.release();
+            kdTreeLeft.reset();
         }
         corrIdx = 0;
         nrEstimation = 0;
@@ -2324,7 +2324,7 @@ namespace poselib
 			if (kdTreeLeft)
 			{
 				kdTreeLeft->killTree();
-				kdTreeLeft.release();
+				kdTreeLeft.reset();
 			}
             points1Cam.release();
             points2Cam.release();

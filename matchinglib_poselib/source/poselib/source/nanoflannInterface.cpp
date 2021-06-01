@@ -187,8 +187,8 @@ namespace poselib
 
         void killTree()
         {
-            index.release();
-            pc2kd.release();
+            index.reset();
+            pc2kd.reset();
         }
 
         int addElements(size_t firstIdx, size_t length)
