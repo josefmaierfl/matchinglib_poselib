@@ -9,7 +9,7 @@ mkdir ${thirdparty_dir}
 #-----------------------------------
 
 cd ${thirdparty_dir}
-Eigen_VERSION=3.3.7
+Eigen_VERSION=3.3.9
 #wget -q http://bitbucket.org/eigen/eigen/get/${Eigen_VERSION}.tar.bz2
 #tar xf ${Eigen_VERSION}.tar.bz2
 #rm -rf ${Eigen_VERSION}.tar.bz2

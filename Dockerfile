@@ -1,44 +1,44 @@
-FROM conanio/gcc8
+FROM conanio/gcc10
 
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 
 USER root
-RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libvtk7-dev && apt-get clean
-RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libboost-all-dev && apt-get clean
+#RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libvtk7-dev && apt-get clean
+#RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libboost-all-dev && apt-get clean
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y software-properties-common apt-utils wget && apt-get clean
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && add-apt-repository -y 'deb http://security.ubuntu.com/ubuntu xenial-security main'
-RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
-RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-add-repository -y 'deb https://apt.kitware.com/ubuntu/ bionic main'
+#RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
+#RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-add-repository -y 'deb https://apt.kitware.com/ubuntu/ bionic main'
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y build-essential sudo cmake pkg-config && apt-get clean
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libtbb2 \
 	libtbb-dev \
-	libglew-dev \
+	#libglew-dev \
 	qt5-default \
-	libxkbcommon-dev \
+	#libxkbcommon-dev \
 	libflann-dev \
 	libpng-dev \
 	libgtk-3-dev \
-	libgtkglext1 \
-	libgtkglext1-dev \
+	#libgtkglext1 \
+	#libgtkglext1-dev \
 	libtiff-dev \
-	libtiff5-dev \
-	libtiffxx5 \
+	#libtiff5-dev \
+	#libtiffxx5 \
 	libjpeg-dev \
-	libjasper1 \
+	#libjasper1 \
 	libjasper-dev \
 	libavcodec-dev \
 	libavformat-dev \
 	libswscale-dev \
-	libv4l-dev \
-	libxvidcore-dev \
-	libx264-dev \
+	#libv4l-dev \
+	#libxvidcore-dev \
+	#libx264-dev \
 	libdc1394-22-dev \
 	openexr \
-	libatlas-base-dev \
-	gfortran \
+	#libatlas-base-dev \
+	#gfortran \
   libhdf5-dev && apt-get clean
-RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libglu1-mesa-dev mesa-common-dev mesa-utils freeglut3-dev && apt-get clean
-RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libomp-dev ccache && apt-get clean
+#RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libglu1-mesa-dev mesa-common-dev mesa-utils freeglut3-dev && apt-get clean
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -y libomp-dev && apt-get clean
 
 ADD ci /ci
 RUN cd /ci && ./build_thirdparty.sh
