@@ -9,10 +9,6 @@ message(STATUS "Test ${target}")
 
 option(COPY_TEST_POSE_IMGS  "Copy images for testing to binary dir" ON)
 
-find_package(Clapack REQUIRED)
-
-find_package(SBA REQUIRED)
-
 #
 # Sources
 #
@@ -58,10 +54,6 @@ target_include_directories(${target}
     PRIVATE
     ${DEFAULT_INCLUDE_DIRECTORIES}
     ${PROJECT_BINARY_DIR}/source/include
-
-	PUBLIC
-	${CLAPACK_INCLUDE_DIRS}
-    #${SBA_INCLUDE_DIR}
 )
 
 
@@ -70,10 +62,6 @@ target_include_directories(${target}
 #
 
 target_link_libraries(${target}
-	PUBLIC
-	sba
-	${CLAPACK_LIBRARIES}
-
     PRIVATE
     ${DEFAULT_LIBRARIES}
     ${META_PROJECT_NAME}::matchinglib

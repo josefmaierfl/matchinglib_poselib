@@ -1,6 +1,7 @@
 #include "usac/utils/FundmatrixFunctions.h"
 #include <cstring>
 #include <iostream>
+#include "Eigen/Dense"
 
 namespace FTools
 {
@@ -163,12 +164,12 @@ namespace FTools
 		// allocate workspaces
 		// change row->column organization for Fortran
 		double T[7*9];
-		double tau[9];
-		double work[3*9+1];
-		int p[9];
+		// double tau[9];
+		// double work[3*9+1];
+		// int p[9];
 
-		int work_size = 3*cols+1;   
-		int info;
+		// int work_size = 3*cols+1;   
+		// int info;
 
 		// assume underdetermined system with full possible rank...
 		int null_size = cols - rows;
@@ -181,38 +182,67 @@ namespace FTools
 				T[i + rows*j] = A[cols*i + j];
 
 		// prepare permutation vector
-		for (j=0; j<cols; j++) p[j] = 0;
+		// for (j=0; j<cols; j++) p[j] = 0;
+
+		Eigen::Map<Eigen::Matrix<double, rows, cols, Eigen::ColMajor>> Ae(T);
+		Eigen::ColPivHouseholderQR<Eigen::Matrix<double, rows, cols, Eigen::ColMajor>> qrc = Ae.colPivHouseholderQr();
+		if(qrc.rank() < 2){
+			return -1;
+		}
+		Eigen::Matrix<double, rows, cols, Eigen::ColMajor> qr = qrc.matrixR().triangularView<Eigen::Upper>();
+		const double *Tp = qr.data();
+		const int *pp = qrc.colsPermutation().indices().data();
 
 		// call Fortran LAPACK function
-		MathTools::dgeqp3_(&rows, &cols, T, &rows, p, tau, work, &work_size, &info);
-		if (info!=0)
-			return -1;
+		// MathTools::dgeqp3_(&rows, &cols, T, &rows, p, tau, work, &work_size, &info);
+		// if (info!=0)
+		// 	return -1;
 
 		// correct permutation offset
-		for (j=0; j<cols; j++) 
-			p[j]--;
+		// for (j=0; j<cols; j++) 
+		// 	p[j]--;
 
 		// do backsubstitution, resulting T is column organized rows x cols
 		// matrix, only elements on and above diagonal are valid and permuted
 		// with permutation in p 
-		for (k=1;k<=null_size;k++)
+		// for (k=1;k<=null_size;k++)
+		// {
+		// 	// setup arbitrary part of solution vector
+		// 	for (c=rows;c<cols; c++) sol[p[c]]=0;
+		// 	sol[p[cols-k]]=1;
+
+		// 	// do backsubstitution
+		// 	for (r=rows-1; r>=0; r--)
+		// 	{
+		// 		a=0;
+		// 		if (T[r*rows+r]==0.0)
+		// 			return -1;
+		// 		for (c=r+1;c<cols;c++)
+		// 			a += T[c*rows+r]*sol[p[c]];
+		// 		// newvalue = -a/diagonal element
+		// 		sol[p[r]]=-a/T[r*rows+r];
+		// 	}
+		// 	sol+=cols;
+		// }
+		for (k = 1; k <= null_size; k++)
 		{
 			// setup arbitrary part of solution vector
-			for (c=rows;c<cols; c++) sol[p[c]]=0;
-			sol[p[cols-k]]=1;
+			for (c = rows; c < cols; c++)
+				sol[pp[c]] = 0;
+			sol[pp[cols - k]] = 1;
 
 			// do backsubstitution
-			for (r=rows-1; r>=0; r--)
+			for (r = rows - 1; r >= 0; r--)
 			{
-				a=0;
-				if (T[r*rows+r]==0.0)
+				a = 0;
+				if (Tp[r * rows + r] == 0.0)
 					return -1;
-				for (c=r+1;c<cols;c++)
-					a += T[c*rows+r]*sol[p[c]];
+				for (c = r + 1; c < cols; c++)
+					a += Tp[c * rows + r] * sol[pp[c]];
 				// newvalue = -a/diagonal element
-				sol[p[r]]=-a/T[r*rows+r];
+				sol[pp[r]] = -a / Tp[r * rows + r];
 			}
-			sol+=cols;
+			sol += cols;
 		}
 		return 0;
 

@@ -200,7 +200,7 @@ unsigned int FundMatrixEstimator::generateMinimalSampleModels()
 	f1 = sol;
 	f2 = sol+9;
 	if (matrix_decomposition_method == USACConfig::DECOMP_QR)
-	{
+	{		
 		FTools::nullspaceQR7x9(A, sol);
 	}
 	else if (matrix_decomposition_method == USACConfig::DECOMP_LU)

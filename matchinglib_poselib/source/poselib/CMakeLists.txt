@@ -7,13 +7,7 @@ find_package(Eigen REQUIRED)
 
 find_package(OpenCV 4.2.0 REQUIRED)
 
-find_package(Clapack REQUIRED)
-
-find_package(SBA REQUIRED)
-
 #find_package(Boost COMPONENTS filesystem system date_time REQUIRED)
-
-SET( Nanoflann_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nanoflann-1.3.0/include")
 
 #
 # Library name and options
@@ -43,15 +37,10 @@ set(include_path "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(source_path  "${CMAKE_CURRENT_SOURCE_DIR}/source")
 
 set(headers
-  ${include_path}/BA_driver.h
-  ${include_path}/imgproj.h
   ${include_path}/${target}/glob_includes.h
   ${include_path}/${target}/pose_estim.h
   ${include_path}/${target}/pose_helper.h
   ${include_path}/${target}/pose_linear_refinement.h
-  ${include_path}/${target}/stereo_pose_refinement.h
-  ${include_path}/${target}/stereo_pose_types.h
-  ${include_path}/${target}/nanoflannInterface.h
 
   ${include_path}/arrsac/arrsac.h
   ${include_path}/arrsac/estimator.h
@@ -89,13 +78,9 @@ set(headers
 )
 
 set(sources
-  ${source_path}/BA_driver.cpp
-  ${source_path}/imgproj.c
   ${source_path}/pose_estim.cpp
   ${source_path}/pose_helper.cpp
   ${source_path}/pose_linear_refinement.cpp
-  ${source_path}/stereo_pose_refinement.cpp
-  ${source_path}/nanoflannInterface.cpp
 
   ${source_path}/arrsac/sequential_probability_ratio.cc
 
@@ -170,20 +155,17 @@ set_target_properties(${target}
 #
 # Include directories
 #
-message(STATUS "clapack: ${CLAPACK_INCLUDE_DIRS}")
 target_include_directories(${target}
     PRIVATE
     ${PROJECT_BINARY_DIR}/source/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_BINARY_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/opengv/include
-    ${Nanoflann_INCLUDE_DIR}
 
     PUBLIC
     ${DEFAULT_INCLUDE_DIRECTORIES}
     ${OpenCV_INCLUDE_DIRS}
     ${EIGEN_INCLUDE_DIR}
-    ${CLAPACK_INCLUDE_DIRS}
 #    ${Boost_INCLUDE_DIRS}
 
     INTERFACE
@@ -199,7 +181,6 @@ target_include_directories(${target}
 #
 # Libraries
 #
-message(STATUS "clapack: ${CLAPACK_LIBRARIES}")
 target_link_libraries(${target}
     PRIVATE
     opengv
@@ -207,9 +188,7 @@ target_link_libraries(${target}
     PUBLIC
     ${DEFAULT_LIBRARIES}
     ${OpenCV_LIBS}
-    ${CLAPACK_LIBRARIES}
 #    ${Boost_LIBRARIES}
-    sba
 
     INTERFACE
 )
@@ -275,10 +254,6 @@ install(DIRECTORY
     ${CMAKE_CURRENT_SOURCE_DIR}/include DESTINATION ${INSTALL_INCLUDE}/${target}
     COMPONENT dev
 )
-install(DIRECTORY
-        ${Nanoflann_INCLUDE_DIR} DESTINATION ${INSTALL_INCLUDE}/${target}
-        COMPONENT dev
-        )
 
 # Generated header files
 install(DIRECTORY

@@ -42,7 +42,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get install -
 
 ADD ci /ci
 RUN cd /ci && ./build_thirdparty.sh
-#RUN cd /ci && ./copy_thirdparty.sh
 
 COPY matchinglib_poselib /ci/tmp/matchinglib_poselib/
 COPY build_matchinglib_poselib.sh /ci/tmp/
