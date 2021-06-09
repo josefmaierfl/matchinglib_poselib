@@ -7,8 +7,6 @@
 set(target poselib-test)
 message(STATUS "Test ${target}")
 
-option(COPY_TEST_POSE_IMGS  "Copy images for testing to binary dir" ON)
-
 #
 # Sources
 #
@@ -30,10 +28,6 @@ add_executable(${target}
 
 # Create namespaced alias
 add_executable(${META_PROJECT_NAME}::${target} ALIAS ${target})
-
-if(${COPY_TEST_POSE_IMGS})
-	file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/imgs DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-endif()
 
 #
 # Project options

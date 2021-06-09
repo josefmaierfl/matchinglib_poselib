@@ -101,13 +101,9 @@ std::string concatImgNames(const std::string &file1,
 
 void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 {
-    testing::internal::FilePath program(argv[0]);
-    testing::internal::FilePath program_dir = program.RemoveFileName();
-    testing::internal::FilePath data_path = testing::internal::FilePath::ConcatPaths(program_dir,testing::internal::FilePath("imgs/homography/wall"));
-
     cmd.setIntroductoryDescription("Interface for testing various keypoint detectors, descriptor extractors, "
                                    "and matching algorithms.\n Example of usage:\n"
-                                   + std::string(argv[0]) + " --img_path=" + data_path.string() + " --l_img_pref=img_");
+                                   + std::string(argv[0]) + " --img_path=path_to_images --l_img_pref=img_");
     //define error codes
     cmd.addErrorCode(0, "Success");
     cmd.addErrorCode(1, "Error");
@@ -203,55 +199,14 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
                                     "Only if a path is given, data is stored to disk.>", ArgvParser::OptionRequiresValue);
 
     /// finally parse and handle return codes (display help etc...)
-    testing::InitGoogleTest(&argc, argv);
-    if(argc <= 1)
+    testing::InitGoogleTest(&argc, argv);    
+    int result = -1;
+    result = cmd.parse(argc, argv);
+
+    if (result != ArgvParser::NoParserError)
     {
-        if(data_path.DirectoryExists())
-        {
-            char *newargs[3];
-            string arg1str = "--img_path=" + data_path.string();
-
-            if(!cmd.isDefinedOption("img_path") || !cmd.isDefinedOption("l_img_pref") || !cmd.isDefinedOption("r_img_pref"))
-            {
-                cout << "Option definitions changed in code!! Exiting." << endl;
-                exit(1);
-            }
-
-            newargs[0] = argv[0];
-            newargs[1] = (char*)arg1str.c_str();
-            string tmp1 = "--l_img_pref=img_";
-            newargs[2] = (char*)tmp1.c_str();
-
-            int result = -1;
-            result = cmd.parse(3, newargs);
-
-            if (result != ArgvParser::NoParserError)
-            {
-                cout << cmd.parseErrorDescription(result);
-                exit(1);
-            }
-
-            cout << "Executing the following default command: " << endl;
-            cout << argv[0] << " " << arg1str << " --l_img_pref=img_" << endl << endl;
-            cout << "For options see help with option -h" << endl;
-        }
-        else
-        {
-            cout << "Standard image path not available!" << endl << "Options necessary - see help below." << endl << endl;
-            cout << cmd.usageDescription();
-            exit(1);
-        }
-    }
-    else
-    {
-        int result = -1;
-        result = cmd.parse(argc, argv);
-
-        if (result != ArgvParser::NoParserError)
-        {
-            cout << cmd.parseErrorDescription(result);
-            exit(1);
-        }
+        cout << cmd.parseErrorDescription(result);
+        exit(1);
     }
 }
 

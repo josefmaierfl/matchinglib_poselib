@@ -224,13 +224,9 @@ bool readCalibMat(std::ifstream& calibFile, const std::string &label, const cv::
 
 void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 {
-    testing::internal::FilePath program(argv[0]);
-    testing::internal::FilePath program_dir = program.RemoveFileName();
-    testing::internal::FilePath data_path = testing::internal::FilePath::ConcatPaths(program_dir,testing::internal::FilePath("imgs/stereo"));
-
     cmd.setIntroductoryDescription("Interface for testing various keypoint detectors, descriptor extractors, "
-                                   "and matching algorithms.\n Example of usage:\n" + std::string(argv[0]) +
-                                   " --img_path=" + data_path.string() + " --l_img_pref=left_ --r_img_pref=right_ "
+                                   "matching algorithms, and pose estimation algorithms.\n Example of usage:\n" + std::string(argv[0]) +
+                                   " --img_path=path_to_images --l_img_pref=left_ --r_img_pref=right_ "
                                                                          "--DynKeyP --subPixRef --c_file=calib_cam_to_cam.txt "
                                                                          "--BART=1");
     //define error codes
@@ -331,11 +327,6 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
                                "Extrinsics are only used for calculating the accuracy of estimated poses. "
                                "If no GT is available provide zero translation and identity rotation matrix. "
                                "The calibration file must be place in the provided image folder.>", ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
-	// cmd.defineOption("evStepStereoStable", "<For stereo refinement: If the option stereoRef "
-	// 									   "is provided and the estimated pose is stable, this option specifies "
-	// 									   "the number of image pairs that are skipped until a new evaluation is performed. "
-	// 									   "A value of 0 disables this feature [Default].>",
-	// 				 ArgvParser::OptionRequiresValue);
 	cmd.defineOption("noPoseDiff", "<If provided, the calculation of the difference "
                                    "to the given pose is disabled.>", ArgvParser::NoOptionAttribute);
     cmd.defineOption("autoTH", "<If provided, the threshold for estimating the pose is "
@@ -421,62 +412,13 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 					 ArgvParser::OptionRequiresValue);
 
 	/// finally parse and handle return codes (display help etc...)
-    testing::InitGoogleTest(&argc, argv);
-    if(argc <= 1)
+    testing::InitGoogleTest(&argc, argv);    
+    int result = -1;
+    result = cmd.parse(argc, argv);
+    if (result != ArgvParser::NoParserError)
     {
-        if(data_path.DirectoryExists())
-        {
-            char *newargs[9];
-            string arg1str = "--img_path=" + data_path.string();
-
-            if(!cmd.isDefinedOption("img_path") || !cmd.isDefinedOption("l_img_pref") || !cmd.isDefinedOption("r_img_pref")
-                || !cmd.isDefinedOption("DynKeyP") || !cmd.isDefinedOption("subPixRef") || !cmd.isDefinedOption("c_file")
-                || !cmd.isDefinedOption("autoTH") || !cmd.isDefinedOption("showRect"))
-            {
-                std::cout << "Option definitions changed in code!! Exiting." << endl;
-                exit(1);
-            }
-
-            newargs[0] = argv[0];
-            newargs[1] = (char*)arg1str.c_str();
-            string tmp1[7] = {"--l_img_pref=left_",
-                              "--r_img_pref=right_",
-                              "--DynKeyP",
-                              "--subPixRef=1",
-                              "--c_file=calib_cam_to_cam.txt",
-                              "--showRect"};
-            for (int i = 0; i < 7; ++i) {
-                newargs[i + 2] = (char*)tmp1[i].c_str();
-            }
-
-            int result = -1;
-            result = cmd.parse(9, newargs);
-            if (result != ArgvParser::NoParserError)
-            {
-                std::cout << cmd.parseErrorDescription(result);
-                exit(1);
-            }
-
-            std::cout << "Executing the following default command: " << endl;
-            std::cout << argv[0] << " " << arg1str << " --l_img_pref=left_ --r_img_pref=right_ --DynKeyP --subPixRef=1 --c_file=calib_cam_to_cam.txt --autoTH --showRect" << endl << endl;
-            std::cout << "For options see help with option -h" << endl;
-        }
-        else
-        {
-            std::cout << "Standard image path not available!" << endl << "Options necessary - see help below." << endl << endl;
-            std::cout << cmd.usageDescription();
-            exit(1);
-        }
-    }
-    else
-    {
-        int result = -1;
-        result = cmd.parse(argc, argv);
-        if (result != ArgvParser::NoParserError)
-        {
-            std::cout << cmd.parseErrorDescription(result);
-            exit(1);
-        }
+        std::cout << cmd.parseErrorDescription(result);
+        exit(1);
     }
 }
 
@@ -506,7 +448,6 @@ void startEvaluation(ArgvParser& cmd)
     double USACdegenTh = 1.65;
     int cfgUSACnr[6] = {3,1,1,2,2,0};
     int refineRTnr[2] = { 2, 2 };
-	// int evStepStereoStable = 0;
 	bool compInitPose = false;
 	bool kneipInsteadBA = false;
 	double maxDist3DPtsZ = 130.0;
@@ -524,19 +465,6 @@ void startEvaluation(ArgvParser& cmd)
 
     showRect = cmd.foundOption("showRect");
 	compInitPose = cmd.foundOption("compInitPose");
-
-	// if (cmd.foundOption("evStepStereoStable"))
-	// {
-	// 	evStepStereoStable = stoi(cmd.optionValue("evStepStereoStable"));
-	// 	if (evStepStereoStable < 0 || evStepStereoStable > 1000)
-	// 	{
-	// 		std::cout << "The number of image pairs skipped " << evStepStereoStable << " before estimating a new pose is out of range. Using default value of 0." << std::endl;
-	// 		evStepStereoStable = 0;
-	// 	}
-	// }
-	// else {
-    //     evStepStereoStable = 0;
-    // }
 
     if (cmd.foundOption("subPixRef"))
     {
@@ -951,8 +879,6 @@ void startEvaluation(ArgvParser& cmd)
 	}
 
     int failNr = 0;
-	// const int evStepStereoStable_tmp = evStepStereoStable + 1;
-	// int evStepStereoStable_cnt = evStepStereoStable_tmp;
     for(int i = 0; i < (oneCam ? ((int)filenamesl.size() - step):(int)filenamesl.size()); i++)
     {
         if(oneCam)
@@ -1343,7 +1269,6 @@ void startEvaluation(ArgvParser& cmd)
 			{
 				R = R_kneip;
 				t = t_kneip;
-//					if ((BART > 0) && !kneipInsteadBA)
 				Mat mask_tmp = mask.clone();
 				int nr_triang = poselib::triangPts3D(R, t, p1, p2, Q, mask, maxDist3DPtsZ);
 				if(nr_triang < 0){
@@ -1374,7 +1299,7 @@ void startEvaluation(ArgvParser& cmd)
 			t_mea = (double)getTickCount(); //Start time measurement
 		}
 
-		//Bundle adjustment
+		//Bundle adjustment using Kneip's Eigen solver
 		if (kneipInsteadBA)
 		{
 			cv::Mat R_tmp, t_tmp;
