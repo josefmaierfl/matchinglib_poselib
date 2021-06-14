@@ -60,7 +60,7 @@ namespace matchinglib
 //Extraction of descriptors at given keypoint locations
   int MATCHINGLIB_API getDescriptors(cv::Mat &img,
                                      std::vector<cv::KeyPoint> &keypoints,
-                                     std::string& descriptortype,
+                                     std::string const& descriptortype,
                                      cv::Mat & descriptors,
 									 std::string const& keypointtype = "");
 

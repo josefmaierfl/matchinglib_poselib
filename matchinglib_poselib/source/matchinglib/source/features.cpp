@@ -396,7 +396,7 @@ namespace matchinglib
    */
   int getDescriptors(Mat &img,
                      std::vector<cv::KeyPoint> & keypoints,
-                     std::string& descriptortype,
+                     std::string const& descriptortype,
                      cv::Mat & descriptors,
                      std::string const& keypointtype)
   {
