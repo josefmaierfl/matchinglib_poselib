@@ -54,10 +54,19 @@
 //#include <eigen3/Eigen/Dense>
 
 #include <opencv2/core/eigen.hpp>
+#include <random>
 
 #define ARRSAC 3
 
-using namespace cv; 
+using namespace cv;
+
+bool findEssentialMat(OutputArray Essential, InputArray points1, InputArray points2, std::mt19937 &mt,
+                      int method = cv::RANSAC,
+                      double prob = 0.999, double threshold = 1, OutputArray mask = noArray(), bool lesqu = false,
+                      void (*refineEssential)(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init,
+                                              cv::Mat &E_refined, double th, unsigned int iters, bool makeClosestE,
+                                              double *sumSqrErr_init, double *sumSqrErr,
+                                              cv::OutputArray errors, cv::InputOutputArray mask, int model, bool tryOrientedEpipolar, bool normalizeCorrs) = NULL);
 
 bool findEssentialMat(OutputArray Essential, InputArray points1, InputArray points2, /*double focal = 1.0, Point2d pp = Point2d(0, 0), */
 					int method = cv::RANSAC,

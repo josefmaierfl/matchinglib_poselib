@@ -43,6 +43,7 @@
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/features2d/features2d.hpp"
 #include "matchinglib/glob_includes.h"
+#include <random>
 
 #include "matchinglib/matchinglib_api.h"
 
@@ -51,4 +52,6 @@
 /* --------------------- Function prototypes --------------------- */
 
 //Filters matches using the VFC algorithm
-int MATCHINGLIB_API filterWithVFC(std::vector<cv::KeyPoint> const& keypL, std::vector<cv::KeyPoint> const& keypR, std::vector<cv::DMatch> const& matches_in, std::vector<cv::DMatch> & matches_out);
+int MATCHINGLIB_API filterWithVFC(std::vector<cv::KeyPoint> const &keypL, std::vector<cv::KeyPoint> const &keypR, std::vector<cv::DMatch> const &matches_in, std::vector<cv::DMatch> &matches_out);
+
+int MATCHINGLIB_API filterWithVFC(std::vector<cv::KeyPoint> const &keypL, std::vector<cv::KeyPoint> const &keypR, std::vector<cv::DMatch> const &matches_in, std::vector<cv::DMatch> &matches_out, std::mt19937 &mt);

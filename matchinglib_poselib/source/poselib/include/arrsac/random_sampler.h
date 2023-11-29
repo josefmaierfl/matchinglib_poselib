@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <algorithm>
 #include <vector>
+#include <random>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -51,29 +52,38 @@ template <class Datum> class RandomSampler : public Sampler<Datum> {
  public:
   // num_samples: the number of samples needed. Typically this corresponds to
   //   the minumum number of samples needed to estimate a model.
-  explicit RandomSampler(int num_samples) : num_samples_(num_samples) {
-    //InitRandomGenerator();
-  }
+   explicit RandomSampler(int num_samples, std::mt19937 &mt) : num_samples_(num_samples), mt_(mt)
+   {
+     // InitRandomGenerator();
+   }
 
   ~RandomSampler() {}
   // Samples the input variable data and fills the vector subset with the
   // random samples.
   bool Sample(const std::vector<Datum>& data, std::vector<Datum>* subset) {
     subset->resize(num_samples_);
-    std::vector<int> random_numbers;
+    // std::vector<int> random_numbers;
 
-	static cv::RNG rng;
+    std::vector<int> numbers_all(data.size());
+    std::iota(numbers_all.begin(), numbers_all.end(), 0);
+    std::shuffle(numbers_all.begin(), numbers_all.end(), mt_);
 
-    for (int i = 0; i < num_samples_; i++) {
-      int rand_number;
-      // Generate a random number that has not already been used.
-      while (std::find(random_numbers.begin(), random_numbers.end(),
-                       (rand_number = rng.uniform((int)0, (int)data.size()))) !=
-             random_numbers.end()) {}
+    // static cv::RNG rng;
 
-      random_numbers.push_back(rand_number);
-      subset->at(i) = data[rand_number];
-    }
+    for (int i = 0; i < num_samples_; i++)
+    {
+      // int rand_number;
+      // // Generate a random number that has not already been used.
+      // while (std::find(random_numbers.begin(), random_numbers.end(),
+      //                  (rand_number = rng.uniform((int)0, (int)data.size()))) !=
+      //        random_numbers.end())
+      // {
+      // }
+
+      // random_numbers.push_back(rand_number);
+      // subset->at(i) = data[rand_number];
+      subset->at(i) = data.at(numbers_all.at(i));
+  }
     return true;
   }
 
@@ -90,6 +100,7 @@ template <class Datum> class RandomSampler : public Sampler<Datum> {
  private:
   // Number of samples to obtain.
   int num_samples_;
+  std::mt19937 &mt_;
 };
 
 }  // namespace theia

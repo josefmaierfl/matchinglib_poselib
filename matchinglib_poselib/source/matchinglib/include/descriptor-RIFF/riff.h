@@ -27,10 +27,10 @@ public:
 public:
 	//void  Keypoints_Detection(cv::Mat& image, std::vector<cv::KeyPoint>& Key_Points);//this function is used to detect the key points in the image
 	void  Retinapattern_Bulid();//this function is used establish the retina sampling pattern
-	float Orentation_Calculate(cv::Mat& image, cv::Mat& integral, float keypoint_x, float keypoint_y, int k_point);//this function is used to calculate the orientation of the key points
-	void  Scale_Update(cv::Mat& image,std::vector<cv::KeyPoint>& Key_Points);//this function is used to update the scale of detected key points
-	void  Descriptor_Generation(cv::Mat& image, cv::Mat& descriptors, std::vector<cv::KeyPoint>& Key_Points);//this function is used to generate the retina features
-	float Mean_Compute(cv::Mat& image, cv::Mat& integral, float keypoint_x, float keypoint_y, int scale, int rotation, int point);//this function is to compute the mean value
+	float Orentation_Calculate(const cv::Mat& image, cv::Mat& integral, float keypoint_x, float keypoint_y, int k_point);//this function is used to calculate the orientation of the key points
+	void  Scale_Update(const cv::Mat& image,std::vector<cv::KeyPoint>& Key_Points);//this function is used to update the scale of detected key points
+	void  Descriptor_Generation(const cv::Mat& image, cv::Mat& descriptors, std::vector<cv::KeyPoint>& Key_Points);//this function is used to generate the retina features
+	float Mean_Compute(const cv::Mat& image, cv::Mat& integral, float keypoint_x, float keypoint_y, int scale, int rotation, int point);//this function is to compute the mean value
 	void  Top_Salientpoints(cv::Mat& detected_descriptors, std::vector<cv::KeyPoint>& detected_keypoinits, cv::Mat& topdescriptors, std::vector<cv::KeyPoint>& topkeypoinits);//this function is used to computer the top salient points 
 	void  Descriptor_Match(cv::Mat& image_a, cv::Mat& image_b, cv::Mat& image_c, cv::Mat& image_d, std::vector<cv::KeyPoint>& keypoints_a, std::vector<cv::KeyPoint> keypoints_b, cv::Mat& descriptor_a, cv::Mat& descriptor_b);//this function is used to match two calculated descriptors and draw the line between the correspondences 
    

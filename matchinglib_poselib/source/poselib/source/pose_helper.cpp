@@ -50,6 +50,10 @@
 #include <string>
 #include <chrono>
 #include <thread>
+#include <map>
+
+#include <unsupported/Eigen/MatrixFunctions>
+#include <Eigen/Eigenvalues>
 
 using namespace cv;
 using namespace std;
@@ -663,6 +667,525 @@ void computeReprojError2(cv::Mat X1, cv::Mat X2, const cv::Mat& E, std::vector<d
     }
 }
 
+/* Computes the Sampson distance (first-order geometric error) for the provided point correspondence.
+ *
+ * Point2f p1				Input  -> Point in the left (first) camera
+ * Point2f p2				Input  -> Point in the right (second) camera
+ * Mat F					Input  -> Essential matrix or fundamental matrix -> depends on coordinate
+ *									  system
+ *
+ * Return value:		    (Squared) sampson error
+ */
+double calculateSampsonError(const cv::Point2f &p1, const cv::Point2f &p2, const cv::Mat &F)
+{
+    cv::Mat x1 = (cv::Mat_<double>(3, 1) << static_cast<double>(p1.x), static_cast<double>(p1.y), 1.0);
+    cv::Mat x2 = (cv::Mat_<double>(3, 1) << static_cast<double>(p2.x), static_cast<double>(p2.y), 1.0);
+    double x2tEx1 = x2.dot(F * x1);
+    cv::Mat Ex1 = F * x1;
+    cv::Mat Etx2 = F.t() * x2;
+    double a = Ex1.at<double>(0) * Ex1.at<double>(0);
+    double b = Ex1.at<double>(1) * Ex1.at<double>(1);
+    double c = Etx2.at<double>(0) * Etx2.at<double>(0);
+    double d = Etx2.at<double>(1) * Etx2.at<double>(1);
+
+    return x2tEx1 * x2tEx1 / (a + b + c + d);
+}
+
+/* Computes the squared distance to the epipolar line in the second image for the provided point correspondence
+ *
+ * Point2f p1				Input  -> Point in the left (first) camera
+ * Point2f p2				Input  -> Point in the right (second) camera
+ * Mat F					Input  -> Essential matrix or fundamental matrix -> depends on coordinate
+ *									  system
+ *
+ * Return value:		    Squared distance to epipolar line in the second image
+ */
+double calculateEpipolarLineDistanceImg2Squared(const cv::Point2f &p1, const cv::Point2f &p2, const cv::Mat &F)
+{
+    cv::Mat x1 = (cv::Mat_<double>(3, 1) << static_cast<double>(p1.x), static_cast<double>(p1.y), 1.0);
+    cv::Mat l2 = F * x1;
+
+    const double a = l2.at<double>(0) * static_cast<double>(p2.x) + l2.at<double>(1) * static_cast<double>(p2.y) + l2.at<double>(2);
+    const double b = l2.at<double>(0) * l2.at<double>(0) + l2.at<double>(1) * l2.at<double>(1);
+
+    return a * a / b;
+}
+
+/* Computes the squared distance to the epipolar line in the second image for the provided point correspondence
+ *
+ * Mat p1				    Input  -> Point in the left (first) camera
+ * Mat p2				    Input  -> Point in the right (second) camera
+ * Mat F					Input  -> Essential matrix or fundamental matrix -> depends on coordinate
+ *									  system
+ *
+ * Return value:		    Squared distance to epipolar line in the second image
+ */
+double calculateEpipolarLineDistanceImg2Squared(const cv::Mat &p1, const cv::Mat &p2, const cv::Mat &F)
+{
+    cv::Mat x1 = (cv::Mat_<double>(3, 1) << p1.at<double>(0), p1.at<double>(1), 1.0);
+    cv::Mat l2 = F * x1;
+
+    const double a = l2.at<double>(0) * p2.at<double>(0) + l2.at<double>(1) * p2.at<double>(1) + l2.at<double>(2);
+    const double b = l2.at<double>(0) * l2.at<double>(0) + l2.at<double>(1) * l2.at<double>(1);
+
+    return a * a / b;
+}
+
+/* Computes the squared distance to the epipolar line in the first image for the provided point correspondence
+ *
+ * Point2f p1				Input  -> Point in the left (first) camera
+ * Point2f p2				Input  -> Point in the right (second) camera
+ * Mat F					Input  -> Essential matrix or fundamental matrix -> depends on coordinate
+ *									  system
+ *
+ * Return value:		    Squared distance to epipolar line in the first image
+ */
+double calculateEpipolarLineDistanceImg1Squared(const cv::Point2f &p1, const cv::Point2f &p2, const cv::Mat &F)
+{
+    cv::Mat x2 = (cv::Mat_<double>(3, 1) << static_cast<double>(p2.x), static_cast<double>(p2.y), 1.0);
+    cv::Mat l1 = F.t() * x2;
+
+    const double a = l1.at<double>(0) * static_cast<double>(p1.x) + l1.at<double>(1) * static_cast<double>(p1.y) + l1.at<double>(2);
+    const double b = l1.at<double>(0) * l1.at<double>(0) + l1.at<double>(1) * l1.at<double>(1);
+
+    return a * a / b;
+}
+
+/* Computes the squared distance to the epipolar line in the first image for the provided point correspondence
+ *
+ * Mat p1				    Input  -> Point in the left (first) camera
+ * Mat p2				    Input  -> Point in the right (second) camera
+ * Mat F					Input  -> Essential matrix or fundamental matrix -> depends on coordinate
+ *									  system
+ *
+ * Return value:		    Squared distance to epipolar line in the first image
+ */
+double calculateEpipolarLineDistanceImg1Squared(const cv::Mat &p1, const cv::Mat &p2, const cv::Mat &F)
+{
+    cv::Mat x2 = (cv::Mat_<double>(3, 1) << p2.at<double>(0), p2.at<double>(1), 1.0);
+    cv::Mat l1 = F.t() * x2;
+
+    const double a = l1.at<double>(0) * p1.at<double>(0) + l1.at<double>(1) * p1.at<double>(1) + l1.at<double>(2);
+    const double b = l1.at<double>(0) * l1.at<double>(0) + l1.at<double>(1) * l1.at<double>(1);
+
+    return a * a / b;
+}    
+
+/* Computes sqrt distances for every provided point correspondence of mean 1/2 * (e1 + e2) squared 
+ * distances e1 and e2 to epipolar lines in first and second images
+ *
+ * vector<Point2f> points1		Input  -> Corresponding points in the left (first) camera
+ * vector<Point2f> points2		Input  -> Corresponding points in the right (second) camera
+ * Mat F					    Input  -> Essential matrix or fundamental matrix -> depends on coordinate
+ *			    						  system
+ * vector<double> errors	    Output -> sqrt mean (1st and 2nd camera) epipolar distances for every provided point correspondence
+ *
+ * Return value:		        none
+ */
+void calculateEpipolarLineDistanceImg12(const std::vector<cv::Point2f> &points1, const std::vector<cv::Point2f> &points2, const cv::Mat &F, std::vector<double> &errors)
+{
+    const size_t si = points1.size();
+    errors.clear();
+    errors.reserve(si);
+    for (size_t i = 0; i < si; ++i)
+    {
+        errors.emplace_back(sqrt(calculateEpipolarLineDistanceImg12SquaredMean(points1.at(i), points2.at(i), F)));
+    }
+}
+
+/* Computes sqrt distances for every provided point correspondence of mean 1/2 * (e1 + e2) squared 
+ * distances e1 and e2 to epipolar lines in first and second images
+ *
+ * Mat points1		            Input  -> Corresponding points in the left (first) camera. One coordinate per row
+ * Mat points2		            Input  -> Corresponding points in the right (second) camera. One coordinate per row
+ * Mat F					    Input  -> Essential matrix or fundamental matrix -> depends on coordinate
+ *			    						  system
+ * vector<double> errors	    Output -> sqrt mean (1st and 2nd camera) epipolar distances for every provided point correspondence
+ *
+ * Return value:		        none
+ */
+void calculateEpipolarLineDistanceImg12(const cv::Mat &points1, const cv::Mat &points2, const cv::Mat &F, std::vector<double> &errors)
+{
+    const int si = points1.rows;
+    errors.clear();
+    errors.reserve(si);
+    for (int i = 0; i < si; ++i)
+    {
+        errors.emplace_back(sqrt(calculateEpipolarLineDistanceImg12SquaredMean(points1.row(i), points2.row(i), F)));
+    }
+}
+
+/* Computes sqrt mean distance over all provided point correspondence of mean 1/2 * (e1 + e2) 
+ * squared distances e1 and e2 to epipolar lines in first and second images
+ *
+ * vector<Point2f> points1		Input  -> Corresponding points in the left (first) camera
+ * vector<Point2f> points2		Input  -> Corresponding points in the right (second) camera
+ * Mat F					    Input  -> Essential matrix or fundamental matrix -> depends on coordinate
+ *			    						  system
+ *
+ * Return value:		        sqrt mean epipolar distances over all provided point correspondences
+ */
+double calculateMeanEpipolarLineDistanceImg12(const std::vector<cv::Point2f> &points1, const std::vector<cv::Point2f> &points2, const cv::Mat &F)
+{
+    const size_t si = points1.size();
+    double error = 0;
+    for (size_t i = 0; i < si; ++i)
+    {
+        error += calculateEpipolarLineDistanceImg12SquaredMean(points1.at(i), points2.at(i), F);
+    }
+    return sqrt(error / static_cast<double>(si));
+}
+
+/* Computes sqrt mean distance over all provided point correspondence of mean 1/2 * (e1 + e2) 
+ * squared distances e1 and e2 to epipolar lines in first and second images
+ *
+ * Mat points1		            Input  -> Corresponding points in the left (first) camera. One coordinate per row
+ * Mat points2		            Input  -> Corresponding points in the right (second) camera. One coordinate per row
+ * Mat F					    Input  -> Essential matrix or fundamental matrix -> depends on coordinate
+ *			    						  system
+ *
+ * Return value:		        sqrt mean epipolar distances over all provided point correspondences
+ */
+double calculateMeanEpipolarLineDistanceImg12(const cv::Mat &points1, const cv::Mat &points2, const cv::Mat &F)
+{
+    const int si = points1.rows;
+    double error = 0;
+    for (int i = 0; i < si; ++i)
+    {
+        error += calculateEpipolarLineDistanceImg12SquaredMean(points1.row(i), points2.row(i), F);
+    }
+    return sqrt(error / static_cast<double>(si));
+}
+
+/* Compute the epipolar error of a single point correspondence in the camera coordinate system [x y z] = (K^-1 * [u v 1]^T) utilizing the Essential matrix E
+ *
+ * Vector2d x1				    Input  -> Point in the left (first) camera
+ * Vector2d x2				    Input  -> Point in the right (second) camera
+ * Matrix3d E					Input  -> Essential matrix
+ *
+ * Return value:		        Epipolar error [x2 y2 1] * E * [x1 y1 1]^T
+ */
+double calculateEpipolarError(const Eigen::Vector2d &x1, const Eigen::Vector2d &x2, const Eigen::Matrix3d &E)
+{
+    Eigen::Vector3d x1h(x1.x(), x1.y(), 1.0);
+    Eigen::Vector3d x2h(x2.x(), x2.y(), 1.0);
+    return calculateEpipolarError(x1h, x2h, E);
+}
+
+/* Compute the epipolar error of a single  homogeneous point correspondence in the camera coordinate system [x y z] = (K^-1 * [u v 1]^T) utilizing the Essential matrix E
+ *
+ * Vector3d x1				    Input  -> Point in the left (first) camera
+ * Vector3d x2				    Input  -> Point in the right (second) camera
+ * Matrix3d E					Input  -> Essential matrix
+ *
+ * Return value:		        Epipolar error [x2 y2 1] * E * [x1 y1 1]^T
+ */
+double calculateEpipolarError(const Eigen::Vector3d &x1h, const Eigen::Vector3d &x2h, const Eigen::Matrix3d &E)
+{
+    Eigen::Vector3d l2 = E * x1h;
+    return x2h.dot(l2);
+}
+
+/* Reject 3D points and image projections with high error values
+ *
+ * Mat Q				            I/O    -> 3D coordinates. 1 coordinate per row -> n rows
+ * vector<Mat> map3D		        I/O    -> Corresponding 3D point mask (size of n bytes) for every camera: map3D[c].at<char>(i) for camera c and i'th 3D point in Q
+ * vector<Mat> pts2D		        I/O    -> 2D image measurements for every camera ordered corresponding to Q. 
+ *                                            E.g. Q = [q0 q1 q2 q3 q4 q5 ...]^T, map3D[0] = [0 0 1 1 0 1 ...] -> pts2D[0] = [x2 x3 x5]
+ * vector<Mat> Rs		            Input  -> Rotation matrix for every camera
+ * vector<Mat> ts		            Input  -> Translation vector for every camera
+ * vector<Mat> Ks		            Input  -> Camera matrix for every camera
+ * int n_cams		                Input  -> Number of cameras
+ * double th		                Input  -> Reprojection error threshold in pixels
+ * float minRemainRatio		        Input  -> Minimum ratio (0 ... 1) of remaining 3D points. If below this ratio and forceFiltering=false, filtering is aborted. Default=0.33
+ * InputArray dists		            Input  -> Optional distortion coeffitients for every camera
+ * InputArray cheirality_mask		Input  -> Optional inlier mask for Q
+ * InputOutputArray Q2		        I/O    -> Optional 2nd array of 3D points corresponding to Q (e.g. from different estimation)
+ * bool forceFiltering		        Input  -> Forces filtering of Q and pts2D even if the ratio of remaining 3D points is below minRemainRatio. 
+ *                                            Still, more than 10 3D points must survive -> otherwise, abort.
+ * vector<vector<Point2f>> *pts2Df	I/O    -> Optional second array of 2D image measurements (e.g. keypoint locations). Filtering is performed based on pts2D (same index)
+ *
+ * Return value:		            Success
+ */
+bool rejectHighErr3D(cv::Mat &Q, 
+                     std::vector<cv::Mat> &map3D, 
+                     std::vector<cv::Mat> &pts2D, 
+                     const std::vector<cv::Mat> &Rs, 
+                     const std::vector<cv::Mat> &ts, 
+                     const std::vector<cv::Mat> &Ks, 
+                     const int &n_cams, 
+                     const double &th, 
+                     const float minRemainRatio, 
+                     cv::InputArray dists, 
+                     cv::InputArray cheirality_mask, 
+                     cv::InputOutputArray Q2, 
+                     const bool forceFiltering, 
+                     std::vector<std::vector<cv::Point2f>> *pts2Df)
+{
+    const int Q_nr = Q.rows;
+    bool haveDists = false;
+    vector<cv::Mat> dist_vec;
+    if (!dists.empty())
+    {
+        dists.getMatVector(dist_vec);
+        haveDists = true;
+    }
+    vector<cv::Mat> Ps;
+    for (int j = 0; j < n_cams; ++j)
+    {
+        if (pts2D.at(j).rows < 10)
+        {
+            return false;
+        }
+        cv::Mat Pc;
+        cv::hconcat(Rs[j], ts[j], Pc);
+        if (!haveDists)
+        {
+            Pc = Ks[j] * Pc;
+        }
+        Ps.emplace_back(Pc.clone());
+    }
+    cv::Mat Q_inlier_mask = cv::Mat::ones(Q_nr, 1, CV_8UC1);
+    if (cheirality_mask.empty())
+    {
+        Q_inlier_mask = cv::Mat::ones(Q_nr, 1, CV_8UC1);
+    }
+    else
+    {
+        Q_inlier_mask = cheirality_mask.getMat();
+    }
+    vector<int> cam_proj_indices(n_cams, 0);
+    for (int j = 0; j < Q_nr; j++)
+    {
+        bool invalid_found = false;
+        for (int c1 = 0; c1 < n_cams; ++c1)
+        {
+            if (map3D[c1].at<char>(j))
+            {
+                if (invalid_found){
+                    cam_proj_indices[c1]++;
+                    continue;
+                }
+                cv::Mat Qh = (cv::Mat_<double>(4, 1) << Q.at<double>(j, 0), Q.at<double>(j, 1), Q.at<double>(j, 2), 1.0);
+                cv::Mat qc = Ps[c1] * Qh;
+                if (haveDists)
+                {
+                    qc /= qc.at<double>(2);
+                    qc.resize(2);
+                    qc = distort(qc, dist_vec[c1]);
+                    qc.resize(3, 1.0);
+                    qc = Ks[c1] * qc;
+                    qc /= qc.at<double>(2);
+                    qc.resize(2);
+                }
+                else
+                {
+                    qc /= qc.at<double>(2);
+                    qc.resize(2);
+                }
+                int &img_p_i = cam_proj_indices[c1];
+                cv::Mat x_img = pts2D[c1].row(img_p_i++).t();
+                cv::Mat x_diff = qc - x_img;
+                const double repr_e_c = cv::norm(x_diff);
+                if (repr_e_c > th)
+                {
+                    Q_inlier_mask.at<unsigned char>(j) = 0;
+                    invalid_found = true;
+                }
+            }
+        }
+    }
+
+    int nr_Q_remaining = cv::countNonZero(Q_inlier_mask);
+    float rem_part = static_cast<float>(nr_Q_remaining) / static_cast<float>(Q_nr);
+    if (!forceFiltering && ((nr_Q_remaining < 100 && nr_Q_remaining < Q_nr) || rem_part < minRemainRatio))
+    {
+        return false;
+    }
+    else if (forceFiltering && nr_Q_remaining < 10)
+    {
+        return false;
+    }
+    if (nr_Q_remaining < Q_nr)
+    {
+        cv::Mat Q_new, Q_new2, Q2_;
+        bool sec_Q = !Q2.empty();
+        if (sec_Q)
+        {
+            Q2_ = Q2.getMat();
+        }
+        std::vector<cv::Mat> map3D_new, pts2D_new(n_cams, cv::Mat());
+        std::vector<std::vector<cv::Point2f>> pts2Df_new(n_cams, std::vector<cv::Point2f>());
+        for (int j = 0; j < n_cams; ++j)
+        {
+            map3D_new.emplace_back(cv::Mat::zeros(nr_Q_remaining, 1, CV_8SC1));
+        }
+        cam_proj_indices = vector<int>(n_cams, 0);
+        int q_idx = -1;
+        for (int j = 0; j < Q_nr; j++)
+        {
+            if (Q_inlier_mask.at<unsigned char>(j))
+            {
+                Q_new.push_back(Q.row(j));
+                if (sec_Q)
+                {
+                    Q_new2.push_back(Q2_.row(j));
+                }
+                q_idx++;
+            }
+            for (int c1 = 0; c1 < n_cams; ++c1)
+            {
+                if (map3D[c1].at<char>(j))
+                {
+                    if (Q_inlier_mask.at<unsigned char>(j))
+                    {
+                        map3D_new[c1].at<char>(q_idx) = 1;
+                        pts2D_new[c1].push_back(pts2D[c1].row(cam_proj_indices[c1]));
+                        if (pts2Df){
+                            pts2Df_new[c1].emplace_back(pts2Df->at(c1).at(cam_proj_indices[c1]));
+                        }
+                    }
+                    cam_proj_indices[c1]++;
+                }
+            }
+        }
+        for (int j = 0; j < n_cams; ++j)
+        {
+            if (pts2D_new.at(j).rows < 10)
+            {
+                return false;
+            }
+        }
+        Q_new.copyTo(Q);
+        if (sec_Q)
+        {
+            Q2.create(Q_new.size(), Q_new.type());
+            cv::Mat Q_ref = Q2.getMat();
+            Q_new2.copyTo(Q_ref);
+        }
+        map3D = move(map3D_new);
+        pts2D = move(pts2D_new);
+        if (pts2Df)
+        {
+            *pts2Df = move(pts2Df_new);
+        }
+    }
+    return true;
+}
+
+/* Clone all parameters and 3D points for n cameras
+ *
+ * vector<Mat> Rs_in		        Input  -> Rotation matrix for every camera
+ * vector<Mat> ts_in		        Input  -> Translation vector for every camera
+ * vector<Mat> Rs_out		        Output -> Rotation matrix for every camera
+ * vector<Mat> ts_out		        Output -> Translation vector for every camera
+ * InputArray Qs_in				    Input  -> Optional 3D coordinates. 1 coordinate per row -> n rows
+ * InputArray Qs_out				Output -> Optional 3D coordinates. 1 coordinate per row -> n rows
+ * InputArray Ks_in		            Input  -> Camera matrix for every camera as vector<Mat>
+ * vector<Mat> *Ks_out		        Output -> Camera matrix for every camera
+ * InputArray dists_in		        Input  -> Optional distortion coeffitients for every camera
+ * vector<Mat> *dists_out		    Output -> Optional distortion coeffitients for every camera
+ *
+ * Return value:		            None
+ */
+void cloneParameters(const std::vector<cv::Mat> &Rs_in, const std::vector<cv::Mat> &ts_in,
+                     std::vector<cv::Mat> &Rs_out, std::vector<cv::Mat> &ts_out,
+                     cv::InputArray Qs_in, cv::OutputArray Qs_out,
+                     cv::InputArray Ks_in, std::vector<cv::Mat> *Ks_out,
+                     cv::InputArray dists_in, std::vector<cv::Mat> *dists_out)
+{
+    const size_t nr_elems = Rs_in.size();
+    Rs_out.clear();
+    ts_out.clear();
+    for (size_t i = 0; i < nr_elems; ++i)
+    {
+        Rs_out.emplace_back(Rs_in.at(i).clone());
+        ts_out.emplace_back(ts_in.at(i).clone());
+    }
+    if (!Qs_in.empty() && Qs_out.needed())
+    {
+        cv::Mat Qs = Qs_in.getMat();
+        if (Qs_out.empty())
+        {
+            Qs_out.create(Qs.size(), Qs.type());
+        }
+        cv::Mat Qsc = Qs_out.getMat();
+        Qs.copyTo(Qsc);
+    }
+    if (!Ks_in.empty() && Ks_out)
+    {
+        vector<cv::Mat> Ks;
+        Ks_in.getMatVector(Ks);
+        Ks_out->clear();
+        for (size_t i = 0; i < nr_elems; ++i)
+        {
+            Ks_out->emplace_back(Ks.at(i).clone());
+        }
+    }
+    if (!dists_in.empty() && dists_out)
+    {
+        vector<cv::Mat> dists, distsc;
+        dists_in.getMatVector(dists);
+        dists_out->clear();
+        for (size_t i = 0; i < nr_elems; ++i)
+        {
+            dists_out->emplace_back(dists.at(i).clone());
+        }
+    }
+}
+
+/* Project a 3D point on the image plane
+ *
+ * Vec3d Q			Input  -> 3D point
+ * Matx33d R		Input  -> Rotation matrix
+ * Vec3d t			Input  -> Translation vector
+ * Matx33d K		Input  -> Camera matrix
+ *
+ * Return value:    Homogeneous normalized image projection [u v 1]
+ */
+cv::Mat_<double> project3D(const cv::Vec3d &Q, const cv::Matx33d &R, const cv::Vec3d &t, const cv::Matx33d &K)
+{
+    cv::Vec3d x = K * (R * Q + t);
+    x /= x[2];
+    return cv::Mat(x);
+}
+
+/* Calculates squared distance between a given image coordinate and a 3D point projected into the image plane (no distortion)
+ *
+ * Vec3d Q			Input  -> 3D point
+ * Matx33d R		Input  -> Rotation matrix
+ * Vec3d t			Input  -> Translation vector
+ * Matx33d K		Input  -> Camera matrix
+ * Vec2d x	    	Input  -> 2D image measurement
+ *
+ * Return value:    Squared distance between x and projected Q
+ */
+double reproject3DDist2(const cv::Vec3d &Q, const cv::Matx33d &R, const cv::Vec3d &t, const cv::Matx33d &K, const cv::Vec2d &x)
+{
+    cv::Mat xr = project3D(Q, R, t, K);
+    xr.resize(2);
+    cv::Vec2d xrv(xr);
+    cv::Vec2d d = x - xrv;
+    return d[0] * d[0] + d[1] * d[1];
+}
+
+/* Returns true, if the squared distance between a given image coordinate and a 3D point projected into the image plane (no distortion) 
+ * is below a threshold (provide the squared threshold to compare against the squared distance)
+ *
+ * Vec3d Q			Input  -> 3D point
+ * Matx33d R		Input  -> Rotation matrix
+ * Vec3d t			Input  -> Translation vector
+ * Matx33d K		Input  -> Camera matrix
+ * Vec2d x	    	Input  -> 2D image measurement
+ * double th    	Input  -> Squared pixel threshold
+ *
+ * Return value:    Squared distance between x and projected Q
+ */
+bool reproject3DTh2(const cv::Vec3d &Q, const cv::Matx33d &R, const cv::Vec3d &t, const cv::Matx33d &K, const cv::Vec2d &x, const double &th){
+    double d = reproject3DDist2(Q, R, t, K, x);
+    return d < th;
+}
+
 /* Calculates the euler angles from a given rotation matrix. As default the angles are returned in degrees.
  *
  * InputArray R							Input  -> Rotation matrix
@@ -785,6 +1308,19 @@ void getRTQuality(Eigen::Vector4d & R, Eigen::Vector4d & Rcalib, Eigen::Vector3d
 cv::Mat getEfromRT(const cv::Mat& R, const cv::Mat& t)
 {
     return getSkewSymMatFromVec(t/normFromVec(t)) * R;
+}
+
+/* Calculates the essential matrix from the rotation matrix R and the translation
+ * vector t: E = [t]x * R
+ *
+ * Matrix3d R						Input  -> Rotation matrix R
+ * Vector3d t						Input  -> Translation vector t
+ *
+ * Return value:					Essential matrix
+ */
+Eigen::Matrix3d getEfromRT(const Eigen::Matrix3d &R, const Eigen::Vector3d &t)
+{
+    return getSkewSymMatFromVec<double>(t / t.norm()) * R;
 }
 
 /* Generates a 3x3 skew-symmetric matrix from a 3-vector (allows multiplication
@@ -1088,6 +1624,170 @@ Eigen::Vector4d quatConj(const Eigen::Vector4d & Q) //'transpose' -- inverse rot
     return invertedRot;
 }
 
+/* Computes the Lie-Logarithm for a rotation matrix R
+ *
+ * Eigen::Matrix3d R		Input  -> Rotation matrix
+ *
+ * Return value:			The resulting Lie-Logarithm of R
+ */
+Eigen::Vector3cd compute_Lie_log(const Eigen::Matrix3d &R)
+{
+    //Computes the Lie-Logarithm
+    //R = expm([lie_log(R)]_x) ... with [*]_x a skew-smmetric matrix (cross product -> matrix multiplication)
+    //see page 18 of http://users.cecs.anu.edu.au/~hongdong/rotationaveraging.pdf
+    //and https://de.mathworks.com/matlabcentral/answers/240322-how-to-find-rotation-matrix-mean
+
+    //Calculate eigen values and eigen vectors
+    Eigen::EigenSolver<Eigen::Matrix3d> es;
+    es.compute(R, true);
+
+    Eigen::Vector3cd eig_vals_compl = es.eigenvalues();
+    Eigen::Matrix3cd eig_vecs_compl = es.eigenvectors();
+
+    Eigen::Vector3d eig_vals_phase = eig_vals_compl.array().arg();
+
+    int idx_max, idx_min;
+    double ang = eig_vals_phase.maxCoeff(&idx_max);
+
+    Eigen::Vector3cd eig_vals_m1 = eig_vals_compl - Eigen::Vector3d::Ones();
+
+    Eigen::Vector3d eig_vals_magnitude = eig_vals_m1.array().abs2();
+    double mag = eig_vals_magnitude.minCoeff(&idx_min);
+
+    Eigen::Vector3cd v1 = ang * eig_vecs_compl.col(idx_min);
+    Eigen::Vector3cd v2 = -1. * ang * eig_vecs_compl.col(idx_min);
+
+    Eigen::Matrix3cd v1_x = getSkewSymMatFromVec(v1);
+    Eigen::Matrix3cd v2_x = getSkewSymMatFromVec(v2);
+
+    Eigen::Matrix3d R1 = v1_x.exp().real();
+    Eigen::Matrix3d R2 = v2_x.exp().real();
+
+    Eigen::Matrix3d RR1 = R * R1.transpose(); // R1.adjoint();
+    Eigen::Matrix3d RR2 = R * R2.transpose(); // R2.adjoint();
+
+    Eigen::EigenSolver<Eigen::Matrix3d> es1;
+    es.compute(RR1, false);
+    Eigen::Vector3cd eig_vals_compl1 = es1.eigenvalues();
+    Eigen::Vector3d eig_vals_phase1 = eig_vals_compl1.array().arg();
+    double ang1 = eig_vals_phase1.maxCoeff();
+
+    es.compute(RR2, false);
+    Eigen::Vector3cd eig_vals_compl2 = es1.eigenvalues();
+    Eigen::Vector3d eig_vals_phase2 = eig_vals_compl2.array().arg();
+    double ang2 = eig_vals_phase2.maxCoeff();
+
+    if (ang2 > ang1){
+        return v1;
+    }
+    return v2;
+}
+
+/* Calculate a mean rotation matrix from multiple rotation matrices
+ * See page 18 of http://users.cecs.anu.edu.au/~hongdong/rotationaveraging.pdf
+ *
+ * vector<Mat> Rs		Input  -> Rotation matrices
+ *
+ * Return value:        Average rotation matrix
+ */
+cv::Mat getMeanRotation(const std::vector<cv::Mat> &Rs)
+{
+    //see page 18 of http://users.cecs.anu.edu.au/~hongdong/rotationaveraging.pdf
+    if(Rs.empty()){
+        return cv::Mat();
+    }
+    if (Rs.size() == 1)
+    {
+        return Rs[0];
+    }
+    #define USE_EXPONENTIAL 0
+
+    cv::Mat R_avg = Rs[0].clone();
+    const int max_it = 1000;
+    const double tol_r = 1e-10;
+    for (int i = 0; i < max_it; i++)
+    {
+        std::vector<cv::Mat> axis_angle;
+        //Get axis-angle representations of rotation differences
+        for (const auto &Rx : Rs)
+        {
+            cv::Mat v;
+            cv::Rodrigues(R_avg.t() * Rx, v);
+            axis_angle.emplace_back(v);
+        }
+
+        //Calculate mean axis-angle difference
+        cv::Mat v_mean = cv::Mat::zeros(axis_angle[0].size(), axis_angle[0].type());
+        for (const auto &vx : axis_angle)
+        {
+            v_mean += vx;
+        }
+        v_mean /= static_cast<double>(axis_angle.size());
+
+#if USE_EXPONENTIAL
+        Eigen::Vector3d v_eig;
+        cv::cv2eigen(v_mean, v_eig);
+        //Calculate rotation matrix using matrix exponential of skew-symmetric matrix from axis-angle
+        //See pages 583-585 in "Multiple View Geometry in computer vision" from R. Hartley and A. Zisserman
+        Eigen::Matrix3d V_x = getSkewSymMatFromVec(v_eig);
+        Eigen::Matrix3d R_eig = V_x.exp();
+        cv::Mat R_diff;
+        cv::eigen2cv(R_eig, R_diff);
+#else
+        cv::Mat R_diff;
+        cv::Rodrigues(v_mean, R_diff);
+#endif
+        R_avg = R_avg * R_diff;
+
+        const double v_norm = cv::norm(v_mean);
+        if(v_norm < tol_r){
+            break;
+        }
+    }
+
+    return R_avg;
+}
+
+/* Calculate a mean translation vector from multiple translation vectors
+ *
+ * vector<Mat> ts		Input  -> Translation vectors
+ *
+ * Return value:        Average translation vector
+ */
+cv::Mat getMeanTranslation(const std::vector<cv::Mat> &ts)
+{
+    if (ts.empty())
+    {
+        return cv::Mat();
+    }
+    if (ts.size() == 1)
+    {
+        return ts[0];
+    }
+
+    cv::Mat t_mean = cv::Mat::zeros(ts[0].size(), ts[0].type());
+    // std::cout << "Translations for AVG:" << std::endl;
+    for(const auto &t: ts){
+        t_mean += t;
+        // printCvMat(t.t(), "t");
+    }
+    t_mean /= static_cast<double>(ts.size());
+
+    return t_mean;
+}
+
+/* Calculate the camera center from rotation matrix R and translation vector t
+ *
+ * Mat R		Input  -> Rotation matrix
+ * Mat t		Input  -> Translation vector
+ *
+ * Return value:        Camera center
+ */
+cv::Mat getCamCenterFromRt(const cv::Mat &R, const cv::Mat &t)
+{
+    return -1.0 * R.t() * t;
+}
+
 /* Normalizes the image coordinates and transfers the image coordinates into
  * cameracoordinates, respectively.
  *
@@ -1186,12 +1886,12 @@ bool Remove_LensDist(std::vector<cv::Point2f>& points1,
     distpoints2 = points2;
     for(int i = 0;i < n;i++)
     {
-        if(!LensDist_Oulu(distpoints1[i], points1[i], dist1))
+        if(!LensDist_Oulu(distpoints1[i], points1[i], dist1, cv::noArray()))
         {
             mask.at<bool>(i) = false;
             continue;
         }
-        if(!LensDist_Oulu(distpoints2[i], points2[i], dist2))
+        if(!LensDist_Oulu(distpoints2[i], points2[i], dist2, cv::noArray()))
             mask.at<bool>(i) = false;
     }
 
@@ -1223,8 +1923,8 @@ bool Remove_LensDist(std::vector<cv::Point2f>& points1,
 }
 
 
-/* This function undistorts an image point using distortion parameters (intended for distorting a
- * point) and the methode of the Oulu University
+/* This function undistorts a point in the camera coordinate system [x y z] = (K^-1 * [u v 1]^T) -> 1/z * [x y] 
+ * using the methode from the Oulu University.
  *
  * Point2f* distorted				Input  -> Distorted point
  * Point2f* corrected				Output -> Corrected (undistorted) point
@@ -1278,6 +1978,439 @@ bool LensDist_Oulu(const cv::Point2f& distorted, cv::Point2f& corrected, cv::Mat
     return true;
 }
 
+/* This function undistorts a point in the camera coordinate system [x y z] = (K^-1 * [u v 1]^T) -> 1/z * [x y] 
+ * using the methode from the Oulu University. Different distortion models are suppoted including
+ * thin prism distortion and the distortion (rotation) matrix R_tau for the tilted sensor model distortion
+ *
+ * cv::Mat distorted				Input  -> Distorted point
+ * cv::Mat corrected				Output -> Corrected (undistorted) point
+ * cv::Mat dist						Input  -> Distortion coefficients. The ordering of the coefficients
+ *											  is compliant with the OpenCV library: (k1,k2,p1,p2[,k3[,k4,k5,k6[,s1,s2,s3,s4]]]) or (k1,k2,k3)
+ * InputArray R_tau				    Input  -> Distortion (rotation) matrix for the tilted sensor model distortion
+ * int iters						Input  -> Number of iterations used to correct the point:
+ *									the higher the number, the better the solution (use a number
+ *									between 3 and 20). The number 3 typically results in an error
+ *									of 0.1 pixels.
+ *
+ * Return value:					true:  Everything ok.
+ *									false: Undistortion failed
+ */
+bool LensDist_Oulu(const cv::Mat &distorted, cv::Mat &corrected, const cv::Mat &dist, cv::InputArray R_tau, int iters)
+{
+    CV_Assert(distorted.rows * distorted.cols == 2 && distorted.type() == CV_64FC1);
+    if (corrected.empty())
+    {
+        corrected = distorted.clone();
+    }
+    const cv::Point2d distorted_d(distorted.at<double>(0), distorted.at<double>(1));
+    cv::Point2d corrected_d(corrected.at<double>(0), corrected.at<double>(0));
+    const bool ret = LensDist_Oulu(distorted_d, corrected_d, dist, R_tau, iters);
+    corrected = cv::Mat(corrected_d, true).reshape(1, distorted.rows);
+    return ret;
+}
+
+/* This function undistorts a point in the camera coordinate system [x y z] = (K^-1 * [u v 1]^T) -> 1/z * [x y] 
+ * using the methode from the Oulu University. Different distortion models are suppoted including
+ * thin prism distortion and the distortion (rotation) matrix R_tau for the tilted sensor model distortion
+ *
+ * cv::Point2f distorted			Input  -> Distorted point
+ * cv::Point2f corrected			Output -> Corrected (undistorted) point
+ * cv::Mat dist						Input  -> Distortion coefficients. The ordering of the coefficients
+ *											  is compliant with the OpenCV library: (k1,k2,p1,p2[,k3[,k4,k5,k6[,s1,s2,s3,s4]]]) or (k1,k2,k3)
+ * InputArray R_tau				    Input  -> Distortion (rotation) matrix for the tilted sensor model distortion
+ * int iters						Input  -> Number of iterations used to correct the point:
+ *									the higher the number, the better the solution (use a number
+ *									between 3 and 20). The number 3 typically results in an error
+ *									of 0.1 pixels.
+ *
+ * Return value:					true:  Everything ok.
+ *									false: Undistortion failed
+ */
+bool LensDist_Oulu(const cv::Point2f &distorted, cv::Point2f &corrected, const cv::Mat &dist, cv::InputArray R_tau, int iters)
+{
+    const cv::Point2d distorted_d(static_cast<double>(distorted.x), static_cast<double>(distorted.y));
+    cv::Point2d corrected_d(static_cast<double>(corrected.x), static_cast<double>(corrected.y));
+    const bool ret = LensDist_Oulu(distorted_d, corrected_d, dist, R_tau, iters);
+    corrected = cv::Point2f(static_cast<float>(corrected_d.x), static_cast<float>(corrected_d.y));
+    return ret;
+}
+
+/* This function undistorts a point in the camera coordinate system [x y z] = (K^-1 * [u v 1]^T) -> 1/z * [x y] 
+ * using the methode from the Oulu University. Different distortion models are suppoted including
+ * thin prism distortion and the distortion (rotation) matrix R_tau for the tilted sensor model distortion
+ *
+ * cv::Point2d distorted			Input  -> Distorted point
+ * cv::Point2d corrected			Output -> Corrected (undistorted) point
+ * cv::Mat dist						Input  -> Distortion coefficients. The ordering of the coefficients
+ *											  is compliant with the OpenCV library: (k1,k2,p1,p2[,k3[,k4,k5,k6[,s1,s2,s3,s4]]]) or (k1,k2,k3)
+ * InputArray R_tau				    Input  -> Distortion (rotation) matrix for the tilted sensor model distortion
+ * int iters						Input  -> Number of iterations used to correct the point:
+ *									the higher the number, the better the solution (use a number
+ *									between 3 and 20). The number 3 typically results in an error
+ *									of 0.1 pixels.
+ *
+ * Return value:					true:  Everything ok.
+ *									false: Undistortion failed
+ */
+bool LensDist_Oulu(const cv::Point2d &distorted, cv::Point2d &corrected, const cv::Mat &dist, cv::InputArray R_tau, int iters)
+{
+    CV_Assert(dist.cols <= 14 && dist.rows <= 14);
+    const int distSi = dist.cols * dist.rows;
+    CV_Assert(distSi != 4 && distSi != 6 && distSi != 7 && distSi != 9 && distSi != 10 && distSi != 11 && distSi != 13);
+    const cv::Point2d distorted_d = distorted; //For the case, the same variable was provided for distorted and corrected
+    corrected = distorted_d;
+
+    double r2, r4, _2xy, rad_corr, delta[2], k1 = 0., k2 = 0., k3 = 0., k4 = 0., k5 = 0., k6 = 0., p1 = 0., p2 = 0.;
+    double s1 = 0., s2 = 0., s3 = 0., s4 = 0.;
+    double tx = 0., ty = 0.;
+    cv::Mat R, Ri;
+    if (distSi >= 1)
+    {
+        k1 = dist.at<double>(0);
+    }
+    if (distSi >= 2)
+    {
+        k2 = dist.at<double>(1);
+    }
+    if (distSi == 3)
+    {
+        k3 = dist.at<double>(4);
+    }
+    else if (distSi >= 5)
+    {
+        k3 = dist.at<double>(4);
+        p1 = dist.at<double>(2);
+        p2 = dist.at<double>(3);
+    }
+    if (distSi >= 8)
+    {
+        k4 = dist.at<double>(5);
+        k5 = dist.at<double>(6);
+        k6 = dist.at<double>(7);
+    }
+    if (distSi >= 12)
+    {
+        s1 = dist.at<double>(8);
+        s2 = dist.at<double>(9);
+        s3 = dist.at<double>(10);
+        s4 = dist.at<double>(11);
+    }
+    if (distSi == 14)
+    {
+        tx = dist.at<double>(12);
+        ty = dist.at<double>(13);
+        if(R_tau.empty()){
+            R = get_Rtau_distortionMat(tx, ty);
+        }
+        else
+        {
+            R = R_tau.getMat();
+        }
+        Ri = R.inv();
+    }
+
+    for (int i = 0; i < iters; i++)
+    {
+        if (!R.empty())
+        {
+            cv::Mat uvh = (cv::Mat_<double>(3, 1) << corrected.x, corrected.y, 1.);
+            uvh = Ri * uvh;
+            uvh /= uvh.at<double>(2);
+            corrected.x = uvh.at<double>(0);
+            corrected.y = uvh.at<double>(1);
+        }
+        r2 = corrected.x * corrected.x + corrected.y * corrected.y;
+        r4 = r2 * r2;
+        _2xy = 2.0 * corrected.x * corrected.y;
+        rad_corr = (1.0 + ((k3 * r2 + k2) * r2 + k1) * r2) / (1.0 + ((k6 * r2 + k5) * r2 + k4) * r2);
+        delta[0] = p1 * _2xy + p2 * (r2 + 2.0 * corrected.x * corrected.x) + s1 * r2 + s2 * r4;
+        delta[1] = p1 * (r2 + 2.0 * corrected.y * corrected.y) + p2 * _2xy + s3 * r2 + s4 * r4;
+        corrected.x = (distorted_d.x - delta[0]) / rad_corr;
+        corrected.y = (distorted_d.y - delta[1]) / rad_corr;
+    }
+
+    //proof
+    cv::Point2d proofdist;
+    r2 = corrected.x * corrected.x + corrected.y * corrected.y;
+    r4 = r2 * r2;
+    _2xy = 2.0 * corrected.x * corrected.y;
+    rad_corr = (1.0 + ((k3 * r2 + k2) * r2 + k1) * r2) / (1.0 + ((k6 * r2 + k5) * r2 + k4) * r2);
+    delta[0] = p1 * _2xy + p2 * (r2 + 2.0 * corrected.x * corrected.x) + s1 * r2 + s2 * r4;
+    delta[1] = p1 * (r2 + 2.0 * corrected.y * corrected.y) + p2 * _2xy + s3 * r2 + s4 * r4;
+    if (!R.empty())
+    {
+        proofdist.x = corrected.x * rad_corr + delta[0];
+        proofdist.y = corrected.y * rad_corr + delta[1];
+        cv::Mat uvh = (cv::Mat_<double>(3, 1) << proofdist.x, proofdist.y, 1.);
+        uvh = R * uvh;
+        uvh /= uvh.at<double>(2);
+        proofdist.x = uvh.at<double>(0) - distorted_d.x;
+        proofdist.y = uvh.at<double>(1) - distorted_d.y;
+    }else{
+        proofdist.x = corrected.x * rad_corr + delta[0] - distorted_d.x;
+        proofdist.y = corrected.y * rad_corr + delta[1] - distorted_d.y;
+    }
+
+    if (std::sqrt(proofdist.x * proofdist.x + proofdist.y * proofdist.y) > 0.25)
+    {
+        corrected = distorted_d;
+        return false;
+    }
+
+    return true;
+}
+
+/* Get the distortion (rotation) matrix for the tilted sensor model distortion with parameters tau_x and tau_y.
+ * In some cases, the image sensor may be tilted in order to focus an oblique plane in front of the camera (Scheimpflug principle). 
+ * This can be useful for particle image velocimetry (PIV) or triangulation with a laser fan. 
+ * The tilt causes a perspective distortion of distorted coordinates (radial, tangential, thin prism) in the camera coordinate system (K^-1 * [u v 1]^T).
+ * For details see: https://docs.opencv.org/4.8.0/d9/d0c/group__calib3d.html#gga6ff34ec31356df0b3cef388a831bf4daac87f64a9ebe7c605bc8e4dd6e355528d
+ *
+ * double tx			Input  -> Distortion parameter tau_x
+ * double ty			Input  -> Distortion parameter tau_y
+ *
+ * Return value:		Distortion (rotation) matrix for the tilted sensor model distortion
+ */
+cv::Mat get_Rtau_distortionMat(const double &tx, const double &ty){
+    cv::Mat R_tau;
+    const double tx_cos = std::cos(tx);
+    const double ty_cos = std::cos(ty);
+    const double tx_sin = std::sin(tx);
+    const double ty_sin = std::sin(ty);
+    R_tau = (cv::Mat_<double>(3, 3) << ty_cos, (tx_sin * ty_sin), (-ty_sin * tx_cos),
+                0, tx_cos, tx_sin,
+                ty_sin, (-ty_cos * tx_sin), (ty_cos * tx_cos));
+    cv::Mat R1 = cv::Mat::eye(3, 3, CV_64FC1);
+    R1.at<double>(0, 0) = R_tau.at<double>(2, 2);
+    R1.at<double>(0, 2) = -R_tau.at<double>(0, 2);
+    R1.at<double>(1, 1) = R_tau.at<double>(2, 2);
+    R1.at<double>(1, 2) = -R_tau.at<double>(1, 2);
+    R_tau = R1 * R_tau;
+    return R_tau;
+}
+
+/* Distort a single homogeneous point provided in the image coordinate system ([u v 1]^T)
+ *
+ * Mat undistorted			Input  -> Homogeneous point coordinate in the image coordinate system
+ * Mat dist			        Input  -> Distortion coefficients. The ordering of the coefficients
+ *									  is compliant with the OpenCV library: (k1,k2,p1,p2[,k3[,k4,k5,k6[,s1,s2,s3,s4]]]) or (k1,k2,k3)
+ * Mat K_inv    			Input  -> Inverse camera matrix
+ *
+ * Return value:	        Distorted 2D coordinate in the camera coordinate system [x y z] = (K^-1 * [u v 1]^T) -> 1/z * [x y]
+ */
+cv::Mat distort(const cv::Mat &undistorted, cv::Mat &dist, cv::Mat &K_inv)
+{
+    CV_Assert(undistorted.rows * undistorted.cols == 3 && undistorted.type() == CV_64FC1);
+    cv::Mat undistorted_tmp;
+    if (undistorted.cols > undistorted.rows){
+        undistorted_tmp = undistorted.t();
+    }else{
+        undistorted_tmp = undistorted;
+    }
+    cv::Mat x_cam = K_inv * undistorted_tmp;
+    x_cam /= x_cam.at<double>(2);
+    const cv::Point2d undistorted_d(x_cam.at<double>(0), x_cam.at<double>(1));
+    cv::Point2d distorted = distort(undistorted_d, dist);
+    return cv::Mat(distorted, true).reshape(1, 2);
+}
+
+/* Distort a single point 1/z * [x y] in the camera coordinate system [x y z] = (K^-1 * [u v 1]^T) -> 1/z * [x y]
+ *
+ * Mat undistorted			Input  -> 2D coordinate in the camera coordinate system
+ * Mat dist			        Input  -> Distortion coefficients. The ordering of the coefficients
+ *									  is compliant with the OpenCV library: (k1,k2,p1,p2[,k3[,k4,k5,k6[,s1,s2,s3,s4]]]) or (k1,k2,k3)
+ *
+ * Return value:	        Distorted 2D coordinate in the camera coordinate system [x y z] = (K^-1 * [u v 1]^T) -> 1/z * [x y]
+ */
+cv::Mat distort(const cv::Mat &undistorted, cv::Mat &dist)
+{
+    CV_Assert(undistorted.rows * undistorted.cols == 2 && undistorted.type() == CV_64FC1);
+    // const cv::Point2d undistorted_d(undistorted.at<double>(0), undistorted.at<double>(1));
+    const cv::Point2d undistorted_d(undistorted);
+    cv::Point2d distorted = distort(undistorted_d, dist);
+    return cv::Mat(distorted, true).reshape(1, undistorted.rows);
+}
+
+/* Distort a single point 1/z * [x y] in the camera coordinate system [x y z] = (K^-1 * [u v 1]^T) -> 1/z * [x y]
+ *
+ * Point2d undistorted		Input  -> 2D coordinate in the image coordinate system
+ * Mat dist			        Input  -> Distortion coefficients. The ordering of the coefficients
+ *									  is compliant with the OpenCV library: (k1,k2,p1,p2[,k3[,k4,k5,k6[,s1,s2,s3,s4]]]) or (k1,k2,k3)
+ *
+ * Return value:	        Distorted 2D coordinate in the camera coordinate system [x y z] = (K^-1 * [u v 1]^T) -> 1/z * [x y]
+ */
+cv::Point2d distort(const cv::Point2d &undistorted, cv::Mat &dist)
+{
+    CV_Assert(dist.cols <= 14 && dist.rows <= 14);
+    const int distSi = dist.cols * dist.rows;
+    CV_Assert(distSi != 4 && distSi != 6 && distSi != 7);
+
+    double k1 = 0., k2 = 0., k3 = 0., k4 = 0., k5 = 0., k6 = 0., tan_corr_x = 0., tan_corr_y = 0.;
+    double s1 = 0., s2 = 0., s3 = 0., s4 = 0.;
+    double tx = 0., ty = 0.;
+    cv::Mat R;
+    const double r2 = undistorted.x * undistorted.x + undistorted.y * undistorted.y;
+    if (distSi >= 1)
+    {
+        k1 = dist.at<double>(0);
+    }
+    if (distSi >= 2)
+    {
+        k2 = dist.at<double>(1);
+    }
+    if (distSi == 3)
+    {
+        k3 = dist.at<double>(4);
+    }
+    else if (distSi >= 5)
+    {
+        k3 = dist.at<double>(4);
+        const double p1 = dist.at<double>(2);
+        const double p2 = dist.at<double>(3);
+        const double _2xy = 2.0 * undistorted.x * undistorted.y;
+        tan_corr_x = p1 * _2xy + p2 * (r2 + 2.0 * undistorted.x * undistorted.x);
+        tan_corr_y = p1 * (r2 + 2.0 * undistorted.y * undistorted.y) + p2 * _2xy;
+    }
+    if (distSi >= 8)
+    {
+        k4 = dist.at<double>(5);
+        k5 = dist.at<double>(6);
+        k6 = dist.at<double>(7);
+    }
+    const double r4 = r2 * r2;
+    if (distSi >= 12)//thin prism distortion
+    {
+        s1 = dist.at<double>(8);
+        s2 = dist.at<double>(9);
+        s3 = dist.at<double>(10);
+        s4 = dist.at<double>(11);
+        tan_corr_x += s1 * r2 + s2 * r4;
+        tan_corr_y += s3 * r2 + s4 * r4;
+    }
+    if (distSi == 14)//tilted sensor model distortion
+    {
+        tx = dist.at<double>(12);
+        ty = dist.at<double>(13);
+        R = get_Rtau_distortionMat(tx, ty);
+    }
+
+    const double r6 = r4 * r2;
+    const double rad_corr = (1.0 + k1 * r2 + k2 * r4 + k3 * r6) / (1.0 + k4 * r2 + k5 * r4 + k6 * r6);
+
+    cv::Point2d p_dist(undistorted.x * rad_corr + tan_corr_x, undistorted.y * rad_corr + tan_corr_y);
+    if (!R.empty())
+    {
+        cv::Mat uvh = (cv::Mat_<double>(3, 1) << p_dist.x, p_dist.y, 1.);
+        uvh = R * uvh;
+        uvh /= uvh.at<double>(2);
+        p_dist.x = uvh.at<double>(0);
+        p_dist.y = uvh.at<double>(1);
+    }
+
+    return p_dist;
+}
+
+/* Convert a single point in the image coordinate system ([u v]^T) into camera coordinate system (K^-1 * [u v 1]^T) and optionally undistort it
+ *
+ * Point2d p_img		    Input  -> 2D coordinate in the image coordinate system [u v]
+ * Mat Kinv		            Input  -> Inverse camera matrix
+ * bool undistort		    Input  -> Specify, if undistortion should be performed
+ * Mat distortion			Input  -> Distortion coefficients. The ordering of the coefficients
+ *									  is compliant with the OpenCV library: (k1,k2,p1,p2[,k3[,k4,k5,k6[,s1,s2,s3,s4]]]) or (k1,k2,k3)
+ * Point2d p_out            Output -> (Undistorted) 2D coordinate in the camera coordinate system [x y z] = (K^-1 * [u v 1]^T) -> 1/z * [x y]
+ *
+ * Return value:	        true:  Everything ok.
+ *							false: Undistortion failed
+ */
+bool toCamCoordsUndistort(const cv::Point2d &p_img, const cv::Mat Kinv, const bool undistort, const cv::Mat distortion, cv::Point2d &p_out)
+{
+    cv::Mat ph = (cv::Mat_<double>(3, 1) << p_img.x, p_img.y, 1.0);
+    ph = Kinv * ph;
+    ph /= ph.at<double>(2);
+    ph.resize(2);
+    if (undistort)
+    {
+        if (!LensDist_Oulu(ph, ph, distortion))
+        {
+            return false;
+        }
+    }
+    p_out = cv::Point2d(ph);
+    return true;
+}
+
+/* This function undistorts multiple corresponding points from 2 cameras in the camera coordinate system [x y z] = (K^-1 * [u v 1]^T) -> 1/z * [x y] 
+ * using the methode from the Oulu University. A mask is provided for correspondences not successfully undistorted.
+ *
+ * vector<Point2f> points1		I/O    -> Distorted points of cam 1 input and undistorted points output
+ * vector<Point2f> points2		I/O    -> Distorted points of cam 1 input and undistorted points output
+ * cv::Mat dist1				Input  -> Distortion coefficients for cam 1. The ordering of the coefficients
+ *									      is compliant with the OpenCV library: (k1,k2,p1,p2[,k3[,k4,k5,k6[,s1,s2,s3,s4]]]) or (k1,k2,k3)
+ * cv::Mat dist1				Input  -> Distortion coefficients for cam 2. The ordering of the coefficients
+ *									      is compliant with the OpenCV library: (k1,k2,p1,p2[,k3[,k4,k5,k6[,s1,s2,s3,s4]]]) or (k1,k2,k3)
+ * OutputArray mask				Output  -> Optional mask with successful/failed undistorted points
+ *
+ * Return value:				true:  Everything ok.
+ *								false: Undistortion failed for too many correspondences
+ */
+bool Remove_LensDist2(std::vector<cv::Point2f> &points1,
+                      std::vector<cv::Point2f> &points2,
+                      const cv::Mat &dist1,
+                      const cv::Mat &dist2,
+                      cv::OutputArray mask)
+{
+    CV_Assert(points1.size() == points2.size());
+
+    if (nearZero(sum(dist1)[0]) && nearZero(sum(dist2)[0]))
+    {
+        return true;
+    }
+
+    cv::Mat R_tau;
+    int nrDistPars = dist1.cols * dist1.rows;
+    if(nrDistPars == 14){
+        const double tx = dist1.at<double>(12);
+        const double ty = dist1.at<double>(13);
+        R_tau = get_Rtau_distortionMat(tx, ty);
+    }
+
+    vector<cv::Point2f> distpoints1, distpoints2;
+    int n1, n = static_cast<int>(points1.size());
+    cv::Mat mask0 = cv::Mat::ones(1, n, CV_8UC1);
+
+    //Remove the lens distortion on the normalized coordinates (camera coordinate system)
+    distpoints1 = points1;
+    distpoints2 = points2;
+    for (int i = 0; i < n; i++)
+    {
+        if (!LensDist_Oulu(distpoints1.at(i), points1.at(i), dist1, R_tau))
+        {
+            mask0.at<bool>(i) = false;
+            continue;
+        }
+        if (!LensDist_Oulu(distpoints2.at(i), points2.at(i), dist2, R_tau))
+            mask0.at<bool>(i) = false;
+    }
+
+    if(mask.needed()){
+        mask.create(1, n, CV_8UC1);
+        cv::Mat mask_ = mask.getMat();
+        mask0.copyTo(mask_);
+    }
+
+    n1 = cv::countNonZero(mask);
+
+    float rat = static_cast<float>(n1) / static_cast<float>(n);
+
+    if (rat < 0.1f)
+        return false;
+
+    if (rat < 0.75f)
+        cout << "There is a problem with the distortion parameters! Check your internal calibration parameters!" << endl;
+
+    return true;
+}
+
 /* Calculates the difference (roation angle) between two rotation matrices and the distance between
  * two 3D translation vectors back-rotated by the matrices R1 and R2 (therefore, this error represents
  * the full error caused by the different rotations and translations)
@@ -1315,6 +2448,44 @@ void compareRTs(const cv::Mat& R1, const cv::Mat& R2, cv::Mat t1, cv::Mat t2, do
         cout << "Angle between rotation matrices: " << *rdiff / PI * 180.0 << char(248) << endl;
         cout << "Distance between translation vectors: " << *tdiff << endl;
     }
+}
+
+/* Return rotation R_out and translation t_out resulting from Essential matrix decomposition which is most similar to given pose R_ref & t_ref
+ *
+ * Mat E				Input  -> Essential matrix
+ * Mat R_ref			Input  -> Given rotation matrix
+ * Mat t_ref			Input  -> Given translation vector
+ * Mat R_out			Output -> Resulting rotation matrix from E decomposition
+ * Mat t_out			Output -> Resulting translation vector from E decomposition
+ *
+ * Return value:		none
+ */
+void getNearestRTfromEDecomposition(const cv::Mat &E, const cv::Mat &R_ref, const cv::Mat &t_ref, cv::Mat &R_out, cv::Mat &t_out)
+{
+    cv::Mat R12_1, R12_2, t12;
+    cv::decomposeEssentialMat(E, R12_1, R12_2, t12);
+    double norm_t = cv::norm(t12);
+    if (!nearZero(1.0 - norm_t))
+    {
+        t12 /= norm_t;
+    }
+    std::vector<std::pair<cv::Mat, cv::Mat>> possible_RTs;
+    possible_RTs.emplace_back(std::make_pair(R12_1, t12));
+    possible_RTs.emplace_back(std::make_pair(R12_1, -1. * t12));
+    possible_RTs.emplace_back(std::make_pair(R12_2, t12));
+    possible_RTs.emplace_back(std::make_pair(R12_2, -1. * t12));
+    std::map<double, size_t> rt_diffs;
+    for (size_t i = 0; i < 4; i++)
+    {
+        double r_diff, t_diff;
+        compareRTs(R_ref, possible_RTs.at(i).first, t_ref, possible_RTs.at(i).second, &r_diff, &t_diff);
+        r_diff /= M_PI;
+        t_diff /= 1.7320508; //squareroot of 3
+        rt_diffs.emplace(r_diff + t_diff, i);
+    }
+    const size_t bestFit_idx = rt_diffs.begin()->second;
+    possible_RTs.at(bestFit_idx).first.copyTo(R_out);
+    possible_RTs.at(bestFit_idx).second.copyTo(t_out);
 }
 
 /* Calculation of the rectifying matrices based on the extrinsic and intrinsic camera parameters. There are 2 methods available
@@ -3068,5 +4239,143 @@ double getAnglesBetwVectors(cv::Mat v1, cv::Mat v2, bool degree)
     if (degree)
         angle *= 180.0 / PI;
     return angle;
+}
+
+bool searchAlternativeImgComb(const int &c1, const int &c2, const std::unordered_map<int, std::unordered_set<int>> &av_img_combs, std::vector<std::vector<std::pair<int, int>>> &track, const size_t &track_idx)
+{
+    if (av_img_combs.find(c1) == av_img_combs.end())
+    {
+        return false;
+    }
+    if (av_img_combs.find(c2) == av_img_combs.end())
+    {
+        return false;
+    }
+    const std::unordered_set<int> &cams_c1 = av_img_combs.at(c1);
+    if (cams_c1.find(c2) != cams_c1.end())
+    {
+        if (track.empty())
+        {
+            track.emplace_back(std::vector<std::pair<int, int>>(1, std::make_pair(c1, c2)));
+        }
+        else
+        {
+            track.at(track_idx).emplace_back(std::make_pair(c1, c2));
+        }
+        return true;
+    }
+    size_t track_idx2 = 0;
+    std::vector<std::vector<std::pair<int, int>>> track2;
+    for (const auto &c3 : cams_c1)
+    {
+        if (track.empty())
+        {
+            track2.emplace_back(std::vector<std::pair<int, int>>(1, std::make_pair(c1, c3)));
+        }
+        else
+        {
+            const std::vector<std::pair<int, int>> &track_tmp = track.at(track_idx);
+            const std::pair<int, int> &tr_back = track_tmp.back();
+            if(tr_back.first == c3){
+                continue;
+            }
+            bool cc_found = false;
+            for (const auto &tr : track_tmp)
+            {
+                if(tr.first == c1 && tr.second == c3){
+                    cc_found = true;
+                    break;
+                }
+            }
+            if (cc_found){
+                continue;
+            }
+
+            track2.emplace_back(track_tmp);
+            track2.back().emplace_back(std::make_pair(c1, c3));
+        }
+
+        const size_t nr_before = track2.size();
+        if (searchAlternativeImgComb(c3, c2, av_img_combs, track2, track_idx2))
+        {
+            const size_t nr_after = track2.size();
+            track_idx2 += nr_after - nr_before + 1;
+        }
+        else
+        {
+            track2.pop_back();
+        }
+    }
+    if (!track2.empty())
+    {
+        size_t i = 0;
+        if (!track.empty())
+        {
+            track.at(track_idx) = track2.at(0);
+            i++;
+        }
+        for (; i < track2.size(); i++)
+        {
+            track.emplace_back(track2.at(i));
+        }
+    }
+    return track_idx2 > 0;
+}
+
+bool getAvailablePairCombinationsForMissing(const std::unordered_set<std::pair<int, int>, pair_hash, pair_EqualTo> &missed_img_combs, const std::unordered_set<std::pair<int, int>, pair_hash, pair_EqualTo> &available_img_combs, std::unordered_map<std::pair<int, int>, std::vector<std::vector<std::pair<int, int>>>, pair_hash, pair_EqualTo> &missing_restore_sequences)
+{
+    if (missed_img_combs.empty()){
+        return true;
+    }
+    if (available_img_combs.empty())
+    {
+        return false;
+    }
+    //Check if the missing combination can be restored from the rest
+    std::unordered_map<int, std::unordered_set<int>> available_img_combs2;
+    for (const auto &av : available_img_combs)
+    {
+        if (available_img_combs2.find(av.first) != available_img_combs2.end())
+        {
+            available_img_combs2.at(av.first).emplace(av.second);
+        }
+        else
+        {
+            std::unordered_set<int> tmp;
+            tmp.emplace(av.second);
+            available_img_combs2.emplace(av.first, std::move(tmp));
+        }
+        if (available_img_combs2.find(av.second) != available_img_combs2.end())
+        {
+            available_img_combs2.at(av.second).emplace(av.first);
+        }
+        else
+        {
+            std::unordered_set<int> tmp;
+            tmp.emplace(av.first);
+            available_img_combs2.emplace(av.second, std::move(tmp));
+        }
+    }
+    for (const auto &miss : missed_img_combs)
+    {
+        int c1, c2;
+        if (miss.first < miss.second)
+        {
+            c1 = miss.first;
+            c2 = miss.second;
+        }
+        else
+        {
+            c1 = miss.second;
+            c2 = miss.first;
+        }
+        std::vector<std::vector<std::pair<int, int>>> track;
+        if (!searchAlternativeImgComb(c1, c2, available_img_combs2, track, 0))
+        {
+            return false;
+        }
+        missing_restore_sequences.emplace(miss, std::move(track));
+    }
+    return true;
 }
 }

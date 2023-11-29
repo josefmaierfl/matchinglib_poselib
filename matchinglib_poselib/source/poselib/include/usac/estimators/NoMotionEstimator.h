@@ -55,19 +55,29 @@ public:
 	std::vector<double> degen_final_model_params_;
 
 public:
-	EssentialMatEstimator()
+	EssentialMatEstimator(std::mt19937 &mt) : USAC(mt), input_points_denorm_(nullptr), input_points_(nullptr), data_matrix_(nullptr), degen_data_matrix_(nullptr)
 	{
-		input_points_ = NULL;
-		data_matrix_ = NULL;
-		degen_data_matrix_ = NULL;
-		models_.clear();
-		models_denorm_.clear();
-	};
+		// input_points_ = NULL;
+		// data_matrix_ = NULL;
+		// degen_data_matrix_ = NULL;
+		// models_.clear();
+		// models_denorm_.clear();
+	}
+
 	~EssentialMatEstimator()
 	{
-		if (input_points_) { delete[] input_points_; input_points_ = NULL; }
-		if (data_matrix_) { delete[] data_matrix_; data_matrix_ = NULL; }
-		if (degen_data_matrix_) { delete[] degen_data_matrix_; degen_data_matrix_ = NULL; }
+		if (input_points_) { 
+			delete[] input_points_;
+			input_points_ = nullptr;
+		}
+		if (data_matrix_) { 
+			delete[] data_matrix_;
+			data_matrix_ = nullptr;
+		}
+		if (degen_data_matrix_) { 
+			delete[] degen_data_matrix_;
+			degen_data_matrix_ = nullptr;
+		}
 		for (size_t i = 0; i < models_.size(); ++i)
 		{
 			if (models_[i]) { delete[] models_[i]; }
@@ -79,7 +89,7 @@ public:
 		}
 		models_denorm_.clear();
 		adapter.reset();
-	};
+	}
 
 public:
 	// ------------------------------------------------------------------------
@@ -127,14 +137,15 @@ private:
 };
 
 void getPerturbedRotation(
-	opengv::rotation_t & rotation,
-	double amplitude)
+	opengv::rotation_t &rotation,
+	std::mt19937 &mt,
+	const double &amplitude)
 {
 	opengv::cayley_t cayley = opengv::math::rot2cayley(rotation);
 	for (size_t i = 0; i < 3; i++)
 	{
 		cayley[i] =
-			cayley[i] + (((double)rand()) / ((double)RAND_MAX) - 0.5)*2.0*amplitude;
+			cayley[i] + (static_cast<double>(mt()) / static_cast<double>(mt.max()) - 0.5)*2.0*amplitude;
 	}
 	rotation = opengv::math::cayley2rot(cayley);
 }
@@ -318,7 +329,7 @@ unsigned int EssentialMatEstimator::generateMinimalSampleModels()
 		cv::Mat R_tmp, t_tmp, E_tmp;
 		//Variation of R as init for eigen-solver
 		opengv::rotation_t R_init = Eigen::Matrix3d::Identity();
-		getPerturbedRotation(R_init, RAND_ROTATION_AMPLITUDE); //Check if the amplitude is too large or too small!
+		getPerturbedRotation(R_init, mt_, RAND_ROTATION_AMPLITUDE); //Check if the amplitude is too large or too small!
 
 		adapter_denorm->setR12(R_init);
 		R_eigen = opengv::relative_pose::eigensolver(*adapter_denorm);
@@ -560,7 +571,7 @@ bool EssentialMatEstimator::generateRefinedModel(std::vector<unsigned int>& samp
 			else
 			{
 				R_init = Eigen::Matrix3d::Identity();
-				getPerturbedRotation(R_init, RAND_ROTATION_AMPLITUDE); //Check if the amplitude is too large or too small!
+				getPerturbedRotation(R_init, mt_, RAND_ROTATION_AMPLITUDE); //Check if the amplitude is too large or too small!
 				adapter_denorm->setR12(R_init);
 			}
 

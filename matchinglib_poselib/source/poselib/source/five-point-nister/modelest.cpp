@@ -48,22 +48,24 @@
 
 using namespace std;
 
-
-CvModelEstimator3::CvModelEstimator3(int _modelPoints, cv::Size _modelSize, int _maxBasicSolutions)
+CvModelEstimator3::CvModelEstimator3(std::mt19937 &_mt,
+                                     const int &_modelPoints,
+                                     const cv::Size &_modelSize,
+                                     const int &_maxBasicSolutions) : mt(_mt),
+                                                                      modelPoints(_modelPoints),
+                                                                      modelSize(_modelSize),
+                                                                      maxBasicSolutions(_maxBasicSolutions),
+                                                                      checkPartialSubsets(true)
 {
-    modelPoints = _modelPoints;
-    modelSize = _modelSize;
-    maxBasicSolutions = _maxBasicSolutions;
-    checkPartialSubsets = true;
-    std::srand(std::time(nullptr));
+    // std::srand(std::time(nullptr));
 }
 
-CvModelEstimator3::~CvModelEstimator3()=default;
+CvModelEstimator3::~CvModelEstimator3() = default;
 
-void CvModelEstimator3::setSeed( int64 seed )
-{
-    std::srand(seed);
-}
+// void CvModelEstimator3::setSeed( int64 seed )
+// {
+//     std::srand(seed);
+// }
 
 
 int CvModelEstimator3::findInliers( const cv::Mat &m1, const cv::Mat &m2,
@@ -268,7 +270,7 @@ bool CvModelEstimator3::runARRSAC( const cv::Mat &m1, const cv::Mat &m2, cv::Mat
 	cv::Mat bestmodel = model.clone();
 	EssentialMatEstimatorTheia esti(this, m1, m2);
 	theia::Arrsac<size_t,cv::Mat> arrsac_estimator(5, reprojThreshold * reprojThreshold, 500, 100, 14, 8);
-	result = arrsac_estimator.Estimate(input_data, esti, &bestmodel);
+	result = arrsac_estimator.Estimate(input_data, esti, &bestmodel, mt);
 	if(result)
 	{
 		goodCount = findInliers( m1, m2, bestmodel, err, mask, reprojThreshold );
@@ -582,7 +584,7 @@ bool CvModelEstimator3::getSubset( const cv::Mat &m1, const cv::Mat &m2,
     {
         for( i = 0; i < modelPoints && iters < maxAttempts; )
         {
-            idx[i] = idx_i = std::rand() % count;
+            idx[i] = idx_i = static_cast<int>(mt()) % count;
             for( j = 0; j < i; j++ )
                 if( idx_i == idx[j] )
                     break;

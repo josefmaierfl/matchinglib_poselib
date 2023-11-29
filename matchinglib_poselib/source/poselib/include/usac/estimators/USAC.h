@@ -12,6 +12,7 @@
 #include <iostream>
 #include <limits>
 #include <vector>
+#include <random>
 #include "usac/config/ConfigParams.h"
 #include "usac/utils/Timer.h"
 
@@ -68,7 +69,8 @@ class USAC
 	public:
 		// ------------------------------------------------------------------------
 		//  initialization/main functions
-		USAC() = default;
+		// USAC() = default;
+		USAC(std::mt19937 &mt);
 		virtual ~USAC() = default;
 		void initParamsUSAC(const ConfigParams& cfg);
 		void initDataUSAC(const ConfigParams& cfg);
@@ -166,8 +168,11 @@ class USAC
 		unsigned int num_prev_best_inliers_lo_;
 		std::vector<unsigned int> prev_best_inliers_lo_;
 
-	// ------------------------------------------------------------------------
-	// helper functions
+		//Random numbers
+		std::mt19937 &mt_;
+
+		// ------------------------------------------------------------------------
+		// helper functions
 	protected:
 		// random sampling 
 		inline void generateUniformRandomSample(unsigned int dataSize, unsigned int sampleSize, std::vector<unsigned int>* sample);
@@ -198,6 +203,8 @@ class USAC
 		void storeSolution(unsigned int modelIndex, unsigned int numInliers);
 };
 
+template <class ProblemType>
+USAC<ProblemType>::USAC(std::mt19937 &mt) : mt_(mt) {}
 
 // ============================================================================================
 // initParamsUSAC: initializes USAC 
@@ -659,7 +666,7 @@ void USAC<ProblemType>::generateUniformRandomSample(unsigned int dataSize, unsig
 	std::vector<unsigned int>::iterator pos;
 	pos = sample->begin();
 	do {
-		index = rand() % dataSize;
+		index = mt_() % dataSize;
 		if (find(sample->begin(), pos, index) == pos)
 		{
 				(*sample)[count] = index;
@@ -691,7 +698,7 @@ void USAC<ProblemType>::generateModelCompletionMinSample(unsigned int dataSize_d
 		std::vector<unsigned int>::iterator pos;
 		pos = sample->begin();
 		do {
-			index = rand() % dataSize_degen;
+			index = mt_() % dataSize_degen;
 			if (find(sample->begin(), pos, index) == pos)
 			{
 				(*sample)[count] = index;
@@ -700,7 +707,7 @@ void USAC<ProblemType>::generateModelCompletionMinSample(unsigned int dataSize_d
 			}
 		} while (count < sampleSize_degen);
 		do {
-			index = rand() % dataSize_outl + dataSize_degen;
+			index = mt_() % dataSize_outl + dataSize_degen;
 			if (find(sample->begin(), pos, index) == pos)
 			{
 				(*sample)[count] = index;

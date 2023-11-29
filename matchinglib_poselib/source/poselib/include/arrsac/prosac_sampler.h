@@ -57,7 +57,7 @@
 #include <stdlib.h>
 #include <algorithm>
 //#include <chrono>
-//#include <random>
+#include <random>
 #include <vector>
 
 #include <opencv2/core/core.hpp>
@@ -75,13 +75,16 @@ template <class Datum> class ProsacSampler : public Sampler<Datum> {
  public:
   // num_samples: the number of samples needed. Typically this corresponds to
   //   the minumum number of samples needed to estimate a model.
-  explicit ProsacSampler(int num_samples,
-                         int ransac_convergence_iterations = 200000)
-      : num_samples_(num_samples),
-        ransac_convergence_iterations_(ransac_convergence_iterations),
-        kth_sample_number_(1)/*,
-        generator(std::chrono::system_clock::now().time_since_epoch().count())*/ {
-  }
+   explicit ProsacSampler(int num_samples,
+                          std::mt19937 &mt,
+                          int ransac_convergence_iterations = 200000)
+       : num_samples_(num_samples),
+         ransac_convergence_iterations_(ransac_convergence_iterations),
+         kth_sample_number_(1),
+         mt_(mt) /*,
+          generator(std::chrono::system_clock::now().time_since_epoch().count())*/
+   {
+   }
 
   ~ProsacSampler() {}
 
@@ -112,41 +115,52 @@ template <class Datum> class ProsacSampler : public Sampler<Datum> {
       }
     }
     subset->reserve(num_samples_);
-	static cv::RNG rng;
+	  // static cv::RNG rng;
 
 	//To ensure a new set, the (n_old+1)'th or n'th point has to be chosen and the rest of the points
 	//at random. Otherwise an identical set could be chosen.
     if (t_n_prime < kth_sample_number_) {
       // Randomly sample m data points from the top n data points.
       //std::uniform_int_distribution<int> distribution(0, n - 1);
-      std::vector<int> random_numbers;
+      // std::vector<int> random_numbers;
+
+      std::vector<int> numbers_all(n);
+      std::iota(numbers_all.begin(), numbers_all.end(), 0);
+      std::shuffle(numbers_all.begin(), numbers_all.end(), mt_);
 
       for (int i = 0; i < num_samples_; i++) {
         // Generate a random number that has not already been used.
-        int rand_number;
-        while (std::find(random_numbers.begin(), random_numbers.end(),
-                         (rand_number = rng.uniform((int)0,n))) !=
-               random_numbers.end()) {}
+        // int rand_number;
+        // while (std::find(random_numbers.begin(), random_numbers.end(),
+        //                  (rand_number = rng.uniform((int)0,n))) !=
+        //        random_numbers.end()) {}
 
-        random_numbers.push_back(rand_number);
+        // random_numbers.push_back(rand_number);
 
         // Push the *unique* random index back.
-        subset->push_back(data[rand_number]);
+        // subset->push_back(data[rand_number]);
+        subset->push_back(data.at(numbers_all.at(i)));
       }
     } else {
       //std::uniform_int_distribution<int> distribution(0, n - 2);
-      std::vector<int> random_numbers;
+      // std::vector<int> random_numbers;
+
+      std::vector<int> numbers_all(n - 1);
+      std::iota(numbers_all.begin(), numbers_all.end(), 0);
+      std::shuffle(numbers_all.begin(), numbers_all.end(), mt_);
+
       // Randomly sample m-1 data points from the top n-1 data points.
       for (int i = 0; i < num_samples_ - 1; i++) {
         // Generate a random number that has not already been used.
-        int rand_number;
-        while (std::find(random_numbers.begin(), random_numbers.end(),
-                         (rand_number = rng.uniform((int)0,n-1))) !=
-               random_numbers.end()) {}
-        random_numbers.push_back(rand_number);
+        // int rand_number;
+        // while (std::find(random_numbers.begin(), random_numbers.end(),
+        //                  (rand_number = rng.uniform((int)0,n-1))) !=
+        //        random_numbers.end()) {}
+        // random_numbers.push_back(rand_number);
 
         // Push the *unique* random index back.
-        subset->push_back(data[rand_number]);
+        // subset->push_back(data[rand_number]);
+        subset->push_back(data.at(numbers_all.at(i)));
       }
       // Make the last point from the nth position.
       subset->push_back(data[n-1]);
@@ -169,6 +183,7 @@ template <class Datum> class ProsacSampler : public Sampler<Datum> {
 
   // Random number generator seed
   //std::default_random_engine generator;
+  std::mt19937 &mt_;
 };
 
 }  // namespace theia

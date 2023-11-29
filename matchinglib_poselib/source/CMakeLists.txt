@@ -16,6 +16,7 @@ configure_file(version.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/${META_PROJECT_N
 set(IDE_FOLDER "")
 option(ENABLE_MATCHINGLIB  "build with matchinglib" ON)
 option(ENABLE_POSELIB  "build with poselib" ON)
+option(ENABLE_UTILS  "build with utilslib" ON)
 
 if(${ENABLE_MATCHINGLIB})
   add_subdirectory(matchinglib)
@@ -23,6 +24,10 @@ endif()
 
 if(${ENABLE_POSELIB})
   add_subdirectory(poselib)
+endif()
+
+if(${ENABLE_UTILS})
+  add_subdirectory(utils)
 endif()
 
 # Tests

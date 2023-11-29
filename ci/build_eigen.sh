@@ -9,7 +9,7 @@ mkdir ${thirdparty_dir}
 #-----------------------------------
 
 cd ${thirdparty_dir}
-Eigen_VERSION=3.3.7
+Eigen_VERSION=3.4.0
 #wget -q http://bitbucket.org/eigen/eigen/get/${Eigen_VERSION}.tar.bz2
 #tar xf ${Eigen_VERSION}.tar.bz2
 #rm -rf ${Eigen_VERSION}.tar.bz2
@@ -19,7 +19,7 @@ mkdir eigen-${Eigen_VERSION}
 git clone --depth 1 --branch ${Eigen_VERSION} https://gitlab.com/libeigen/eigen.git eigen-${Eigen_VERSION}
 cd eigen-${Eigen_VERSION}
 mkdir -p build && cd build
-cmake ..  -DCMAKE_BUILD_TYPE=Release
+cmake ..  -DCMAKE_BUILD_TYPE=Release -DOpenGL_GL_PREFERENCE=GLVND
 make -j "$(nproc)"
 if [ $? -ne 0 ]; then
     exit 1

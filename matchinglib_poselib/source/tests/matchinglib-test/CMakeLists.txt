@@ -3,8 +3,6 @@
 # Executable name and options
 #
 
-option(COPY_TEST_MATCH_IMGS  "Copy images for testing to binary dir" ON)
-
 # Target name
 set(target matchinglib-test)
 message(STATUS "Test ${target}")
@@ -32,10 +30,6 @@ add_executable(${target}
 
 # Create namespaced alias
 add_executable(${META_PROJECT_NAME}::${target} ALIAS ${target})
-
-if(${COPY_TEST_MATCH_IMGS})
-	file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/imgs DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-endif()
 
 #
 # Project options

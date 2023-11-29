@@ -80,21 +80,22 @@ using namespace std;
 * Return value:						true :	Success
 *										false:	Failed
 */
-int estimateFundMatrixUsac(cv::InputArray p1, 
-						   cv::InputArray p2, 
-						   cv::OutputArray F, 
-						   double & sprt_delta_result,
-						   double & sprt_epsilon_result,
+int estimateFundMatrixUsac(cv::InputArray p1,
+						   cv::InputArray p2,
+						   cv::OutputArray F,
+						   std::mt19937 &mt,
+						   double &sprt_delta_result,
+						   double &sprt_epsilon_result,
 						   double th,
 						   double prosac_beta,
 						   double sprt_delta,
 						   double sprt_epsilon,
-						   cv::OutputArray inliers, 
-						   cv::OutputArray H, 
+						   cv::OutputArray inliers,
+						   cv::OutputArray H,
 						   cv::OutputArray inliers_degenerate,
 						   double *fraction_degen_inliers,
 						   std::vector<unsigned int> sortedMatchIdx,
-                           bool verbose_)
+						   bool verbose_)
 {
 	CV_Assert((p1.cols() == 2) && (p2.cols() == 2) && (p1.rows() == p2.rows()) && (p1.type() == CV_64FC1) && (p2.type() == CV_64FC1));
 	CV_Assert(sortedMatchIdx.empty() || (p1.rows() == (int)sortedMatchIdx.size()));
@@ -104,7 +105,7 @@ int estimateFundMatrixUsac(cv::InputArray p1,
 
 
 	// seed random number generator
-	srand((unsigned int)time(nullptr));
+	// srand((unsigned int)time(nullptr));
 
 	//convert data into format for USAC fundamental matrix estimation
 	std::vector<double> pointData(6 * numPts);
@@ -175,7 +176,7 @@ int estimateFundMatrixUsac(cv::InputArray p1,
 	ConfigParamsFund cfg(c_com, c_pro, c_sprt, c_lo, c_fund, verbose_);
 
 	// initialize the fundamental matrix estimation problem
-	std::unique_ptr<FundMatrixEstimator> fund(new FundMatrixEstimator);
+	std::unique_ptr<FundMatrixEstimator> fund(new FundMatrixEstimator(mt));
 	fund->initParamsUSAC(cfg);
 	fund->initDataUSAC(cfg);
 	fund->initProblem(cfg, &pointData[0]);
@@ -280,37 +281,38 @@ int estimateFundMatrixUsac(cv::InputArray p1,
 	return(EXIT_SUCCESS);
 }
 
-int estimateEssentialMatUsac(const cv::Mat & p1,
-	const cv::Mat & p2,
-	cv::OutputArray E,
-	double & sprt_delta_result,
-	double & sprt_epsilon_result,
-	double th,
-	double focalLength,
-	double th_pixels,
-	double prosac_beta,
-	double sprt_delta,
-	double sprt_epsilon,
-	bool checkDegeneracy,
-	USACConfig::EssentialMatEstimatorUsed used_estimator,
-	USACConfig::RefineAlgorithm	refineMethod,
-	cv::OutputArray inliers,
-	unsigned int *nr_inliers,
-	cv::OutputArray H,
-	cv::OutputArray inliers_degenerate_H,
-	cv::OutputArray R,
-	cv::OutputArray inliers_degenerate_R,
-	cv::OutputArray t,
-	cv::OutputArray inliers_degenerate_t,
-	cv::OutputArray inliers_degenerate_noMotion,
-	double *fraction_degen_inliers_H,
-	double *fraction_degen_inliers_R,
-	double *fraction_degen_inliers_t,
-	double *fraction_degen_inliers_noMot,
-	std::vector<unsigned int> sortedMatchIdx,
-	cv::OutputArray R_E, 
-	cv::OutputArray t_E,
-	bool verbose_)
+int estimateEssentialMatUsac(const cv::Mat &p1,
+							 const cv::Mat &p2,
+							 cv::OutputArray E,
+							 std::mt19937 &mt,
+							 double &sprt_delta_result,
+							 double &sprt_epsilon_result,
+							 double th,
+							 double focalLength,
+							 double th_pixels,
+							 double prosac_beta,
+							 double sprt_delta,
+							 double sprt_epsilon,
+							 bool checkDegeneracy,
+							 USACConfig::EssentialMatEstimatorUsed used_estimator,
+							 USACConfig::RefineAlgorithm refineMethod,
+							 cv::OutputArray inliers,
+							 unsigned int *nr_inliers,
+							 cv::OutputArray H,
+							 cv::OutputArray inliers_degenerate_H,
+							 cv::OutputArray R,
+							 cv::OutputArray inliers_degenerate_R,
+							 cv::OutputArray t,
+							 cv::OutputArray inliers_degenerate_t,
+							 cv::OutputArray inliers_degenerate_noMotion,
+							 double *fraction_degen_inliers_H,
+							 double *fraction_degen_inliers_R,
+							 double *fraction_degen_inliers_t,
+							 double *fraction_degen_inliers_noMot,
+							 std::vector<unsigned int> sortedMatchIdx,
+							 cv::OutputArray R_E,
+							 cv::OutputArray t_E,
+							 bool verbose_)
 {
 	CV_Assert((p1.cols == 2) && (p2.cols == 2) && (p1.rows == p2.rows) && (p1.type() == CV_64FC1) && (p2.type() == CV_64FC1));
 	CV_Assert(sortedMatchIdx.empty() || (p1.rows == (int)sortedMatchIdx.size()));
@@ -329,7 +331,7 @@ int estimateEssentialMatUsac(const cv::Mat & p1,
 	}
 
 	// seed random number generator
-	srand((unsigned int)time(nullptr));
+	// srand((unsigned int)time(nullptr));
 
 	//convert data into format for USAC essential matrix estimation
 	std::vector<double> pointData(6 * numPts);
@@ -458,7 +460,7 @@ int estimateEssentialMatUsac(const cv::Mat & p1,
 	ConfigParamsEssential cfg(c_com, c_pro, c_sprt, c_lo, c_essential, verbose_);
 
 	// initialize the fundamental matrix estimation problem
-	std::unique_ptr<EssentialMatEstimator> fund(new EssentialMatEstimator);
+	std::unique_ptr<EssentialMatEstimator> fund(new EssentialMatEstimator(mt));
 	fund->initParamsUSAC(cfg);
 	fund->initDataUSAC(cfg);
 	fund->initProblem(cfg, &pointData[0]);
@@ -733,20 +735,21 @@ int estimateEssentialMatUsac(const cv::Mat & p1,
 	return(EXIT_SUCCESS);
 }
 
-int estimateRotationMatUsac(const cv::Mat & p1,
-	const cv::Mat & p2,
-	cv::OutputArray R,
-	double & sprt_delta_result,
-	double & sprt_epsilon_result,
-	double focalLength,
-	double th_pixels,
-	double prosac_beta,
-	double sprt_delta,
-	double sprt_epsilon,
-	cv::OutputArray inliers,
-	unsigned int *nr_inliers,
-	std::vector<unsigned int> sortedMatchIdx,
-	bool verbose_)
+int estimateRotationMatUsac(const cv::Mat &p1,
+							const cv::Mat &p2,
+							cv::OutputArray R,
+							std::mt19937 &mt,
+							double &sprt_delta_result,
+							double &sprt_epsilon_result,
+							double focalLength,
+							double th_pixels,
+							double prosac_beta,
+							double sprt_delta,
+							double sprt_epsilon,
+							cv::OutputArray inliers,
+							unsigned int *nr_inliers,
+							std::vector<unsigned int> sortedMatchIdx,
+							bool verbose_)
 {
 	CV_Assert((p1.cols == 2) && (p2.cols == 2) && (p1.rows == p2.rows) && (p1.type() == CV_64FC1) && (p2.type() == CV_64FC1));
 	CV_Assert(sortedMatchIdx.empty() || (p1.rows == (int)sortedMatchIdx.size()));
@@ -762,7 +765,7 @@ int estimateRotationMatUsac(const cv::Mat & p1,
 	}
 
 	// seed random number generator
-	srand((unsigned int)time(nullptr));
+	// srand((unsigned int)time(nullptr));
 
 	//convert data into format for USAC essential matrix estimation
 	std::vector<double> pointData(6 * numPts);
@@ -826,7 +829,7 @@ int estimateRotationMatUsac(const cv::Mat & p1,
 	ConfigParamsRotationMat cfg(c_com, c_pro, c_sprt, c_lo, verbose_);
 
 	// initialize the fundamental matrix estimation problem
-	std::unique_ptr<RotationMatEstimator> fund(new RotationMatEstimator);
+	std::unique_ptr<RotationMatEstimator> fund(new RotationMatEstimator(mt));
 	fund->initParamsUSAC(cfg);
 	fund->initDataUSAC(cfg);
 	fund->initProblem(cfg, &pointData[0]);
@@ -892,25 +895,25 @@ int estimateRotationMatUsac(const cv::Mat & p1,
 	return(EXIT_SUCCESS);
 }
 
-
-int upgradeEssentialMatDegenUsac(const cv::Mat & p1,
-	const cv::Mat & p2,
-	cv::InputArray inliers_degen,
-	cv::OutputArray E,
-	double & sprt_delta_result,
-	double & sprt_epsilon_result,
-	double th,
-	double focalLength,
-	double th_pixels,
-	double sprt_delta,
-	double sprt_epsilon,
-	USACConfig::EssentialMatEstimatorUsed used_estimator,
-	USACConfig::RefineAlgorithm	refineMethod,
-	cv::OutputArray inliers,
-	unsigned int *nr_inliers,
-	cv::OutputArray R,
-	cv::OutputArray t,
-	bool verbose_)
+int upgradeEssentialMatDegenUsac(const cv::Mat &p1,
+								 const cv::Mat &p2,
+								 cv::InputArray inliers_degen,
+								 cv::OutputArray E,
+								 std::mt19937 &mt,
+								 double &sprt_delta_result,
+								 double &sprt_epsilon_result,
+								 double th,
+								 double focalLength,
+								 double th_pixels,
+								 double sprt_delta,
+								 double sprt_epsilon,
+								 USACConfig::EssentialMatEstimatorUsed used_estimator,
+								 USACConfig::RefineAlgorithm refineMethod,
+								 cv::OutputArray inliers,
+								 unsigned int *nr_inliers,
+								 cv::OutputArray R,
+								 cv::OutputArray t,
+								 bool verbose_)
 {
 	CV_Assert((p1.cols == 2) && (p2.cols == 2) && (p1.rows == p2.rows) && (p1.type() == CV_64FC1) && (p2.type() == CV_64FC1));
 	const cv::Mat p1_ = p1;// .getMat();
@@ -930,7 +933,7 @@ int upgradeEssentialMatDegenUsac(const cv::Mat & p1,
 	}
 
 	// seed random number generator
-	srand((unsigned int)time(nullptr));
+	// srand((unsigned int)time(nullptr));
 
 	//convert data into format for USAC essential matrix estimation and split into degenerate inliers and outliers
 	std::vector<double> pointData;// (6 * numPts);
@@ -1054,7 +1057,7 @@ int upgradeEssentialMatDegenUsac(const cv::Mat & p1,
 	ConfigParamsEssential cfg(c_com, c_pro, c_sprt, c_lo, c_essential, verbose_);
 
 	// initialize the fundamental matrix estimation problem
-	std::unique_ptr<EssentialMatEstimator> fund(new EssentialMatEstimator);
+	std::unique_ptr<EssentialMatEstimator> fund(new EssentialMatEstimator(mt));
 	fund->initParamsUSAC(cfg);
 	fund->initDataUSAC(cfg);
 	fund->initProblem(cfg, &pointData[0]);
@@ -1158,30 +1161,30 @@ int upgradeEssentialMatDegenUsac(const cv::Mat & p1,
 	return(EXIT_SUCCESS);
 }
 
-
-int estimateEssentialQDEGSAC(const cv::Mat & p1,
-	const cv::Mat & p2,
-	cv::OutputArray E,
-	double & sprt_delta_result,
-	double & sprt_epsilon_result,
-	double th,
-	double focalLength,
-	double th_pixels, 
-	double prosac_beta,
-	double sprt_delta,
-	double sprt_epsilon,
-	double t_red,
-	USACConfig::EssentialMatEstimatorUsed used_estimator,
-	USACConfig::RefineAlgorithm	refineMethod,
-	cv::OutputArray inliers, 
-	unsigned int *nr_inliers,
-	cv::OutputArray R, 
-	cv::OutputArray inliers_degenerate_R, 
-	double *fraction_degen_inliers_R,
-	std::vector<unsigned int> sortedMatchIdx,
-	cv::OutputArray R_E, 
-	cv::OutputArray t_E,
-	bool verbose_)
+int estimateEssentialQDEGSAC(const cv::Mat &p1,
+							 const cv::Mat &p2,
+							 cv::OutputArray E,
+							 std::mt19937 &mt,
+							 double &sprt_delta_result,
+							 double &sprt_epsilon_result,
+							 double th,
+							 double focalLength,
+							 double th_pixels,
+							 double prosac_beta,
+							 double sprt_delta,
+							 double sprt_epsilon,
+							 double t_red,
+							 USACConfig::EssentialMatEstimatorUsed used_estimator,
+							 USACConfig::RefineAlgorithm refineMethod,
+							 cv::OutputArray inliers,
+							 unsigned int *nr_inliers,
+							 cv::OutputArray R,
+							 cv::OutputArray inliers_degenerate_R,
+							 double *fraction_degen_inliers_R,
+							 std::vector<unsigned int> sortedMatchIdx,
+							 cv::OutputArray R_E,
+							 cv::OutputArray t_E,
+							 bool verbose_)
 {
 	CV_Assert((p1.cols == 2) && (p2.cols == 2) && (p1.rows == p2.rows) && (p1.type() == CV_64FC1) && (p2.type() == CV_64FC1));
 	const cv::Mat p1_ = p1;// .getMat();
@@ -1198,6 +1201,7 @@ int estimateEssentialQDEGSAC(const cv::Mat & p1,
 	if (estimateEssentialMatUsac(p1,
 		p2,
 		E_,
+		mt,
 		sprt_delta_result_tmp,
 		sprt_epsilon_result_tmp,
 		th,
@@ -1278,6 +1282,7 @@ int estimateEssentialQDEGSAC(const cv::Mat & p1,
 	if(estimateRotationMatUsac(p1_inl,
 		p2_inl,
 		R_,
+		mt,
 		sprt_delta_result_tmp_deg,
 		sprt_epsilon_result_tmp_deg,
 		focalLength,
@@ -1337,6 +1342,7 @@ int estimateEssentialQDEGSAC(const cv::Mat & p1,
 					p2,
 					inliers_degen_all_out,
 					E_upgrade,
+					mt,
 					sprt_delta_result_tmp,
 					sprt_epsilon_result_tmp,
 					th,

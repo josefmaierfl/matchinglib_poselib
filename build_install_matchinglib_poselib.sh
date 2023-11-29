@@ -38,3 +38,4 @@ if [ ${INSTALL_EXE} -ge 2 ]; then
       exit 1
   fi
 fi
+ldconfig

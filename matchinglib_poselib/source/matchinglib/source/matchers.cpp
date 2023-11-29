@@ -69,6 +69,15 @@ namespace matchinglib
 
   /* --------------------- Functions --------------------- */
 
+  int getMatches(std::vector<cv::KeyPoint> const &keypoints1, std::vector<cv::KeyPoint> const &keypoints2,
+                 const cv::Mat &descriptors1, const cv::Mat &descriptors2, cv::Size imgSi, std::vector<cv::DMatch> &finalMatches,
+                 const std::string &matcher_name, bool VFCrefine, bool ratioTest, const std::string &descriptor_name, std::string idxPars_NMSLIB, std::string queryPars_NMSLIB, const size_t nr_threads)
+  {
+    std::random_device rd;
+    std::mt19937 g(rd());
+    return getMatches(keypoints1, keypoints2, descriptors1, descriptors2, imgSi, finalMatches, g, matcher_name, VFCrefine, ratioTest, descriptor_name, idxPars_NMSLIB, queryPars_NMSLIB, nr_threads);
+  }
+
   /* Matches 2 feature sets with an user selectable matching algorithm.
    *
    * vector<KeyPoint> keypoints1    Input  -> Keypoints in the first or left image
@@ -113,7 +122,7 @@ namespace matchinglib
    *                  -4:     Too less keypoits
    */
   int getMatches(std::vector<cv::KeyPoint> const &keypoints1, std::vector<cv::KeyPoint> const &keypoints2,
-                 const cv::Mat &descriptors1, const cv::Mat &descriptors2, cv::Size imgSi, std::vector<cv::DMatch> &finalMatches,
+                 const cv::Mat &descriptors1, const cv::Mat &descriptors2, cv::Size imgSi, std::vector<cv::DMatch> &finalMatches, std::mt19937 &mt,
                  const std::string &matcher_name, bool VFCrefine, bool ratioTest, const std::string &descriptor_name, std::string idxPars_NMSLIB, std::string queryPars_NMSLIB, const size_t nr_threads)
   {
     CV_Assert(descriptors1.type() == descriptors2.type());
@@ -156,7 +165,7 @@ namespace matchinglib
         cout << "Performing GMbSOF with ratio test!" << endl;
       }
 
-      err = AdvancedMatching(matcher, keypoints1, keypoints2, descriptors1, descriptors2, imgSi, finalMatches, true, 0.3, 3.5, 2, false, nullptr, nullptr, nullptr, nullptr, cv::noArray(), cv::noArray(), nr_threads_); //, imgs[0], imgs[1]);
+      err = AdvancedMatching(matcher, keypoints1, keypoints2, descriptors1, descriptors2, imgSi, finalMatches, mt, true, 0.3, 3.5, 2, false, nullptr, nullptr, nullptr, nullptr, cv::noArray(), cv::noArray(), nr_threads_); //, imgs[0], imgs[1]);
 
       if (err)
       {
@@ -182,8 +191,8 @@ namespace matchinglib
     }
     else if (!matcher_name.compare("SWGRAPH"))
     {
-        string idxPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "NN=10,initIndexAttempts=5,efConstruction=10,indexThreadQty=8" : idxPars_NMSLIB;
-        string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "initSearchAttempts=2,efSearch=10" : queryPars_NMSLIB;
+        string idxPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "NN=10,efConstruction=10,indexThreadQty=8" : idxPars_NMSLIB;
+        string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "efSearch=10" : queryPars_NMSLIB;
         if (descriptors1.type() == CV_32F)
         {
           nmslibMatching<float>(descriptors1,
@@ -193,6 +202,7 @@ namespace matchinglib
                                 "l2",
                                 idxPars,
                                 queryPars,
+                                mt,
                                 ratioTest,
                                 nr_threads_);
         }
@@ -205,20 +215,26 @@ namespace matchinglib
                               "bit_hamming",
                               idxPars,
                               queryPars,
+                              mt,
                               ratioTest,
                               nr_threads_);
         }
         else if (descriptors1.type() == CV_64F)
         {
-          nmslibMatching<double>(descriptors1,
-                                 descriptors2,
-                                 finalMatches,
-                                 "sw-graph",
-                                 "l2",
-                                 idxPars,
-                                 queryPars,
-                                 ratioTest,
-                                 nr_threads_);
+          cv::Mat desc1_float;
+          cv::Mat desc2_float;
+          descriptors1.convertTo(desc1_float, CV_32F);
+          descriptors2.convertTo(desc2_float, CV_32F);
+          nmslibMatching<float>(desc1_float,
+                                desc2_float,
+                                finalMatches,
+                                "sw-graph",
+                                "l2",
+                                idxPars,
+                                queryPars,
+                                mt,
+                                ratioTest,
+                                nr_threads_);
         }
         else
         {
@@ -240,6 +256,7 @@ namespace matchinglib
                                 "l2",
                                 idxPars,
                                 queryPars,
+                                mt,
                                 ratioTest,
                                 nr_threads_);
         }
@@ -252,20 +269,26 @@ namespace matchinglib
                               "bit_hamming",
                               idxPars,
                               queryPars,
+                              mt,
                               ratioTest,
                               nr_threads_);
         }
         else if (descriptors1.type() == CV_64F)
         {
-          nmslibMatching<double>(descriptors1,
-                                 descriptors2,
-                                 finalMatches,
-                                 "hnsw",
-                                 "l2",
-                                 idxPars,
-                                 queryPars,
-                                 ratioTest,
-                                 nr_threads_);
+          cv::Mat desc1_float;
+          cv::Mat desc2_float;
+          descriptors1.convertTo(desc1_float, CV_32F);
+          descriptors2.convertTo(desc2_float, CV_32F);
+          nmslibMatching<float>(desc1_float,
+                                desc2_float,
+                                finalMatches,
+                                "hnsw",
+                                "l2",
+                                idxPars,
+                                queryPars,
+                                mt,
+                                ratioTest,
+                                nr_threads_);
         }
         else
         {
@@ -318,158 +341,30 @@ namespace matchinglib
                                 "l2",
                                 idxPars,
                                 queryPars,
+                                mt,
                                 ratioTest,
                                 nr_threads_);
         }
         else if (descriptors1.type() == CV_64F)
         {
-          nmslibMatching<double>(descriptors1,
-                                 descriptors2,
-                                 finalMatches,
-                                 "vptree",
-                                 "l2",
-                                 idxPars,
-                                 queryPars,
-                                 ratioTest,
-                                 nr_threads_);
+          cv::Mat desc1_float;
+          cv::Mat desc2_float;
+          descriptors1.convertTo(desc1_float, CV_32F);
+          descriptors2.convertTo(desc2_float, CV_32F);
+          nmslibMatching<float>(desc1_float,
+                                desc2_float,
+                                finalMatches,
+                                "vptree",
+                                "l2",
+                                idxPars,
+                                queryPars,
+                                mt,
+                                ratioTest,
+                                nr_threads_);
         }
         else
         {
             cout << "Wrong descriptor data type for VPTREE! Must be 32bit float or 64bit double." << endl;
-            return -1;
-        }
-    }
-    else if (!matcher_name.compare("MVPTREE"))
-    {
-        string idxPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "chunkBucket=1,bucketSize=20" : idxPars_NMSLIB;
-        string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "" : queryPars_NMSLIB;
-        if (descriptors1.type() == CV_32F)
-        {
-          nmslibMatching<float>(descriptors1,
-                                descriptors2,
-                                finalMatches,
-                                "mvptree",
-                                "l2",
-                                idxPars,
-                                queryPars,
-                                ratioTest,
-                                nr_threads_);
-        }
-        else if (descriptors1.type() == CV_64F)
-        {
-          nmslibMatching<double>(descriptors1,
-                                 descriptors2,
-                                 finalMatches,
-                                 "mvptree",
-                                 "l2",
-                                 idxPars,
-                                 queryPars,
-                                 ratioTest,
-                                 nr_threads_);
-        }
-        else
-        {
-            cout << "Wrong descriptor data type for MVPTREE! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
-            return -1;
-        }
-    }
-    else if (!matcher_name.compare("GHTREE"))
-    {
-        string idxPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "chunkBucket=1,bucketSize=20" : idxPars_NMSLIB;
-        string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "" : queryPars_NMSLIB;
-        if (descriptors1.type() == CV_32F)
-        {
-          nmslibMatching<float>(descriptors1,
-                                descriptors2,
-                                finalMatches,
-                                "ghtree",
-                                "l2",
-                                idxPars,
-                                queryPars,
-                                ratioTest,
-                                nr_threads_);
-        }
-        else if (descriptors1.type() == CV_64F)
-        {
-          nmslibMatching<double>(descriptors1,
-                                 descriptors2,
-                                 finalMatches,
-                                 "ghtree",
-                                 "l2",
-                                 idxPars,
-                                 queryPars,
-                                 ratioTest,
-                                 nr_threads_);
-        }
-        else
-        {
-            cout << "Wrong descriptor data type for GHTREE! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
-            return -1;
-        }
-    }
-    else if (!matcher_name.compare("LISTCLU"))//exact search method
-    {
-        string idxPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "chunkBucket=1,bucketSize=20,useBucketSize=1,strategy=random" : idxPars_NMSLIB;
-        string queryPars = (idxPars_NMSLIB.empty() || queryPars_NMSLIB.empty()) ? "" : queryPars_NMSLIB;
-        if (descriptors1.type() == CV_32F)
-        {
-          nmslibMatching<float>(descriptors1,
-                                descriptors2,
-                                finalMatches,
-                                "list_clusters",
-                                "l2",
-                                idxPars,
-                                queryPars,
-                                ratioTest,
-                                nr_threads_);
-        }
-        else if (descriptors1.type() == CV_64F)
-        {
-          nmslibMatching<double>(descriptors1,
-                                 descriptors2,
-                                 finalMatches,
-                                 "list_clusters",
-                                 "l2",
-                                 idxPars,
-                                 queryPars,
-                                 ratioTest,
-                                 nr_threads_);
-        }
-        else
-        {
-            cout << "Wrong descriptor data type for LISTCLU! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
-            return -1;
-        }
-    }
-    else if (!matcher_name.compare("SATREE"))//exact search method
-    {
-        if (descriptors1.type() == CV_32F)
-        {
-          nmslibMatching<float>(descriptors1,
-                                descriptors2,
-                                finalMatches,
-                                "satree",
-                                "l2",
-                                "",
-                                "",
-                                ratioTest,
-                                nr_threads_);
-        }
-        else if (descriptors1.type() == CV_64F)
-        {
-          nmslibMatching<double>(descriptors1,
-                                 descriptors2,
-                                 finalMatches,
-                                 "satree",
-                                 "l2",
-                                 "",
-                                 "",
-                                 ratioTest,
-                                 nr_threads_);
-        }
-        else
-        {
-            cout << "Wrong descriptor data type for SATREE! Must be 32bit float, 64bit double or 8bit unsigned char." << endl;
             return -1;
         }
     }
@@ -484,6 +379,7 @@ namespace matchinglib
                                 "l2",
                                 "",
                                 "",
+                                mt,
                                 ratioTest,
                                 nr_threads_);
         }
@@ -496,20 +392,26 @@ namespace matchinglib
                               "bit_hamming",
                               "",
                               "",
+                              mt,
                               ratioTest,
                               nr_threads_);
         }
         else if (descriptors1.type() == CV_64F)
         {
-          nmslibMatching<double>(descriptors1,
-                                 descriptors2,
-                                 finalMatches,
-                                 "seq_search",
-                                 "l2",
-                                 "",
-                                 "",
-                                 ratioTest,
-                                 nr_threads_);
+          cv::Mat desc1_float;
+          cv::Mat desc2_float;
+          descriptors1.convertTo(desc1_float, CV_32F);
+          descriptors2.convertTo(desc2_float, CV_32F);
+          nmslibMatching<float>(desc1_float,
+                                desc2_float,
+                                finalMatches,
+                                "seq_search",
+                                "l2",
+                                "",
+                                "",
+                                mt,
+                                ratioTest,
+                                nr_threads_);
         }
         else
         {
@@ -723,7 +625,7 @@ namespace matchinglib
     {
       vector<cv::DMatch> vfcfilteredMatches;
 
-      if(!filterWithVFC(keypoints1, keypoints2, finalMatches, vfcfilteredMatches))
+      if(!filterWithVFC(keypoints1, keypoints2, finalMatches, vfcfilteredMatches, mt))
       {
         if((vfcfilteredMatches.size() > 8) || (finalMatches.size() < 24))
         {
@@ -1415,8 +1317,8 @@ namespace matchinglib
 
   std::vector<std::string> GetSupportedMatcher()
   {
-    static std::string types [] = {"CASHASH", "GMBSOF","HIRCLUIDX", "HIRKMEANS", "LINEAR", "LSHIDX", "RANDKDTREE", "LKOF", "ALKOF", "LKOFT", "ALKOFT", "SWGRAPH", "HNSW", "VPTREE", "MVPTREE", "GHTREE", "LISTCLU", "SATREE", "BRUTEFORCENMS", "ANNOY"};
-    return std::vector<std::string>(types, types + 20);
+    static std::string types [] = {"CASHASH", "GMBSOF","HIRCLUIDX", "HIRKMEANS", "LINEAR", "LSHIDX", "RANDKDTREE", "LKOF", "ALKOF", "LKOFT", "ALKOFT", "SWGRAPH", "HNSW", "VPTREE", "BRUTEFORCENMS", "ANNOY"};
+    return std::vector<std::string>(types, std::end(types));
   }
 
 }

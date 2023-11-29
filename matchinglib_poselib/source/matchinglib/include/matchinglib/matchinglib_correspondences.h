@@ -48,6 +48,7 @@
 
 #include "matchinglib/matchinglib_api.h"
 #include <string>
+#include <random>
 
 namespace matchinglib
 {
@@ -57,25 +58,46 @@ namespace matchinglib
 
 /* --------------------- Function prototypes --------------------- */
 
+// Generation of features followed by matching, filtering, and subpixel-refinement.
+int MATCHINGLIB_API getCorrespondences(cv::Mat &img1,
+                                       cv::Mat &img2,
+                                       std::vector<cv::DMatch> &finalMatches,
+                                       std::vector<cv::KeyPoint> &kp1,
+                                       std::vector<cv::KeyPoint> &kp2,
+                                       std::string featuretype = "FAST",
+                                       std::string extractortype = "FREAK",
+                                       std::string matchertype = "GMBSOF",
+                                       bool dynamicKeypDet = true,
+                                       int limitNrfeatures = 8000,
+                                       bool VFCrefine = false,
+                                       bool GMSrefine = false,
+                                       bool ratioTest = true,
+                                       bool SOFrefine = false,
+                                       int subPixRefine = 0,
+                                       int verbose = 0,
+                                       std::string idxPars_NMSLIB = "",
+                                       std::string queryPars_NMSLIB = "");
+
 //Generation of features followed by matching, filtering, and subpixel-refinement.
-int MATCHINGLIB_API getCorrespondences(cv::Mat& img1,
-                       cv::Mat& img2,
-                       std::vector<cv::DMatch> & finalMatches,
-                       std::vector<cv::KeyPoint> & kp1,
-                       std::vector<cv::KeyPoint> & kp2,
-                       std::string featuretype = "FAST",
-                       std::string extractortype = "FREAK",
-                       std::string matchertype = "GMBSOF",
-                       bool dynamicKeypDet = true,
-                       int limitNrfeatures = 8000,
-                       bool VFCrefine = false,
-					   bool GMSrefine = false,
-                       bool ratioTest = true,
-                       bool SOFrefine = false,
-                       int subPixRefine = 0,
-                       int verbose = 0,
-					   std::string idxPars_NMSLIB = "",
-					   std::string queryPars_NMSLIB = "");
+int MATCHINGLIB_API getCorrespondences(cv::Mat &img1,
+                                       cv::Mat &img2,
+                                       std::vector<cv::DMatch> &finalMatches,
+                                       std::vector<cv::KeyPoint> &kp1,
+                                       std::vector<cv::KeyPoint> &kp2,
+                                       std::mt19937 &mt,
+                                       std::string featuretype = "FAST",
+                                       std::string extractortype = "FREAK",
+                                       std::string matchertype = "GMBSOF",
+                                       bool dynamicKeypDet = true,
+                                       int limitNrfeatures = 8000,
+                                       bool VFCrefine = false,
+                                       bool GMSrefine = false,
+                                       bool ratioTest = true,
+                                       bool SOFrefine = false,
+                                       int subPixRefine = 0,
+                                       int verbose = 0,
+                                       std::string idxPars_NMSLIB = "",
+                                       std::string queryPars_NMSLIB = "");
 
 void MATCHINGLIB_API filterMatchesSOF(const std::vector<cv::KeyPoint> &keypoints1,
                           const std::vector<cv::KeyPoint> &keypoints2,

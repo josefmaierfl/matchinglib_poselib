@@ -111,8 +111,6 @@ namespace matchinglib
 
 //Compares the response of two keypoints
   bool sortKeyPoints(cv::KeyPoint first, cv::KeyPoint second);
-//Filters keypoints with a small response value within multiple grids.
-  void responseFilterGridBased(std::vector<cv::KeyPoint>& keys, cv::Size imgSi, int number);
 //Sorts the input vector based on the response values (largest elements first) until the given number is reached.
   int sortResponses(std::vector<keyPIdx>& keys, int number);
 
@@ -142,7 +140,7 @@ namespace matchinglib
    *                  -2:     Error creating feature detector
    *                  -3:     No such feature detector
    */
-  int getKeypoints(Mat &img, std::vector<cv::KeyPoint>& keypoints, string &keypointtype, bool dynamicKeypDet, int limitNrfeatures)
+  int getKeypoints(const Mat &img, std::vector<cv::KeyPoint> &keypoints, const string &keypointtype, cv::Ptr<cv::FeatureDetector> &detector, const bool dynamicKeypDet, const int limitNrfeatures)
   {
       const int minnumfeatures = 10;
       int maxnumfeatures = limitNrfeatures;
@@ -339,7 +337,8 @@ namespace matchinglib
 
       //cout << "Dynamic keypoint detection is since OpenCV 3.0 not available! Performing response filtering." << endl;
 
-      Ptr<FeatureDetector> detector = createDetector(keypointtype, limitNrfeatures_tmp);// = FeatureDetector::create( featuretype );
+      // Ptr<FeatureDetector> detector = createDetector(keypointtype, limitNrfeatures_tmp);// = FeatureDetector::create( featuretype );
+      detector = createDetector(keypointtype, limitNrfeatures_tmp); // = FeatureDetector::create( featuretype );
 
       if(detector.empty())
       {
@@ -378,6 +377,12 @@ namespace matchinglib
     return 0;
   }
 
+  int getKeypoints(const Mat &img, std::vector<cv::KeyPoint> &keypoints, const string &keypointtype, const bool dynamicKeypDet, const int limitNrfeatures)
+  {
+    Ptr<FeatureDetector> detector;
+    return getKeypoints(img, keypoints, keypointtype, detector, dynamicKeypDet, limitNrfeatures);
+  }
+
   /* Extraction of descriptors at given keypoint locations
    *
    * Mat img1           Input  -> Input image
@@ -394,11 +399,13 @@ namespace matchinglib
    *                      -1:     Cannot create descriptor extractor
    *                      -2:     No such extractor type
    */
-  int getDescriptors(Mat &img,
-                     std::vector<cv::KeyPoint> & keypoints,
-                     std::string& descriptortype,
-                     cv::Mat & descriptors,
-                     std::string const& keypointtype)
+  int getDescriptors(const Mat &img,
+                     std::vector<cv::KeyPoint> &keypoints,
+                     std::string const &descriptortype,
+                     cv::Mat &descriptors,
+                     cv::Ptr<cv::DescriptorExtractor> &extractor,
+                     std::string const &keypointtype,
+                     const bool affineInvariant)
   {
     descriptors = cv::Mat(0,0,0);
 
@@ -464,7 +471,8 @@ namespace matchinglib
     }
     else
     {
-        cv::Ptr<cv::DescriptorExtractor> extractor = createExtractor(descriptortype, keypointtype);
+        // cv::Ptr<cv::DescriptorExtractor> extractor = createExtractor(descriptortype, keypointtype);
+        extractor = createExtractor(descriptortype, keypointtype);
 
         if (extractor.empty())
         {
@@ -472,10 +480,31 @@ namespace matchinglib
             return -1;
         }
 
-        extractor->compute(img, keypoints, descriptors);
+        if (affineInvariant){
+          cv::Ptr<cv::AffineDescriptorExtractor> affine_extractor = AffineDescriptorExtractor::create(extractor);
+          if (affine_extractor.empty())
+          {
+            fprintf(stderr, "Cannot create affine invariant descriptor extractor!\n");
+            return -1;
+          }
+          affine_extractor->detectAndCompute(img, cv::noArray(), keypoints, descriptors, true);
+        }else{
+          extractor->compute(img, keypoints, descriptors);
+        }
     }
 
     return 0;
+  }
+
+  int getDescriptors(const Mat &img,
+                     std::vector<cv::KeyPoint> &keypoints,
+                     std::string const &descriptortype,
+                     cv::Mat &descriptors,
+                     std::string const &keypointtype,
+                     const bool affineInvariant)
+  {
+    cv::Ptr<cv::DescriptorExtractor> extractor;
+    return getDescriptors(img, keypoints, descriptortype, descriptors, extractor, keypointtype, affineInvariant);
   }
 
   /* This function compares the response of two keypoints to be able to sort them accordingly.
@@ -619,8 +648,8 @@ namespace matchinglib
     //Assign keypoint indices and responses to cells of all grids
     for(int i = 0; i < (int)keys.size(); ++i)
     {
-      float x = keys[i].pt.x;
-      float y = keys[i].pt.y;
+      float x = abs(keys[i].pt.x);
+      float y = abs(keys[i].pt.y);
       float response = keys[i].response;
 
       for(size_t j = 0; j < gridsizes.size(); ++j)
@@ -817,15 +846,11 @@ namespace matchinglib
     {
       detector = AKAZE::create();
     }
-
-#if defined(USE_NON_FREE_CODE)
     else if(!keypointtype.compare("SIFT"))
     {
       //cv::initModule_nonfree();
-      detector = xfeatures2d::SIFT::create();
+      detector = SIFT::create();
     }
-
-#endif
 #if defined(USE_NON_FREE_CODE)
     else if(!keypointtype.compare("SURF"))
     {
@@ -897,15 +922,11 @@ namespace matchinglib
     {
       extractor = xfeatures2d::FREAK::create();
     }
-
-#if defined(USE_NON_FREE_CODE)
     else if(!descriptortype.compare("SIFT"))
     {
       //cv::initModule_nonfree();
-      extractor = xfeatures2d::SIFT::create();
+      extractor = SIFT::create();
     }
-
-#endif
 #if defined(USE_NON_FREE_CODE)
     else if(!descriptortype.compare("SURF"))
     {
@@ -999,8 +1020,8 @@ namespace matchinglib
                                    "BRISK",
                                    "KAZE",
                                    "AKAZE",
-#if defined(USE_NON_FREE_CODE)
                                    "SIFT",
+#if defined(USE_NON_FREE_CODE)
                                    "SURF",
 #endif
                                    "STAR",
@@ -1034,8 +1055,8 @@ namespace matchinglib
                                    "KAZE",
                                    "AKAZE",
                                    "FREAK",
-#if defined(USE_NON_FREE_CODE)
                                    "SIFT",
+#if defined(USE_NON_FREE_CODE)
                                    "SURF",
 #endif
                                    "DAISY",

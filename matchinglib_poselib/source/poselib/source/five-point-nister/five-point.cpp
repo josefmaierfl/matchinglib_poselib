@@ -52,7 +52,7 @@ using namespace std;
 class CvEMEstimator : public CvModelEstimator3
 {
 public:
-    CvEMEstimator();
+    explicit CvEMEstimator(std::mt19937 &_mt);
     virtual int runKernel( const cv::Mat& m1, const cv::Mat& m2, cv::Mat& model );
     virtual int run5Point( const cv::Mat& _q1, const cv::Mat& _q2, cv::Mat& _ematrix );
 //protected:
@@ -63,15 +63,26 @@ public:
 	bool ValidModel(const cv::Mat& m1, const cv::Mat& m2, const cv::Mat& model);
 };
 
-
+// Input should be a vector of n 2D points or a Nx2 matrix
+bool findEssentialMat(OutputArray Essential, InputArray _points1, InputArray _points2, 
+                      int method, double prob, double threshold, OutputArray _mask, bool lesqu,
+                      void (*refineEssential)(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init,
+                                              cv::Mat &E_refined, double th, unsigned int iters, bool makeClosestE,
+                                              double *sumSqrErr_init, double *sumSqrErr,
+                                              cv::OutputArray errors, cv::InputOutputArray mask, int model, bool tryOrientedEpipolar, bool normalizeCorrs))
+{
+    std::random_device rd;
+    std::mt19937 g(rd());
+    return findEssentialMat(Essential, _points1, _points2, g, method, prob, threshold, _mask, lesqu, refineEssential);
+}
 
 // Input should be a vector of n 2D points or a Nx2 matrix
-bool findEssentialMat(OutputArray Essential, InputArray _points1, InputArray _points2, /*double focal, Point2d pp, */
-					int method, double prob, double threshold, OutputArray _mask, bool lesqu,
-					void (*refineEssential)(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init,
-											cv::Mat & E_refined, double th, unsigned int iters, bool makeClosestE,
-											double *sumSqrErr_init, double *sumSqrErr,
-											cv::OutputArray errors, cv::InputOutputArray mask, int model, bool tryOrientedEpipolar, bool normalizeCorrs))
+bool findEssentialMat(OutputArray Essential, InputArray _points1, InputArray _points2, std::mt19937 &mt,
+                      int method, double prob, double threshold, OutputArray _mask, bool lesqu,
+                      void (*refineEssential)(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init,
+                                              cv::Mat &E_refined, double th, unsigned int iters, bool makeClosestE,
+                                              double *sumSqrErr_init, double *sumSqrErr,
+                                              cv::OutputArray errors, cv::InputOutputArray mask, int model, bool tryOrientedEpipolar, bool normalizeCorrs))
 {
 	Mat points1, points2;
 	_points1.getMat().copyTo(points1);
@@ -99,7 +110,7 @@ bool findEssentialMat(OutputArray Essential, InputArray _points1, InputArray _po
 	points2 = points2.reshape(2, 1);
 
 	Mat E(3, 3, CV_64F);
-	CvEMEstimator estimator;
+	CvEMEstimator estimator(mt);
 	cv::Mat tempMask = cv::Mat(1, npoints, CV_8U);
 
 	assert(npoints >= 5);
@@ -351,8 +362,8 @@ void decomposeEssentialMat( const Mat & E, Mat & R1, Mat & R2, Mat & t )
 	t = U.col(2) * 1.0;
 }
 
-CvEMEstimator::CvEMEstimator()
-: CvModelEstimator3( 5, cv::Size(3,3),  10 )
+CvEMEstimator::CvEMEstimator(std::mt19937 &_mt)
+    : CvModelEstimator3(_mt, 5, cv::Size(3, 3), 10)
 {
 }
 

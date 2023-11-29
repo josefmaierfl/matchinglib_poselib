@@ -43,6 +43,7 @@
 #pragma once
 
 #include "opencv2/core/core.hpp"
+#include "opencv2/features2d.hpp"
 #include "matchinglib/glob_includes.h"
 
 #include "matchinglib/matchinglib_api.h"
@@ -55,14 +56,25 @@ namespace matchinglib
 
   /* --------------------- Function prototypes --------------------- */
 //Find the keypoints in the image
-  int MATCHINGLIB_API getKeypoints(cv::Mat& img, std::vector<cv::KeyPoint>& keypoints, std::string& keypointtype, bool dynamicKeypDet = true,
-                                   int limitNrfeatures = 8000);
-//Extraction of descriptors at given keypoint locations
-  int MATCHINGLIB_API getDescriptors(cv::Mat &img,
+  int MATCHINGLIB_API getKeypoints(const cv::Mat &img, std::vector<cv::KeyPoint> &keypoints, const std::string &keypointtype, const bool dynamicKeypDet = true, int limitNrfeatures = 8000);
+  int MATCHINGLIB_API getKeypoints(const cv::Mat &img, std::vector<cv::KeyPoint> &keypoints, const std::string &keypointtype, cv::Ptr<cv::FeatureDetector> &detector, const bool dynamicKeypDet = true, const int limitNrfeatures = 8000);
+  //Extraction of descriptors at given keypoint locations
+  int MATCHINGLIB_API getDescriptors(const cv::Mat &img,
                                      std::vector<cv::KeyPoint> &keypoints,
-                                     std::string& descriptortype,
-                                     cv::Mat & descriptors,
-									 std::string const& keypointtype = "");
+                                     std::string const &descriptortype,
+                                     cv::Mat &descriptors,
+                                     std::string const &keypointtype = "",
+                                     const bool affineInvariant = false);
+  int MATCHINGLIB_API getDescriptors(const cv::Mat &img,
+                                     std::vector<cv::KeyPoint> &keypoints,
+                                     std::string const &descriptortype,
+                                     cv::Mat &descriptors,
+                                     cv::Ptr<cv::DescriptorExtractor> &extractor,
+                                     std::string const &keypointtype = "",
+                                     const bool affineInvariant = false);
+
+  //Filters keypoints with a small response value within multiple grids.
+  void MATCHINGLIB_API responseFilterGridBased(std::vector<cv::KeyPoint> &keys, cv::Size imgSi, int number);
 
   bool MATCHINGLIB_API IsKeypointTypeSupported(std::string const& type);
   std::vector<std::string> MATCHINGLIB_API GetSupportedKeypointTypes();

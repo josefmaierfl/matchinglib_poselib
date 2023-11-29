@@ -84,7 +84,7 @@ Descriptor types:
 * RIFF
 * BOLD
 
-To enable SIFT and SURF, OpenCV must be built with enabled non-free code (contrib) and option `-DUSE_NON_FREE_CODE=ON` must be provided to CMake when building this library.
+To enable SIFT and SURF, OpenCV must be built with enabled non-free code (`-DOPENCV_ENABLE_NONFREE=ON`) and option `-DUSE_NON_FREE_CODE=ON` must be provided to CMake when building this library.
 
 ## Supported Matching Algorithms <a name="support-matching"></a>
 
@@ -98,10 +98,6 @@ To enable SIFT and SURF, OpenCV must be built with enabled non-free code (contri
 * SWGRAPH:	    Small World Graph (SW-graph) from the [NMSLIB](https://github.com/nmslib/nmslib)
 * HNSW:         Hiarchical Navigable Small World Graph from the [NMSLIB](https://github.com/nmslib/nmslib)
 * VPTREE:       VP-tree or ball-tree from the [NMSLIB](https://github.com/nmslib/nmslib)
-* MVPTREE:      Multi-Vantage Point Tree from the [NMSLIB](https://github.com/nmslib/nmslib)
-* GHTREE:       GH-Tree from the [NMSLIB](https://github.com/nmslib/nmslib)
-* LISTCLU:      List of clusters from the [NMSLIB](https://github.com/nmslib/nmslib)
-* SATREE:       Spatial Approximation Tree from the [NMSLIB](https://github.com/nmslib/nmslib).
 * BRUTEFORCENMS: Brute-force (sequential) searching from the [NMSLIB](https://github.com/nmslib/nmslib)
 * ANNOY:        [Approximate Nearest Neighbors Matcher](https://github.com/spotify/annoy)
 * LKOF:         Lucas Kanade Optical Flow

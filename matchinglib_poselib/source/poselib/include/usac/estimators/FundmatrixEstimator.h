@@ -10,6 +10,7 @@
 #include "usac/utils/HomographyFunctions.h"
 #include "usac/estimators/USAC.h"
 
+
 class FundMatrixEstimator: public USAC<FundMatrixEstimator>
 {
 	public:
@@ -20,19 +21,29 @@ class FundMatrixEstimator: public USAC<FundMatrixEstimator>
 		std::vector<double> degen_final_model_params_;
 
 	public:
-		FundMatrixEstimator() 
+		FundMatrixEstimator(std::mt19937 &mt) : USAC(mt), input_points_denorm_(nullptr), input_points_(nullptr), data_matrix_(nullptr), degen_data_matrix_(nullptr)
 		{
-			input_points_ = NULL;
-			data_matrix_  = NULL;
-			degen_data_matrix_  = NULL;
-			models_.clear();
-			models_denorm_.clear();
-		};
+			// input_points_ = NULL;
+			// data_matrix_  = NULL;
+			// degen_data_matrix_  = NULL;
+			// models_.clear();
+			// models_denorm_.clear();
+		}
+
 		~FundMatrixEstimator() 
 		{
-			if (input_points_) { delete[] input_points_; input_points_ = NULL; }
-			if (data_matrix_) { delete[] data_matrix_; data_matrix_ = NULL; }
-			if (degen_data_matrix_) { delete[] degen_data_matrix_; degen_data_matrix_ = NULL; }
+			if (input_points_) { 
+				delete[] input_points_;
+				input_points_ = nullptr;
+			}
+			if (data_matrix_) { 
+				delete[] data_matrix_;
+				data_matrix_ = nullptr;
+			}
+			if (degen_data_matrix_) { 
+				delete[] degen_data_matrix_;
+				degen_data_matrix_ = nullptr;
+			}
 			for (size_t i = 0; i < models_.size(); ++i)
 			{
 				if (models_[i]) { delete[] models_[i]; }
@@ -43,7 +54,7 @@ class FundMatrixEstimator: public USAC<FundMatrixEstimator>
 				if (models_denorm_[i]) { delete[] models_denorm_[i]; }
 			}
 			models_denorm_.clear();
-		};
+		}
 
 	public:
 		// ------------------------------------------------------------------------
@@ -200,7 +211,7 @@ unsigned int FundMatrixEstimator::generateMinimalSampleModels()
 	f1 = sol;
 	f2 = sol+9;
 	if (matrix_decomposition_method == USACConfig::DECOMP_QR)
-	{
+	{		
 		FTools::nullspaceQR7x9(A, sol);
 	}
 	else if (matrix_decomposition_method == USACConfig::DECOMP_LU)

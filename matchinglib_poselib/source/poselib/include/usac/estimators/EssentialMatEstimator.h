@@ -64,14 +64,15 @@ public:
     opengv::translation_t t_eigen_upgrade;				// Stores an upgraded translation based on inliers and outliers from degenerate model 'no Motion'
 
 public:
-    EssentialMatEstimator()
+    EssentialMatEstimator(std::mt19937 &mt) : USAC(mt), input_points_denorm_(nullptr), input_points_(nullptr), data_matrix_(nullptr), degen_data_matrix_(nullptr)
     {
-        input_points_ = nullptr;
-        data_matrix_ = nullptr;
-        degen_data_matrix_ = nullptr;
-        models_.clear();
-        models_denorm_.clear();
-    };
+        // input_points_ = nullptr;
+        // data_matrix_ = nullptr;
+        // degen_data_matrix_ = nullptr;
+        // models_.clear();
+        // models_denorm_.clear();
+    }
+
     ~EssentialMatEstimator()
     {
         if (input_points_) { delete[] input_points_; input_points_ = nullptr; }
@@ -90,7 +91,7 @@ public:
         adapter.reset();
         adapter_denorm.reset();
         deleteWaldTestHistory(wald_test_history_);
-    };
+    }
 
 public:
     // ------------------------------------------------------------------------
@@ -252,8 +253,8 @@ bool EssentialMatEstimator::initProblem(const ConfigParamsEssential& cfg, double
     double* p_idx2 = input_points_;
     for (unsigned int i = 0; i < cfg.common.numDataPoints; i++)
     {
-        opengv::point_t bodyPoint1;// (input_points_ + i * 6);
-        opengv::point_t bodyPoint2;// (input_points_ + i * 6 + 3);
+        opengv::bearingVector_t bodyPoint1;// (input_points_ + i * 6);
+        opengv::bearingVector_t bodyPoint2;// (input_points_ + i * 6 + 3);
         bodyPoint1 << *(p_idx2), *(p_idx2 + 1), *(p_idx2 + 2);
         bodyPoint2 << *(p_idx2 + 3), *(p_idx2 + 4), *(p_idx2 + 5);
 
@@ -268,8 +269,8 @@ bool EssentialMatEstimator::initProblem(const ConfigParamsEssential& cfg, double
         bearingVectors1_all.push_back(bodyPoint1);
         bearingVectors2_all.push_back(bodyPoint2);
 
-        opengv::point_t bodyPoint1_d;// (input_points_denorm_ + i * 6);
-        opengv::point_t bodyPoint2_d;// (input_points_denorm_ + i * 6 + 3);
+        opengv::bearingVector_t bodyPoint1_d;// (input_points_denorm_ + i * 6);
+        opengv::bearingVector_t bodyPoint2_d;// (input_points_denorm_ + i * 6 + 3);
         bodyPoint1_d << *(p_idx1), *(p_idx1 + 1), *(p_idx1 + 2);
         bodyPoint2_d << *(p_idx1 + 3), *(p_idx1 + 4), *(p_idx1 + 5);
         p_idx1 = p_idx1 + 6;
@@ -410,7 +411,7 @@ unsigned int EssentialMatEstimator::generateMinimalSampleModels()
         {
             //Variation of R as init for eigen-solver
             opengv::rotation_t R_init = Eigen::Matrix3d::Identity();
-            PoseTools::getPerturbedRotation(R_init, RAND_ROTATION_AMPLITUDE); //Check if the amplitude is too large or too small!
+            PoseTools::getPerturbedRotation(R_init, mt_, RAND_ROTATION_AMPLITUDE); //Check if the amplitude is too large or too small!
 
             adapter_denorm->setR12(R_init);
             eig_out.rotation = R_init;
@@ -876,7 +877,7 @@ bool EssentialMatEstimator::generateRefinedModel(std::vector<unsigned int>& samp
             else
             {
                 R_init = Eigen::Matrix3d::Identity();
-                PoseTools::getPerturbedRotation(R_init, RAND_ROTATION_AMPLITUDE); //Check if the amplitude is too large or too small!
+                PoseTools::getPerturbedRotation(R_init, mt_, RAND_ROTATION_AMPLITUDE); //Check if the amplitude is too large or too small!
                 adapter_denorm->setR12(R_init);
                 eig_out.rotation = R_init;
             }
@@ -1967,7 +1968,7 @@ unsigned int EssentialMatEstimator::upgradeDegenerateModel()
 
                 //Variation of R as init for eigen-solver
                 opengv::rotation_t R_init = Eigen::Matrix3d::Identity();
-                PoseTools::getPerturbedRotation(R_init, RAND_ROTATION_AMPLITUDE); //Check if the amplitude is too large or too small!
+                PoseTools::getPerturbedRotation(R_init, mt_, RAND_ROTATION_AMPLITUDE); //Check if the amplitude is too large or too small!
 
                 adapter_denorm->setR12(R_init);
                 R_eigen_tmp = opengv::relative_pose::eigensolver(*adapter_denorm, index);
@@ -2126,7 +2127,7 @@ unsigned int EssentialMatEstimator::upgradeDegenerateModel()
                 generateUniformRandomSample(num_outliers, 1, &outlier_sample);
                 std::vector<int> index(2);
                 index[0] = (int)outlier_indices[outlier_sample[0]];
-                unsigned int deg_sample_idx = std::rand() % degen_sample_noMot_size;
+                unsigned int deg_sample_idx = mt_() % degen_sample_noMot_size;
                 index[1] = degen_sample_noMot[deg_sample_idx];
 
                 t_ = opengv::relative_pose::twopt(*adapter_denorm, false, index);

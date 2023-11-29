@@ -8,7 +8,7 @@
 # List of modules
 set(MODULE_NAMES
     gms-feature-matching
-    non_metric_space_lib
+    NonMetricSpaceLib
     opengv
     matchinglib
     poselib

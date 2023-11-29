@@ -39,6 +39,7 @@
 #include "opencv2/core/core.hpp"
 #include <iomanip>
 #include <iostream>
+#include <random>
 
 //#define PRINT_RESULTS
 #define DOUBLE_PI (6.283185f)
@@ -54,7 +55,7 @@ using namespace std;
 
 class VFC{
 public:
-	VFC();
+	VFC(std::mt19937 &mt);
 	~VFC();
 	bool setData(vector<cv::Point2f> X1, vector<cv::Point2f> X2);
 	bool normalize();
@@ -117,6 +118,7 @@ private:
 	int _numCtrlPts;
 	vector<cv::Point2f> _ctrlPts;
 	cv::Mat _U;
+	std::mt19937 &mt_;
 
 	// intermediate variables
 	cv::Point2f _meanLeftX;

@@ -130,14 +130,15 @@ int estimatePoseHomographies(cv::InputArray p1,
 							 cv::OutputArray t,
 							 cv::OutputArray E,
 							 double th,
-							 int & inliers,
+							 std::mt19937 &mt,
+							 int &inliers,
 							 cv::InputOutputArray mask,
 							 bool checkPlaneStrength,
 							 bool varTh,
-							 std::vector<std::pair<cv::Mat,cv::Mat>>* inlier_points,
-							 std::vector<unsigned int>* numbersHinliers,
-							 std::vector<cv::Mat>* homographies,
-							 std::vector<double>* planeStrengths)
+							 std::vector<std::pair<cv::Mat, cv::Mat>> *inlier_points,
+							 std::vector<unsigned int> *numbersHinliers,
+							 std::vector<cv::Mat> *homographies,
+							 std::vector<double> *planeStrengths)
 {
 
 	Mat p_tmp1 = p1.getMat();
@@ -167,7 +168,7 @@ int estimatePoseHomographies(cv::InputArray p1,
 		p_tmp21 = p_tmp1;
 		p_tmp22 = p_tmp2;
 	}
-	if(!estimateMultHomographys(p_tmp21, p_tmp22, th, NULL, &inl_points, &Hs, &num_inl, varTh, &planeStrength, MAX_PLANES_PER_PAIR, MIN_PTS_PLANE))
+	if(!estimateMultHomographys(p_tmp21, p_tmp22, th, mt, NULL, &inl_points, &Hs, &num_inl, varTh, &planeStrength, MAX_PLANES_PER_PAIR, MIN_PTS_PLANE))
 	{
 		double planeStrSum = 0;
 		if(checkPlaneStrength)
@@ -291,8 +292,9 @@ int estimatePoseHomographies(cv::InputArray p1,
 int estimateMultHomographys(cv::InputArray p1,
 							cv::InputArray p2,
 							double th,
+							std::mt19937 &mt,
 							std::vector<cv::Mat> *inl_mask,
-							std::vector<std::pair<cv::Mat,cv::Mat>> *inl_points,
+							std::vector<std::pair<cv::Mat, cv::Mat>> *inl_points,
 							std::vector<cv::Mat> *Hs,
 							std::vector<unsigned int> *num_inl,
 							bool varTh,
@@ -329,7 +331,7 @@ int estimateMultHomographys(cv::InputArray p1,
 
 		do
 		{
-			result = computeHomographyArrsac(p1_, p2_, H, th_tmp, mask, p1_new, p2_new);
+			result = computeHomographyArrsac(p1_, p2_, H, th_tmp, mt, mask, p1_new, p2_new);
 			//H = findHomography(p1_, p2_, CV_RANSAC, th_tmp, mask);
 			th_tmp *= th_mult;
 		}
@@ -475,7 +477,7 @@ int estimateMultHomographys(cv::InputArray p1,
  * Return value:						true:	Everything ok
  *										false:	No homography found
  */
-bool computeHomographyArrsac(cv::InputArray points1, cv::InputArray points2, cv::OutputArray H, double th, cv::OutputArray mask, cv::OutputArray p_filtered1, cv::OutputArray p_filtered2)
+bool computeHomographyArrsac(cv::InputArray points1, cv::InputArray points2, cv::OutputArray H, double th, std::mt19937 &mt, cv::OutputArray mask, cv::OutputArray p_filtered1, cv::OutputArray p_filtered2)
 {
 	Mat p1 = points1.getMat(), p2 = points2.getMat();
 
@@ -503,7 +505,7 @@ bool computeHomographyArrsac(cv::InputArray points1, cv::InputArray points2, cv:
 			input_data.push_back(i);
 		ArrHomogrophyEstimator esti(p1, p2);
 		theia::Arrsac<size_t,cv::Mat> arrsac_estimator(4,th * th,500,100,12);
-		if(arrsac_estimator.Estimate(input_data, esti, &H_tmp))
+		if(arrsac_estimator.Estimate(input_data, esti, &H_tmp, mt))
 		{
 			cv::Mat p1__, p2__, H__, H__tmp;
 			findHomographyInliers(p1, p2, H_tmp, th, mask_);

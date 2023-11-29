@@ -49,6 +49,14 @@ using namespace std;
 
 /* --------------------- Functions --------------------- */
 
+int filterWithVFC(std::vector<cv::KeyPoint> const &keypL, std::vector<cv::KeyPoint> const &keypR,
+                  std::vector<cv::DMatch> const &matches_in, std::vector<cv::DMatch> &matches_out)
+{
+    std::random_device rd;
+    std::mt19937 g(rd());
+    return filterWithVFC(keypL, keypR, matches_in, matches_out, g);
+}
+
 /* This function filters a given set of feature matches utilizing the vector field consensus (VFC) algorithm
  *
  * vector<KeyPoint> keypL						Input  -> The matched keypoints in the left (first) image
@@ -60,8 +68,8 @@ using namespace std;
  *												-1:		  Too less matches for refinement
  *												-2:		  Maybe VFC failed
  */
-int filterWithVFC(std::vector<cv::KeyPoint> const& keypL, std::vector<cv::KeyPoint> const& keypR,
-                  std::vector<cv::DMatch> const& matches_in, std::vector<cv::DMatch> & matches_out)
+int filterWithVFC(std::vector<cv::KeyPoint> const &keypL, std::vector<cv::KeyPoint> const &keypR,
+                  std::vector<cv::DMatch> const &matches_in, std::vector<cv::DMatch> &matches_out, std::mt19937 &mt)
 {
     //Clear variables
     matches_out.clear();
@@ -79,7 +87,7 @@ int filterWithVFC(std::vector<cv::KeyPoint> const& keypL, std::vector<cv::KeyPoi
     }
 
     // main process
-    VFC myvfc;
+    VFC myvfc(mt);
     if(!myvfc.setData(X, Y))
     {
         cout << "Too less matches for refinement with VFC!" << endl;

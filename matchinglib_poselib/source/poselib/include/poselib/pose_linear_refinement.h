@@ -44,6 +44,7 @@ DISCRIPTION: This file provides functions for linear refinement of Essential mat
 #include "opencv2/highgui/highgui.hpp"
 #include "poselib/glob_includes.h"
 #include "poselib/pose_estim.h"
+#include <random>
 //#include <Eigen/Core>
 
 #include "poselib/poselib_api.h"
@@ -58,16 +59,31 @@ namespace poselib
 	/* --------------------- Function prototypes --------------------- */
 
 	bool POSELIB_API refineEssentialLinear(cv::InputArray p1,
-		cv::InputArray p2,
-		cv::InputOutputArray E,
-		cv::InputOutputArray mask,
-		int refineMethod,//a combination of poselib::RefinePostAlg
-		size_t & nr_inliers,
-		cv::InputOutputArray R = cv::noArray(),
-		cv::OutputArray t = cv::noArray(),
-		double th = 0.008,
-		size_t num_iterative_steps = 4,
-		double threshold_multiplier = 2.0,
-		double pseudoHuberThreshold_multiplier = 0.1,
-		double maxRelativeInlierCntLoss = 0.15);
+										   cv::InputArray p2,
+										   cv::InputOutputArray E,
+										   std::mt19937 &mt,
+										   cv::InputOutputArray mask,
+										   int refineMethod, // a combination of poselib::RefinePostAlg
+										   size_t &nr_inliers,
+										   cv::InputOutputArray R = cv::noArray(),
+										   cv::OutputArray t = cv::noArray(),
+										   double th = 0.008,
+										   size_t num_iterative_steps = 4,
+										   double threshold_multiplier = 2.0,
+										   double pseudoHuberThreshold_multiplier = 0.1,
+										   double maxRelativeInlierCntLoss = 0.15);
+
+	bool POSELIB_API refineEssentialLinear(cv::InputArray p1,
+										   cv::InputArray p2,
+										   cv::InputOutputArray E,
+										   cv::InputOutputArray mask,
+										   int refineMethod, // a combination of poselib::RefinePostAlg
+										   size_t &nr_inliers,
+										   cv::InputOutputArray R = cv::noArray(),
+										   cv::OutputArray t = cv::noArray(),
+										   double th = 0.008,
+										   size_t num_iterative_steps = 4,
+										   double threshold_multiplier = 2.0,
+										   double pseudoHuberThreshold_multiplier = 0.1,
+										   double maxRelativeInlierCntLoss = 0.15);
 }

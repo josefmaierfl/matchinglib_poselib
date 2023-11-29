@@ -46,6 +46,7 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 
 #include <thread>
 #include <mutex>
+#include <random>
 
 #include "space.h"
 #include "params.h"
@@ -67,6 +68,12 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 
 	namespace matchinglib
 	{
+		// These extern definitions are needed to avoid having more instances of the singletons!
+		// If they are omitted, one instance exists in the nmslib libNonMetricSpaceLib.so and one in libmatchinglibd.so
+//    extern template similarity::SpaceFactoryRegistry<int>& similarity::SpaceFactoryRegistry<int>::Instance();
+//		extern template similarity::SpaceFactoryRegistry<float>& similarity::SpaceFactoryRegistry<float>::Instance();
+//		extern template similarity::MethodFactoryRegistry<int>& similarity::MethodFactoryRegistry<int>::Instance();
+//	  extern template similarity::MethodFactoryRegistry<float>& similarity::MethodFactoryRegistry<float>::Instance();
 
 		/* --------------------------- Defines --------------------------- */
 
@@ -103,8 +110,10 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 
 		template <typename QueryType, typename QueryCreatorType, typename dist_t>
 		struct SearchThread {
-			void operator ()(ThreadParams<QueryType, QueryCreatorType, dist_t>& prm) {
+			void operator()(ThreadParams<QueryType, QueryCreatorType, dist_t> &prm, std::mt19937 mt)
+			{
 				size_t numquery = prm.queryobjects_.size();
+				similarity::getThreadLocalRandomGenerator().seed(mt());
 
 				unsigned QueryPart = prm.QueryPart_;
 				unsigned ThreadQty = prm.ThreadQty_;
@@ -137,7 +146,7 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 		template <typename dist_t>
 		similarity::Object* CreateObjFromVect1(similarity::IdType id, similarity::LabelType label, const vector<dist_t>& InpVect) {
 			return new similarity::Object(id, label, InpVect.size() * sizeof(dist_t), &InpVect[0]);
-		};
+		}
 
 		/* This is a wrapper function for the NMSLIB
 		*
@@ -157,15 +166,16 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 		*                  -3:     No such feature detector
 		*/
 		template <typename dist_t>
-		int nmslibMatching(cv::Mat const& descrL,
-			cv::Mat const& descrR,
-			std::vector<cv::DMatch> & matches,
-			std::string methodStr,
-			std::string spaceStr,
-			std::string indexParsStr,
-			std::string queryTimeParsStr,
-			bool ratioTest = true,
-			unsigned ThreadQty = 0)
+		int nmslibMatching(cv::Mat const &descrL,
+						   cv::Mat const &descrR,
+						   std::vector<cv::DMatch> &matches,
+						   std::string methodStr,
+						   std::string spaceStr,
+						   std::string indexParsStr,
+						   std::string queryTimeParsStr,
+						   std::mt19937 &mt,
+						   bool ratioTest = true,
+						   unsigned ThreadQty = 0)
 		{
 
 			string SpaceType;
@@ -188,9 +198,15 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 			similarity::ToLower(spaceStr);//the used space like "l2", "l1", "bit_hamming", ...
 			similarity::ToLower(methodStr);//name of the matching-method
 
-			similarity::initLibrary(LIB_LOGNONE,"\0");
-			/*string logfilename = "C:\\work\\nmslib_log.txt";
-			similarity::initLibrary(LIB_LOGFILE, logfilename.c_str());*/
+			static bool initOnce = true;
+			if (initOnce)
+			{
+				similarity::initLibrary(mt(), LIB_LOGNONE, "\0");
+				initOnce = false;
+			}
+
+			//Seed random engine
+			similarity::getThreadLocalRandomGenerator().seed(mt());
 
 			//Get the correct format for the space parameter, like "l2"
 			{
@@ -311,7 +327,7 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 			//Set number of knn
 			similarity::KNNCreator<dist_t>  cr(K, eps);
 
-			space.get()->SetQueryPhase();
+			// space.get()->SetQueryPhase();
 
 			vector<ThreadParams<similarity::KNNQuery<dist_t>, similarity::KNNCreator<dist_t>, dist_t>*> ThreadParamsVar(ThreadQty_);
 			vector<thread> Threads(ThreadQty_);
@@ -336,7 +352,7 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 			if (ThreadQty_> 1) {
 				for (unsigned QueryPart = 0; QueryPart < ThreadQty_; ++QueryPart) {
 					Threads[QueryPart] = std::thread(SearchThread<similarity::KNNQuery<dist_t>, similarity::KNNCreator<dist_t>, dist_t>(),
-						ref(*ThreadParamsVar[QueryPart]));
+						ref(*ThreadParamsVar[QueryPart]), mt);
 				}
 				for (unsigned QueryPart = 0; QueryPart < ThreadQty_; ++QueryPart) {
 					Threads[QueryPart].join();
@@ -344,7 +360,7 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 			}
 			else {
 				CHECK(ThreadQty_ == 1);
-				SearchThread<similarity::KNNQuery<dist_t>, similarity::KNNCreator<dist_t>, dist_t>()(*ThreadParamsVar[0]);
+				SearchThread<similarity::KNNQuery<dist_t>, similarity::KNNCreator<dist_t>, dist_t>()(*ThreadParamsVar[0], mt);
 			}
 
 			//Extract the matches from NMSLIB's data structure
@@ -381,11 +397,11 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 				delete ThreadParamsVar[QueryPart];
 			}*/
 
-			for (int i = 0; i < dataobjects_.size(); i++)
+			for (size_t i = 0; i < dataobjects_.size(); i++)
 			{
 				delete (dataobjects_[i]);
 			}
-			for (int i = 0; i < queryobjects_.size(); i++)
+			for (size_t i = 0; i < queryobjects_.size(); i++)
 			{
 				delete (queryobjects_[i]);
 			}
@@ -423,4 +439,36 @@ DISCRIPTION: This file provides functionalities for matching features using diff
 			return 0;
 		}
 
+		/* This is a wrapper function for the NMSLIB
+		 *
+		 * Mat descrL              Input  -> Descriptors within the first or left image
+		 * Mat descrR              Input  -> Descriptors within the second or right image
+		 * vector<DMatch> matches  Output -> Matches
+		 * string methodStr        Input  -> Name of the NMSLIB matching method. See the NMSLIB documentation for options.
+		 * string spaceStr         Input  -> The name of the distance function like l2 or bit_hamming. See the NMSLIB documentation for options.
+		 * string indexParsStr     Input  -> The parameters for generating the search index. See the NMSLIB documentation for options.
+		 * string queryTimeParsStr Input  -> The parameters for searching. See the NMSLIB documentation for options.
+		 * bool ratioTest          Input  -> If true [Default=true], a ratio test is performed on the results.
+		 * unsigned ThreadQty      Input  -> The number of threads used for searching. A higher number must not lead to smaller search times.
+		 *
+		 * Return value:           0:     Everything ok
+		 *                  -1:     Too less features detected
+		 *                  -2:     Error creating feature detector
+		 *                  -3:     No such feature detector
+		 */
+		template <typename dist_t>
+		int nmslibMatching(cv::Mat const &descrL,
+						   cv::Mat const &descrR,
+						   std::vector<cv::DMatch> &matches,
+						   std::string methodStr,
+						   std::string spaceStr,
+						   std::string indexParsStr,
+						   std::string queryTimeParsStr,
+						   bool ratioTest = true,
+						   unsigned ThreadQty = 0)
+		{
+			std::random_device rd;
+			std::mt19937 g(rd());
+			return nmslibMatching<dist_t>(descrL, descrR, matches, methodStr, spaceStr, indexParsStr, queryTimeParsStr, g, ratioTest, ThreadQty);
+		}
 	} // namepace matchinglib

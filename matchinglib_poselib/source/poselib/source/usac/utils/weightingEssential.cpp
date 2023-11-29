@@ -47,8 +47,9 @@ DISCRIPTION: This file provides functions for linear refinement of Essential mat
 //#include <opengv/triangulation/methods.hpp>
 #include <opengv/relative_pose/modules/main.hpp>
 
-#include "BA_driver.h"
-
+//Calculates the weight using the pseudo-huber cost function.
+inline double costPseudoHuber(const double &d, const double &thresh);
+inline double sqr(const double &var);
 
 void SampsonL1_Eigen(const opengv::bearingVector_t & x1, const opengv::bearingVector_t & x2, const opengv::essential_t & E, double & denom1, double & num);
 Eigen::Matrix<double, 9, 1> solveUsingEigenVectors(const Eigen::MatrixXd &A);
@@ -196,7 +197,7 @@ double computePseudoHuberWeight(const opengv::bearingVector_t  & f, const opengv
 {
 	double denom1, num;
 	SampsonL1_Eigen(f, fprime, E, denom1, num);
-	const double weight = poselib::costPseudoHuber(num*denom1, th);
+	const double weight = costPseudoHuber(num*denom1, th);
 	return denom1*weight; /* multiply by 1/dominator of the Sampson L1-distance to eliminate
 							  * it from the dominator of the pseudo-huber weight value (which is
 							  * actually sqrt(cost_pseudo_huber)/Sampson_L1_distance). This is
@@ -328,4 +329,28 @@ Eigen::Matrix<double, 9, 1> solveUsingEigenVectors(const Eigen::MatrixXd &A){
 	}
 
 	return eigA.eigenvectors().col(smallestEigValIdx).real();
+}
+
+/* Calculates the weight using the pseudo-huber cost function.
+ * 
+ * const double d				Input  -> Error value
+ * const double thresh			Input  -> Threshold
+ *
+ * Return value:				Weighting factor resulting from the pseudo-huber cost function
+ */
+inline double costPseudoHuber(const double &d, const double &thresh)
+{
+	const double b_sq = sqr(thresh);
+	const double d_abs = std::abs(d) + 1e-12;
+
+	//C(deltanorm) = 2*b^2*(sqrt(1+(delta/b)^2) - 1);
+	//weight = sqrt(C(deltanorm))/deltanorm; -> to compensate original least squares algorithm
+	//const double weight = 2 * b_sq * (std::sqrt(1 + sqr(d / thresh)) - 1);
+	return std::sqrt(2 * b_sq * (std::sqrt(1 + sqr(d_abs / thresh)) - 1)) / d_abs;
+}
+
+/* Squares the provided value */
+inline double sqr(const double &var)
+{
+	return var * var;
 }

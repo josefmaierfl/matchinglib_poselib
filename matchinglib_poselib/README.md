@@ -572,8 +572,8 @@ int poselib::getPoseTriangPts(cv::InputArray E,
     const double dist = 50.0,
     bool translatE = false);
 ```
-located within [./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h](./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h).
-It can be included with `#include "poselib/pose_estim.h"`.
+located within [./matchinglib_poselib/source/poselib/include/poselib/triangulation.h](./matchinglib_poselib/source/poselib/include/poselib/triangulation.h).
+It can be included with `#include "poselib/triangulation.h"`.
 
 Input variable descriptions:
 * `cv::InputArray E`: Essential matrix (`cv::Mat` of type `CV_64FC1`)
@@ -600,8 +600,8 @@ int poselib::triangPts3D(cv::InputArray R,
     cv::InputOutputArray mask = cv::noArray(),
     const double dist = 50.0);
 ```
-located within [./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h](./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h).
-It can be included with `#include "poselib/pose_estim.h"`.
+located within [./matchinglib_poselib/source/poselib/include/poselib/triangulation.h](./matchinglib_poselib/source/poselib/include/poselib/triangulation.h).
+It can be included with `#include "poselib/triangulation.h"`.
 
 Input variable descriptions:
 * `cv::InputArray R`: Rotation matrix (`cv::Mat` of type `CV_64FC1`)
@@ -616,43 +616,12 @@ Input/Output variable descriptions:
 Output variable descriptions:
 * `cv::OutputArray Q3D`: Triangulated 3D coordinates of size (rows x cols) = ( n x 3 ) and type `CV_64FC1` (`cv::Mat`)
 
+Additional fuctions regarding triangulation are also available in [./matchinglib_poselib/source/poselib/include/poselib/triangulation.h](./matchinglib_poselib/source/poselib/include/poselib/triangulation.h).
+
 #### Bundle Adjustment <a name="interface-pose-ba"></a>
 
 Bundle adjustment on extrinsics (R & t) only or on intrinsics (camera matrices) and extrinsics can be performed using
-```
-bool poselib::refineStereoBA(cv::InputArray p1,
-    cv::InputArray p2,
-    cv::InputOutputArray R,
-    cv::InputOutputArray t,
-    cv::InputOutputArray Q,
-    cv::InputOutputArray K1,
-    cv::InputOutputArray K2,
-    bool pointsInImgCoords = false,
-    cv::InputArray mask = cv::noArray(),
-    const double angleThresh = 1.25,
-    const double t_norm_tresh = 0.05);
-```
-located within [./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h](./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h).
-It can be included with `#include "poselib/pose_estim.h"`.
 
-Bundle adjustment on extrinsics only can be performed by providing `p1` and `p2` in camera coordinates and setting `pointsInImgCoords = false`.
-Bundle adjustment on intrinsics and extrinsics can be performed by providing `p1` and `p2` in image coordinates and setting `pointsInImgCoords = true`.
-For transforming correspondences from camera into image coordinates function `void CamToImgCoordTrans(cv::Mat& points, cv::Mat K)` located in [./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h](./matchinglib_poselib/source/poselib/include/poselib/pose_estim.h) can be used.
-
-Input variable descriptions:
-* `cv::InputArray p1`: (rows x cols) = ( n x 2 ) sized array (type `CV_64FC1`) of distortion-free keypoint locations in camera or image coordinates corresponding to `cv::InputArray p2`
-* `cv::InputArray p1`: (rows x cols) = ( n x 2 ) sized array (type `CV_64FC1`) of distortion-free keypoint locations in camera or image coordinates corresponding to `cv::InputArray p1`
-* `bool pointsInImgCoords`: Specifies if correspondences `p1` and `p2` are provided in image or camera coordinates
-* `cv::InputArray mask`: Inlier mask of size (rows x cols) = (1 x n) in `cv::Mat` format and type `CV_8UC1`
-* `double angleThresh`: Threshold angle in degrees. If the difference of input and output rotation is larger this value, it is assumed that bundle adjustment resulted in a wrong local minimum and the initial pose parameters are returned
-* `double t_norm_tresh`: Threshold on the translation vector norm: If the difference of input and output translation vector is larger this value, it is assumed that bundle adjustment resulted in a wrong local minimum and the initial pose parameters are returned
-
-Input/Output variable descriptions:
-* `cv::InputOutputArray R`: Rotation matrix (`cv::Mat` of type `CV_64FC1`)
-* `cv::InputOutputArray t`: Translation vector (`cv::Mat` of type `CV_64FC1`)
-* `cv::InputOutputArray Q`: 3D coordinates of size (rows x cols) = ( n x 3 ) and type `CV_64FC1` (`cv::Mat`)
-* `cv::InputOutputArray K1`: Camera matrix of first camera (`cv::Mat` of type `CV_64FC1`)
-* `cv::InputOutputArray K2`: Camera matrix of second camera (`cv::Mat` of type `CV_64FC1`)
 
 #### Rectification <a name="interface-pose-rectification"></a>
 

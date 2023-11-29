@@ -14,7 +14,8 @@ using namespace cv;
 //     Regularized Vector Field Learning with Sparse Approximation for Mismatch Removal, 
 //     Pattern Recognition, 46(12), pp. 3519-3532, 2013
 
-VFC::VFC() {
+VFC::VFC(std::mt19937 &mt): mt_(mt)
+{
 	_lX.clear();
 	_rX.clear();
 	_X.clear();
@@ -133,7 +134,7 @@ bool VFC::selectSubset() {
 	int cnt = 0;
 	int iter = 0;
 	while (cnt < _numCtrlPts && iter < _numCtrlPts*3){
-		int idx = (rand() % _numPt);
+		int idx = (std::abs(static_cast<int>(mt_())) % _numPt);
 		float dist = float(inf);
 		for (unsigned int i = 0; i < _ctrlPts.size(); i++){
 			float tmp = fabs(_ctrlPts[i].x - _X[idx].x) + fabs(_ctrlPts[i].y - _X[idx].y);

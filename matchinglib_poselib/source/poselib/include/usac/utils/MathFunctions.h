@@ -9,17 +9,17 @@ namespace MathTools
 	typedef int integer;
 	typedef double doublereal;
 
-	extern "C" {
-	int dgeqp3_(integer const *m,
-				integer const *n,
-				doublereal *a,
-				integer const *lda,
-				integer *jpvt,
-				doublereal *tau,
-				doublereal *work,
-				integer *lwork,
-				integer *info);
-	}
+	// extern "C" {
+	// int dgeqp3_(integer const *m,
+	// 			integer const *n,
+	// 			doublereal *a,
+	// 			integer const *lda,
+	// 			integer *jpvt,
+	// 			doublereal *tau,
+	// 			doublereal *work,
+	// 			integer *lwork,
+	// 			integer *info);
+	// }
 
 	// the below functions are from ccmath 
 	int svdu1v(double *d, double *a, int m, double *v, int n);

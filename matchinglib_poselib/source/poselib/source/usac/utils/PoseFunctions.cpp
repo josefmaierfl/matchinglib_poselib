@@ -28,14 +28,15 @@
 namespace PoseTools
 {
 	void getPerturbedRotation(
-		opengv::rotation_t & rotation,
-		double amplitude)
+		opengv::rotation_t &rotation,
+		std::mt19937 &mt,
+		const double &amplitude)
 	{
 		opengv::cayley_t cayley = opengv::math::rot2cayley(rotation);
 		for (size_t i = 0; i < 3; i++)
 		{
 			cayley[i] =
-				cayley[i] + (((double)rand()) / ((double)RAND_MAX) - 0.5)*2.0*amplitude;
+				cayley[i] + (static_cast<double>(mt()) / static_cast<double>(mt.max()) - 0.5) * 2.0 * amplitude;
 		}
 		rotation = opengv::math::cayley2rot(cayley);
 	}

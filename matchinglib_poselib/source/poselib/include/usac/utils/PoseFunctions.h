@@ -27,6 +27,7 @@
 #include <opengv/math/cayley.hpp>
 #include <opengv/relative_pose/CentralRelativeAdapter.hpp>
 #include <memory>
+#include <random>
 
 namespace PoseTools
 {
@@ -42,8 +43,9 @@ namespace PoseTools
 		const std::shared_ptr<opengv::relative_pose::CentralRelativeAdapter>& adapter, double threshold);
 
 	void getPerturbedRotation(
-		opengv::rotation_t & rotation,
-		double amplitude);
+		opengv::rotation_t &rotation,
+		std::mt19937 &mt,
+		const double &amplitude);
 
 	double getSampsonError(const std::vector<double> & model, double *input_points_denorm_, unsigned int pt_index);
 }

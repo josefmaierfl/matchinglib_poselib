@@ -44,6 +44,7 @@
 #define _WIN32_WINNT     0x0601
 
 #include "matchinglib/glob_includes.h"
+#include <random>
 
 #include <Eigen/Core>
 
@@ -78,7 +79,7 @@ namespace matchinglib
   int AdvancedMatching(cv::Ptr<cv::DescriptorMatcher> &descriptorMatcher,
                        std::vector<cv::KeyPoint> const &keypoints1, std::vector<cv::KeyPoint> const &keypoints2,
                        cv::Mat const &descriptors1, cv::Mat const &descriptors2, cv::Size imgSi,
-                       std::vector<cv::DMatch> &filteredMatches12, bool finalCrossCheck = true, double validationTH = 0.3,
+                       std::vector<cv::DMatch> &filteredMatches12, std::mt19937 &mt, bool finalCrossCheck = true, double validationTH = 0.3,
                        double stdMult = 3.5, int BFknn = 2, bool filterSmallFlow = false,
                        std::vector<float> *costRatios = nullptr, std::vector<float> *distRatios = nullptr,
                        double *estiInlRatio = nullptr, std::vector<cv::DMatch> *initFilteredMatches = nullptr, cv::InputArray img1 = cv::noArray(),

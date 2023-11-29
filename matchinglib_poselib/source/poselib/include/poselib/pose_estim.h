@@ -44,6 +44,7 @@
 
 #include "opencv2/highgui/highgui.hpp"
 //#include "opencv2/features2d/features2d.hpp"
+#include <random>
 #include "poselib/glob_includes.h"
 
 #include "poselib/poselib_api.h"
@@ -188,77 +189,79 @@ public:
 
 /* --------------------- Function prototypes --------------------- */
 
-//Recovers the rotation and translation from an essential matrix and triangulates the given correspondences to form 3D coordinates.
-int POSELIB_API getPoseTriangPts(cv::InputArray E,
-					 cv::InputArray p1,
-					 cv::InputArray p2,
-					 cv::OutputArray R,
-					 cv::OutputArray t,
-					 cv::OutputArray Q,
-					 cv::InputOutputArray mask = cv::noArray(),
-					 const double dist = 50.0,
-					 bool translatE = false);
-//Triangulates 3D-points from correspondences with provided R and t
-int POSELIB_API triangPts3D(cv::InputArray R, cv::InputArray t, cv::InputArray _points1, cv::InputArray _points2, cv::OutputArray Q3D, cv::InputOutputArray mask = cv::noArray(), const double dist = 50.0);
 //Estimation of the Essential matrix based on the 5-pt Nister algorithm integrated in an ARRSAC, RANSAC or LMEDS framework.
 bool POSELIB_API estimateEssentialMat(cv::OutputArray E,
-        cv::InputArray p1,
-        cv::InputArray p2,
-        const std::string &method = "ARRSAC",
-        double threshold = PIX_MIN_GOOD_TH,
-        bool refine = true,
-        cv::OutputArray mask = cv::noArray());
+									  cv::InputArray p1,
+									  cv::InputArray p2,
+									  std::mt19937 &mt,
+									  const std::string &method = "ARRSAC",
+									  double threshold = PIX_MIN_GOOD_TH,
+									  bool refine = true,
+									  cv::OutputArray mask = cv::noArray());
+// Estimation of the Essential matrix based on the 5-pt Nister algorithm integrated in an ARRSAC, RANSAC or LMEDS framework.
+bool POSELIB_API estimateEssentialMat(cv::OutputArray E,
+									  cv::InputArray p1,
+									  cv::InputArray p2,
+									  const std::string &method = "ARRSAC",
+									  double threshold = PIX_MIN_GOOD_TH,
+									  bool refine = true,
+									  cv::OutputArray mask = cv::noArray());
 //Estimation of the Essential matrix and/or pose using the USAC framework
-int POSELIB_API estimateEssentialOrPoseUSAC(const cv::Mat & p1,
-	const cv::Mat & p2,
-	cv::OutputArray E,
-	double th,
-	ConfigUSAC & cfg,
-	bool & isDegenerate,
-	cv::OutputArray inliers = cv::noArray(),
-	cv::OutputArray R_degenerate = cv::noArray(),
-	cv::OutputArray inliers_degenerate_R = cv::noArray(),
-	cv::OutputArray R = cv::noArray(),
-	cv::OutputArray t = cv::noArray(),
-	bool verbose = false);
+int POSELIB_API estimateEssentialOrPoseUSAC(const cv::Mat &p1,
+											const cv::Mat &p2,
+											cv::OutputArray E,
+											double th,
+											std::mt19937 &mt,
+											ConfigUSAC &cfg,
+											bool &isDegenerate,
+											cv::OutputArray inliers = cv::noArray(),
+											cv::OutputArray R_degenerate = cv::noArray(),
+											cv::OutputArray inliers_degenerate_R = cv::noArray(),
+											cv::OutputArray R = cv::noArray(),
+											cv::OutputArray t = cv::noArray(),
+											bool verbose = false);
+// Estimation of the Essential matrix and/or pose using the USAC framework
+int POSELIB_API estimateEssentialOrPoseUSAC(const cv::Mat &p1,
+											const cv::Mat &p2,
+											cv::OutputArray E,
+											double th,
+											ConfigUSAC &cfg,
+											bool &isDegenerate,
+											cv::OutputArray inliers = cv::noArray(),
+											cv::OutputArray R_degenerate = cv::noArray(),
+											cv::OutputArray inliers_degenerate_R = cv::noArray(),
+											cv::OutputArray R = cv::noArray(),
+											cv::OutputArray t = cv::noArray(),
+											bool verbose = false);
+//Estimation of the Fundamental matrix using the USAC framework
+int POSELIB_API estimateFundamentalUSAC(const cv::Mat &p1,
+										const cv::Mat &p2,
+										cv::OutputArray F,
+										double th,
+										std::mt19937 &mt,
+										ConfigUSAC &cfg,
+										bool &isDegenerate,
+										cv::OutputArray inliers = cv::noArray(),
+										cv::OutputArray H_degenerate = cv::noArray(),
+										cv::OutputArray inliers_degenerate_H = cv::noArray(),
+										bool verbose = false);
+// Estimation of the Fundamental matrix using the USAC framework
+int POSELIB_API estimateFundamentalUSAC(const cv::Mat &p1,
+										const cv::Mat &p2,
+										cv::OutputArray F,
+										double th,
+										ConfigUSAC &cfg,
+										bool &isDegenerate,
+										cv::OutputArray inliers = cv::noArray(),
+										cv::OutputArray H_degenerate = cv::noArray(),
+										cv::OutputArray inliers_degenerate_H = cv::noArray(),
+										bool verbose = false);
 //Refines the essential matrix E by using the 8-point-algorithm and SVD with a pseudo-huber cost function
-void POSELIB_API robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init, cv::Mat & E_refined,
-						  double th = 0.005, unsigned int iters = 0, bool makeClosestE = true, double *sumSqrErr_init = nullptr,
-						  double *sumSqrErr = nullptr, cv::OutputArray errors = cv::noArray(),
-						  cv::InputOutputArray mask = cv::noArray(), int model = 0, bool tryOrientedEpipolar = false, bool normalizeCorrs = false);
-//Bundle adjustment (BA) on motion (=extrinsics) and structure with or without camera metrices on a stereo pair.
-bool POSELIB_API refineStereoBA(cv::InputArray p1,
-								cv::InputArray p2,
-								cv::InputOutputArray R,
-								cv::InputOutputArray t,
-								cv::InputOutputArray Q,
-								cv::InputOutputArray K1,
-								cv::InputOutputArray K2,
-								bool pointsInImgCoords = false,
-								cv::InputArray mask = cv::noArray(),
-								const double angleThresh = 1.25,
-								const double t_norm_tresh = 0.05,
-								const double huber_thresh = -1.0,
-								const bool optimFocalOnly = false,
-								const bool optimMotionOnly = false,
-								const bool fixCamMat = false,
-								cv::InputOutputArray dist1 = cv::noArray(),
-								cv::InputOutputArray dist2 = cv::noArray());
+void POSELIB_API robustEssentialRefine(cv::InputArray points1, cv::InputArray points2, cv::InputArray E_init, cv::Mat &E_refined,
+									   double th = 0.005, unsigned int iters = 0, bool makeClosestE = true, double *sumSqrErr_init = nullptr,
+									   double *sumSqrErr = nullptr, cv::OutputArray errors = cv::noArray(),
+									   cv::InputOutputArray mask = cv::noArray(), int model = 0, bool tryOrientedEpipolar = false, bool normalizeCorrs = false);
 
-//Bundle adjustment (BA) on motion (=extrinsics) and structure with or without camera metrices on multiple cameras (>2).
-bool POSELIB_API refineMultCamBA(cv::InputArray ps,
-								 cv::InputArray map3D,
-								 cv::InputOutputArray Rs,
-								 cv::InputOutputArray ts,
-								 cv::InputOutputArray Qs,
-								 cv::InputOutputArray Ks,
-								 bool pointsInImgCoords = false,
-								 cv::InputArray masks = cv::noArray(),
-								 const double angleThresh = 1.25,
-								 const double t_norm_tresh = 0.05,
-								 const double huber_thresh = -1.0,
-								 const bool optimFocalOnly = false,
-								 const bool optimMotionOnly = false,
-								 const bool fixCamMat = false,
-								 cv::InputOutputArray dists = cv::noArray());
+//Calculates the weight using the pseudo-huber cost function.
+inline POSELIB_API double costPseudoHuber(const double &d, const double &thresh);
 }

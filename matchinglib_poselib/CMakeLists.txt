@@ -4,7 +4,7 @@
 #
 
 # CMake version
-cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 
 set(CMAKE_MODULE_PATH  "${CMAKE_CURRENT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -36,7 +36,7 @@ set(META_PROJECT_DESCRIPTION "Feature matching and pose estimation algorithms")
 set(META_AUTHOR_ORGANIZATION "Austrian Institute of Technology GmbH")
 set(META_AUTHOR_DOMAIN       "https://github.com/josefmaierfl/matchinglib_poselib")
 set(META_AUTHOR_MAINTAINER   "josefjohann-dot-maier-at-gmail-dot-at")
-set(META_VERSION_MAJOR       "1")
+set(META_VERSION_MAJOR       "2")
 set(META_VERSION_MINOR       "0")
 set(META_VERSION_PATCH       "0")
 set(META_VERSION_REVISION    "${GIT_REV}")

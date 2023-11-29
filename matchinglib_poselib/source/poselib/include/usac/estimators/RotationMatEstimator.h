@@ -46,13 +46,12 @@ public:
 	opengv::rotation_t R_eigen;							// Stores a rotation
 
 public:
-	RotationMatEstimator()
-	{
-	};
+	RotationMatEstimator(std::mt19937 &mt) : USAC(mt), input_points_denorm_(nullptr){}
+
 	~RotationMatEstimator()
 	{
 		adapter_denorm.reset();
-	};
+	}
 
 public:
 	// ------------------------------------------------------------------------

@@ -107,7 +107,7 @@ cv::Mat& integral: the intergral_image of input image
 float keypoint_x, keypoint_y: the coordinates of key point
 int k_point: the k-th point in the detected key points
 */
-float RIFFDescriptor::Orentation_Calculate(cv::Mat& image, cv::Mat& integral, float keypoint_x, float keypoint_y, int k_point)
+float RIFFDescriptor::Orentation_Calculate(const cv::Mat& image, cv::Mat& integral, float keypoint_x, float keypoint_y, int k_point)
 {
 	float angle         = 0.f;
 	float orientation_x = 0.f;
@@ -164,7 +164,7 @@ This function update the Scale of the keypoints and remove the keypoints near th
 cv::Mat image: input image
 std::vector<cv::KeyPoint>& Key_Points: vector to storage the detected key points
 */
-void RIFFDescriptor::Scale_Update(cv::Mat& image, std::vector<cv::KeyPoint>& Key_Points)
+void RIFFDescriptor::Scale_Update(const cv::Mat& image, std::vector<cv::KeyPoint>& Key_Points)
 {
 	int SMALLEST_KP_SIZE=7;
 	Keypoint_Scale_Index.resize(Key_Points.size());
@@ -198,14 +198,14 @@ int scale: the update scale of key point
 int rotation: the rotation of key point
 int point: the point-th point in the retina sampling pattern
 */
-float RIFFDescriptor::Mean_Compute(cv::Mat& image, cv::Mat& integral, float keypoint_x, float keypoint_y, int scale, int rotation, int point)
+float RIFFDescriptor::Mean_Compute(const cv::Mat& image, cv::Mat& integral, float keypoint_x, float keypoint_y, int scale, int rotation, int point)
 {
 	PatternPoint& Point = patternLookup[scale*NB_ORIENTATION*NB_PATTERN_POINTS + rotation*NB_PATTERN_POINTS + point];
 	float xf = Point.x+keypoint_x;
 	float yf = Point.y+keypoint_y;
 	int   x = int(xf);
 	int   y = int(yf);
-	int   &imagecols = image.cols;
+	int   imagecols = image.cols;
 
 	int ret_val;
 	const float Radius = Point.radius;
@@ -426,15 +426,16 @@ cv::Mat& image: the input image
 cv::Mat& descriptors: the final feature
 std::vector<cv::KeyPoint>& Key_Points: vector to storage the detected key points
 */
-void RIFFDescriptor::Descriptor_Generation( cv::Mat& image, cv::Mat& descriptors, std::vector<cv::KeyPoint>& Key_Points )
+void RIFFDescriptor::Descriptor_Generation(const cv::Mat& image, cv::Mat& descriptors, std::vector<cv::KeyPoint>& Key_Points )
 {		
 	Retinapattern_Bulid();
 	Scale_Update(image,Key_Points);
-	
-	cv::GaussianBlur( image, image, cv::Size(), DESC_SIGMA, DESC_SIGMA );
+
+	cv::Mat img_blurred;
+	cv::GaussianBlur(image, img_blurred, cv::Size(), DESC_SIGMA, DESC_SIGMA);
 
 	cv::Mat Integral_image;
-	cv::integral(image, Integral_image);
+	cv::integral(img_blurred, Integral_image);
 
 	float Point_Value[NB_PATTERN_POINTS];
 	int theta_index = 0;
@@ -442,7 +443,7 @@ void RIFFDescriptor::Descriptor_Generation( cv::Mat& image, cv::Mat& descriptors
 	//Calculate the orientation of the keypoints
 	for( size_t k = Key_Points.size(); k--; )
 	{
-		Key_Points[k].angle=Orentation_Calculate(image, Integral_image, Key_Points[k].pt.x, Key_Points[k].pt.y, k);
+		Key_Points[k].angle = Orentation_Calculate(img_blurred, Integral_image, Key_Points[k].pt.x, Key_Points[k].pt.y, k);
 	}
  
 	descriptors  = cv::Mat::zeros((int)Key_Points.size(), 72, CV_32F);
@@ -461,7 +462,7 @@ void RIFFDescriptor::Descriptor_Generation( cv::Mat& image, cv::Mat& descriptors
 
 		for( int i = NB_PATTERN_POINTS; i--; )
 		{
-			Point_Value[i] = Mean_Compute(image, Integral_image, Key_Points[k].pt.x, Key_Points[k].pt.y, Keypoint_Scale_Index[k], theta_index, i);			
+			Point_Value[i] = Mean_Compute(img_blurred, Integral_image, Key_Points[k].pt.x, Key_Points[k].pt.y, Keypoint_Scale_Index[k], theta_index, i);
 		}
 
 		tmp_value[0]  = Point_Value[0] -Point_Value[12];  tmp_value[1]  = Point_Value[1] -Point_Value[13];  tmp_value[2]  = Point_Value[2] -Point_Value[14];

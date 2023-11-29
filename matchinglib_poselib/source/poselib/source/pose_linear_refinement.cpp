@@ -64,15 +64,16 @@ namespace poselib
     /* --------------------- Function prototypes --------------------- */
     void findRefinementWeights(const opengv::relative_pose::CentralRelativeAdapter adapter, const opengv::essential_t & model, const std::vector<int>& inliers,
         size_t numInliers, double* weights, int refineMethod, double th, double pseudoHuberThreshold_multiplier = 0.1);
-    bool refineModel(opengv::relative_pose::CentralRelativeAdapter & adapter,
-        std::vector<int>& indices,
-        const size_t numPoints,
-        opengv::essential_t & model,
-        bool weighted,
-        double* weights,
-        int refineMethod,//a combination of poselib::RefinePostAlg
-        opengv::rotation_t* R_inout = NULL,
-        opengv::translation_t* t_out = NULL);
+    bool refineModel(opengv::relative_pose::CentralRelativeAdapter &adapter,
+                     std::vector<int> &indices,
+                     const size_t numPoints,
+                     opengv::essential_t &model,
+                     bool weighted,
+                     double *weights,
+                     int refineMethod, // a combination of poselib::RefinePostAlg
+                     std::mt19937 &mt,
+                     opengv::rotation_t *R_inout = NULL,
+                     opengv::translation_t *t_out = NULL);
     size_t evaluateModelE(const opengv::relative_pose::CentralRelativeAdapter adapter,
         const opengv::essential_t modelE,
         std::vector<double> & errors,
@@ -83,18 +84,38 @@ namespace poselib
     /* --------------------- Functions --------------------- */
 
     bool refineEssentialLinear(cv::InputArray p1,
-        cv::InputArray p2,
-        cv::InputOutputArray E,
-        cv::InputOutputArray mask,
-        int refineMethod,//a combination of poselib::RefinePostAlg
-        size_t & nr_inliers,
-        cv::InputOutputArray R,
-        cv::OutputArray t,
-        double th,
-        size_t num_iterative_steps,
-        double threshold_multiplier,
-        double pseudoHuberThreshold_multiplier,
-        double maxRelativeInlierCntLoss )
+                               cv::InputArray p2,
+                               cv::InputOutputArray E,
+                               cv::InputOutputArray mask,
+                               int refineMethod, // a combination of poselib::RefinePostAlg
+                               size_t &nr_inliers,
+                               cv::InputOutputArray R,
+                               cv::OutputArray t,
+                               double th,
+                               size_t num_iterative_steps,
+                               double threshold_multiplier,
+                               double pseudoHuberThreshold_multiplier,
+                               double maxRelativeInlierCntLoss)
+    {
+        std::random_device rd;
+        std::mt19937 g(rd());
+        return refineEssentialLinear( p1, p2, E, g, mask, refineMethod, nr_inliers, R, t, th, num_iterative_steps, threshold_multiplier,  pseudoHuberThreshold_multiplier, maxRelativeInlierCntLoss);
+    }
+
+    bool refineEssentialLinear(cv::InputArray p1,
+                               cv::InputArray p2,
+                               cv::InputOutputArray E,
+                               std::mt19937 &mt,
+                               cv::InputOutputArray mask,
+                               int refineMethod, // a combination of poselib::RefinePostAlg
+                               size_t &nr_inliers,
+                               cv::InputOutputArray R,
+                               cv::OutputArray t,
+                               double th,
+                               size_t num_iterative_steps,
+                               double threshold_multiplier,
+                               double pseudoHuberThreshold_multiplier,
+                               double maxRelativeInlierCntLoss)
     {
         CV_Assert((p1.rows() == p2.rows()) &&
             (p1.cols() == 2) &&
@@ -182,7 +203,7 @@ namespace poselib
                 findRefinementWeights(*adapter, model_new, inliers, num_inliers, weights, refineMethod, th, pseudoHuberThreshold_multiplier);
             if (poseRefined)
             {
-                if (!refineModel(*adapter, inliers, num_inliers, model_new, (refineMethod & 0xF0) != poselib::RefinePostAlg::PR_NO_WEIGHTS, weights, refineMethod, &R_refined, &t_refined))
+                if (!refineModel(*adapter, inliers, num_inliers, model_new, (refineMethod & 0xF0) != poselib::RefinePostAlg::PR_NO_WEIGHTS, weights, refineMethod, mt, &R_refined, &t_refined))
                 {
                     //model_new = model;
                     //poseRefined = false;
@@ -200,7 +221,7 @@ namespace poselib
                     for (size_t i = 0; i < MAX_SOLS_KNEIP; i++)
                     {
                         R_refined = R_inout;
-                        if (!refineModel(*adapter, inliers, num_inliers, model_new, (refineMethod & 0xF0) != poselib::RefinePostAlg::PR_NO_WEIGHTS, weights, refineMethod, &R_refined, &t_refined))
+                        if (!refineModel(*adapter, inliers, num_inliers, model_new, (refineMethod & 0xF0) != poselib::RefinePostAlg::PR_NO_WEIGHTS, weights, refineMethod, mt, &R_refined, &t_refined))
                         {
                             //model_new = model;
                             //R_refined = R_inout;
@@ -240,7 +261,7 @@ namespace poselib
                 else
                 {
                     R_refined = R_inout;
-                    if (!refineModel(*adapter, inliers, num_inliers, model_new, (refineMethod & 0xF0) != poselib::RefinePostAlg::PR_NO_WEIGHTS, weights, refineMethod, &R_refined, &t_refined))
+                    if (!refineModel(*adapter, inliers, num_inliers, model_new, (refineMethod & 0xF0) != poselib::RefinePostAlg::PR_NO_WEIGHTS, weights, refineMethod, mt, &R_refined, &t_refined))
                     {
                         //model_new = model;
                         //R_refined = R_inout;
@@ -344,15 +365,16 @@ namespace poselib
     // generateRefinedModel: compute model using non-minimal set of samples
     // default operation is to use a weight of 1 for every data point
     // ============================================================================================
-    bool refineModel(opengv::relative_pose::CentralRelativeAdapter & adapter,
-        std::vector<int>& indices,
-        const size_t numPoints,
-        opengv::essential_t & model,
-        bool weighted,
-        double* weights,
-        int refineMethod,//a combination of poselib::RefinePostAlg
-        opengv::rotation_t* R_inout,
-        opengv::translation_t* t_out)
+    bool refineModel(opengv::relative_pose::CentralRelativeAdapter &adapter,
+                     std::vector<int> &indices,
+                     const size_t numPoints,
+                     opengv::essential_t &model,
+                     bool weighted,
+                     double *weights,
+                     int refineMethod, // a combination of poselib::RefinePostAlg
+                     std::mt19937 &mt,
+                     opengv::rotation_t *R_inout,
+                     opengv::translation_t *t_out)
     {
         opengv::bearingVectors_t bearingVectors1;
         opengv::bearingVectors_t bearingVectors2;
@@ -550,7 +572,7 @@ namespace poselib
             else
             {
                 R_init = Eigen::Matrix3d::Identity();
-                PoseTools::getPerturbedRotation(R_init, RAND_ROTATION_AMPLITUDE); //Check if the amplitude is too large or too small!
+                PoseTools::getPerturbedRotation(R_init, mt, RAND_ROTATION_AMPLITUDE); //Check if the amplitude is too large or too small!
                 adapter.setR12(R_init);
                 eig_out.rotation = R_init;
             }

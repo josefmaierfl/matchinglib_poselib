@@ -389,7 +389,7 @@ namespace MathTools
 		}
 		tq=tq>s?tq:s; 
 		if(s<zr*tq){
-			delete[] le;
+			delete[] (le - j);
 			delete[] q0;
 			// free(le - j);
 			// free(q0); 

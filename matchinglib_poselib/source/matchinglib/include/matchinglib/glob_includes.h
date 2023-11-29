@@ -21,23 +21,6 @@
 //USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 //Author: Josef Maier (josefjohann-dot-maier-at-gmail-dot-at)
-/**********************************************************************************************************
- FILE: match_statOptFlow.h
-
- PLATFORM: Windows 7, MS Visual Studio 2010, OpenCV 2.4.2
-
- CODE: C++
- 
- AUTOR: Josef Maier, AIT Austrian Institute of Technology
-
- DATE: September 2015
-
- LOCATION: TechGate Vienna, Donau-City-Strasse 1, 1220 Vienna
-
- VERSION: 1.0
-
- DISCRIPTION: This file holds global includs for multiple files
-**********************************************************************************************************/
 
 #pragma once
 
@@ -48,3 +31,18 @@
 #include <vector>
 //#include <cmath>
 #include <math.h>       /* isnan, sqrt */
+
+namespace matchinglib
+{
+    template <class T>
+    void getThreadBatchSize(const T &nrTasks, T &threadCount, T &batchSize)
+    {
+        T batchDiff = threadCount * batchSize - nrTasks;
+        while (batchDiff >= batchSize && threadCount > 1)
+        {
+            threadCount--;
+            batchSize = std::ceil(nrTasks / static_cast<float>(threadCount));
+            batchDiff = threadCount * batchSize - nrTasks;
+        }
+    }
+}

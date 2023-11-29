@@ -19,17 +19,24 @@ class HomogEstimator: public USAC<HomogEstimator>
 		std::vector<double> final_model_params_;
 
 	public:
-		HomogEstimator() 
+		HomogEstimator(std::mt19937 &mt) : USAC(mt), input_points_denorm_(nullptr), input_points_(nullptr), data_matrix_(nullptr)
 		{
-			input_points_ = NULL;
-			data_matrix_  = NULL;
-			models_.clear();
-			models_denorm_.clear();
-		};
+			// input_points_ = NULL;
+			// data_matrix_  = NULL;
+			// models_.clear();
+			// models_denorm_.clear();
+		}
+
 		~HomogEstimator() 
 		{
-			if (input_points_) { delete[] input_points_; input_points_ = NULL; }
-			if (data_matrix_) { delete[] data_matrix_; data_matrix_ = NULL; }
+			if (input_points_) { 
+				delete[] input_points_;
+				input_points_ = nullptr;
+			}
+			if (data_matrix_) { 
+				delete[] data_matrix_;
+				data_matrix_ = nullptr;
+			}
 			for (size_t i = 0; i < models_.size(); ++i)
 			{
 				if (models_[i]) { delete[] models_[i]; }
@@ -40,7 +47,7 @@ class HomogEstimator: public USAC<HomogEstimator>
 				if (models_denorm_[i]) { delete[] models_denorm_[i]; }
 			}
 			models_denorm_.clear();
-		};
+		}
 
 	public:
 		// ------------------------------------------------------------------------

@@ -1,0 +1,77 @@
+FROM nvidia/cuda:12.3.0-devel-ubuntu22.04
+
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
+
+USER root
+
+# Install base tools
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update
+RUN export DEBIAN_FRONTEND=noninteractive && \
+  apt-get install -y \
+    build-essential \
+    ca-certificates \
+    cmake  \
+    curl   \
+    git    \
+    gnupg  \
+    less   \
+    m4     \
+    nano   \
+    ninja-build \
+    openssh-client \
+    pkg-config \
+    unzip \
+    wget \
+    zip && \
+  rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y software-properties-common
+#RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y apt-utils
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y wget build-essential sudo cmake pkg-config
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y libboost-all-dev
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y libtbb2 libtbb-dev libpng-dev libtiff-dev libjpeg-dev
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y libshine-dev
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y qtbase5-dev qtchooser qt5-qmake qtbase5-dev-tools
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y libflann-dev
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y libgtk-3-dev 
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y libavcodec-dev libavformat-dev libswscale-dev libdc1394-dev openexr libhdf5-dev libomp-dev
+
+#For Ceres solver
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y libgoogle-glog-dev libgflags-dev
+#RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y libatlas-base-dev
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y libopenblas-dev
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y liblapack-dev
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y libsuitesparse-dev
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y ocl-icd-opencl-dev && apt-get clean
+
+#Python
+RUN export DEBIAN_FRONTEND=noninteractive && add-apt-repository ppa:deadsnakes/ppa && apt-get update
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get install -y python3.12 pip && apt-get clean
+RUN python3 -m pip install --upgrade pip
+RUN python3 -m pip install numpy
+
+ADD ci /ci
+RUN cd /ci && sed -i 's/\r$//' build_thirdparty.sh  && \  
+    chmod +x build_thirdparty.sh
+RUN cd /ci && sed -i 's/\r$//' build_eigen.sh  && \  
+    chmod +x build_eigen.sh
+RUN cd /ci && sed -i 's/\r$//' make_opencv_cuda.sh  && \  
+    chmod +x make_opencv_cuda.sh
+RUN cd /ci && sed -i 's/\r$//' build_ceres.sh  && \  
+    chmod +x build_ceres.sh
+RUN cd /ci && ./build_thirdparty.sh -cuda
+
+# COPY matchinglib_poselib /ci/tmp/matchinglib_poselib/
+# COPY build_matchinglib_poselib.sh /ci/tmp/
+# RUN cd /ci/tmp && sed -i 's/\r$//' build_matchinglib_poselib.sh  && \  
+#     chmod +x build_matchinglib_poselib.sh
+# RUN cd /ci/tmp && ./build_matchinglib_poselib.sh
+
+WORKDIR /app
+# RUN cp -r /ci/tmp/tmp/. /app/
+# COPY start_matchinglib_poselib.sh /app/
+# RUN cd /app && sed -i 's/\r$//' start_matchinglib_poselib.sh  && \  
+#     chmod +x start_matchinglib_poselib.sh
+
+#CMD [ "/bin/bash" ]

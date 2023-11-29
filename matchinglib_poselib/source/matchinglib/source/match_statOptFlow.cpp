@@ -212,7 +212,7 @@ namespace matchinglib
   int AdvancedMatching(cv::Ptr<cv::DescriptorMatcher> &descriptorMatcher,
                        std::vector<KeyPoint> const &keypoints1, std::vector<KeyPoint> const &keypoints2,
                        Mat const &descriptors1, Mat const &descriptors2, cv::Size imgSi,
-                       std::vector<DMatch> &filteredMatches12, bool finalCrossCheck, double validationTH,
+                       std::vector<DMatch> &filteredMatches12, std::mt19937 &mt, bool finalCrossCheck, double validationTH,
                        double stdMult, int BFknn, bool filterSmallFlow,
                        std::vector<float> *costRatios, std::vector<float> *distRatios,
                        double *estiInlRatio, std::vector<cv::DMatch> *initFilteredMatches, cv::InputArray img1, cv::InputArray img2,
@@ -666,7 +666,7 @@ namespace matchinglib
         {
           vector<DMatch> vfcfilteredMatches;
 
-          if(!filterWithVFC(keypoints1, keypoints2, filteredMatches12, vfcfilteredMatches))
+          if(!filterWithVFC(keypoints1, keypoints2, filteredMatches12, vfcfilteredMatches, mt))
           {
             if((vfcfilteredMatches.size() > 8) || (filteredMatches12.size() < 24))
             {
@@ -2664,11 +2664,11 @@ namespace matchinglib
 
     //vector<pair<Point3i,vector<std::pair<size_t,float>>>> validSqrs, lessPtSqrs;
     qualityParm stat_dist_glob, stat_ang_glob;
-    vector<vector<std::pair<size_t,float>>> gridTreeMatches;
+    vector<vector<std::pair<Eigen::Index,float>>> gridTreeMatches;
     vector<qualityParm> stat_dist, stat_ang;
     vector<vector<double>> flow_dist, flow_ang;
     bool globStatCalculated = false;
-    std::vector<std::pair<size_t,float> >   ret_matches;
+    std::vector< std::pair<Eigen::Index,float> >   ret_matches;
     int divx, divy, idx;
     float imgpart, lastwidthpart, xpos, imgpart2, imgpart22, radius1;
     EMatFloat2 gridPoints;//(divx*divy,2);
@@ -2797,7 +2797,7 @@ namespace matchinglib
 //calcNewGrid:
     do
     {
-      vector<std::pair<Point3i,vector<std::pair<size_t,float>>>> validSqrs, lessPtSqrs;
+      vector<std::pair<Point3i,vector<std::pair<Eigen::Index,float>>>> validSqrs, lessPtSqrs;
       gridTreeMatches.clear();
       flow_dist.clear();
       flow_ang.clear();
@@ -4512,7 +4512,7 @@ namespace matchinglib
     //float pDistM, xdistnorm,ydistnorm;
     for(int i = 0; i<(int)keypoints.size(); i++)
     {
-      std::vector<std::pair<size_t,float> >   ret_matches;
+      std::vector<std::pair<Eigen::Index,float> >   ret_matches;
       unsigned int* idx1;
       float* idx2;
 
@@ -4895,7 +4895,7 @@ namespace matchinglib
     //float pDistM, xdistnorm,ydistnorm;
     for(int i = 0; i<(int)keypoints.size(); i++)
     {
-      std::vector<std::pair<size_t,float> >   ret_matches;
+      std::vector<std::pair<Eigen::Index,float> >   ret_matches;
       max_search_its = MAX_ENLARGE_ITS;
 
       if(!keypIndexes.empty())
@@ -5241,7 +5241,7 @@ namespace matchinglib
     radius2 = 2*lwidth22; //This is the squared diagonal radius of an grid element (c�=a�+b�, a=b => c� = 2a�)
 
     // do a radius search
-    std::vector<std::pair<size_t,float> >   ret_matches;
+    std::vector<std::pair<Eigen::Index,float> >   ret_matches;
 
     std::list<std::pair<cv::KeyPoint,int>> idx_response;
     std::list<std::pair<cv::KeyPoint,int>>::iterator idx_response_it;

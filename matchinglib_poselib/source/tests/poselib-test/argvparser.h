@@ -323,6 +323,6 @@ std::string formatString(const std::string& _string,
                          unsigned int _indent = 0);
 
 }
-; // namespace CommandLineProcessing
+// namespace CommandLineProcessing
 
 #endif // __CMDLINEPARSER_H

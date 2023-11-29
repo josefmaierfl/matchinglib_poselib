@@ -135,8 +135,8 @@ class Arrsac : public SampleConsensusEstimator<Datum, Model> {
   //   best_model: Output parameter that will be filled with the best estimated
   //     model on success.
   // Return: true on successful estimation, false otherwise.
-  bool Estimate(const std::vector<Datum>& data,
-                const Estimator<Datum, Model>& estimator, Model* best_model);
+  bool Estimate(const std::vector<Datum> &data,
+                const Estimator<Datum, Model> &estimator, Model *best_model, std::mt19937 &mt);
 
   // This is sort of a hack. We make this method protected so that we can test
   // it easily. See arrsac_test.cc for more.
@@ -145,9 +145,10 @@ class Arrsac : public SampleConsensusEstimator<Datum, Model> {
   // initial set of hypotheses from a PROSAC-style sampling. This initial set of
   // hypotheses will be used to generate more hypotheses in the Compute
   // method. Returns the set of initial hypotheses.
-  int GenerateInitialHypothesisSet(const std::vector<Datum>& data_input,
-                                   const Estimator<Datum, Model>& estimator,
-                                   std::vector<ScoredData<Model>>* accepted_hypotheses);
+   int GenerateInitialHypothesisSet(const std::vector<Datum> &data_input,
+                                    const Estimator<Datum, Model> &estimator,
+                                    std::vector<ScoredData<Model>> *accepted_hypotheses, 
+                                    std::mt19937 &mt);
 
  private:
   // Minimum sample size to generate a model.
@@ -204,9 +205,11 @@ class Arrsac : public SampleConsensusEstimator<Datum, Model> {
 
 template <class Datum, class Model>
 int Arrsac<Datum, Model>::GenerateInitialHypothesisSet(
-    const std::vector<Datum>& data_input,
-    const Estimator<Datum, Model>& estimator,
-    std::vector<ScoredData<Model>>* accepted_hypotheses) {
+    const std::vector<Datum> &data_input,
+    const Estimator<Datum, Model> &estimator,
+    std::vector<ScoredData<Model>> *accepted_hypotheses, 
+    std::mt19937 &mt)
+{
   //   set parameters for SPRT test, calculate initial value of A
 
   double decision_threshold;
@@ -225,8 +228,8 @@ int Arrsac<Datum, Model>::GenerateInitialHypothesisSet(
   std::vector<Datum> data;
 
   // RandomSampler and PROSAC Sampler.
-  RandomSampler<Datum> random_sampler(nonmin_sample_size_);
-  ProsacSampler<Datum> prosac_sampler(min_sample_size_);
+  RandomSampler<Datum> random_sampler(nonmin_sample_size_, mt);
+  ProsacSampler<Datum> prosac_sampler(min_sample_size_, mt);
   while (k <= m_prime) {
     std::vector<Model> hypotheses;
     if (!inner_ransac) {
@@ -347,9 +350,10 @@ int Arrsac<Datum, Model>::GenerateInitialHypothesisSet(
 }
 
 template <class Datum, class Model>
-bool Arrsac<Datum, Model>::Estimate(const std::vector<Datum>& data,
-                                    const Estimator<Datum, Model>& estimator,
-                                    Model* best_model) {
+bool Arrsac<Datum, Model>::Estimate(const std::vector<Datum> &data,
+                                    const Estimator<Datum, Model> &estimator,
+                                    Model *best_model, std::mt19937 &mt)
+{
 
   int sub_block_size = (int)floor((float)block_size_/5.0);
   int hyp_score_kill_thresh = (int)floor(7.0*(float)sub_block_size/12.0);
@@ -357,7 +361,7 @@ bool Arrsac<Datum, Model>::Estimate(const std::vector<Datum>& data,
   // Generate Initial Hypothesis Test
   std::vector<ScoredData<Model>> hypotheses;
   const std::vector<Datum> initial_data(data.begin(),data.begin() + std::min(data.size(),(size_t)block_size_));
-  int k = GenerateInitialHypothesisSet(initial_data, estimator, &hypotheses);
+  int k = GenerateInitialHypothesisSet(initial_data, estimator, &hypotheses, mt);
 
   if(k == 0)
 	  return false;
@@ -388,7 +392,7 @@ bool Arrsac<Datum, Model>::Estimate(const std::vector<Datum>& data,
     }
   }*/
 
-  RandomSampler<Datum> random_sampler(min_sample_size_);
+  RandomSampler<Datum> random_sampler(min_sample_size_, mt);
 
   // Preemptive Evaluation
   int n = static_cast<int>(hypotheses.size());

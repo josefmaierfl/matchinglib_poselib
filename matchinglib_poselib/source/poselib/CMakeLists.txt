@@ -1,3 +1,4 @@
+option(BUILD_WITH_CERES "Builds the library with AKAZE on CUDA" ON)
 
 #
 # External dependencies
@@ -5,15 +6,20 @@
 
 find_package(Eigen REQUIRED)
 
-find_package(OpenCV 4.2.0 REQUIRED)
+# Tune the code for the architecture on which it is build, but which can be run on all x86-64 platforms.
+# This enables SIMD instruction such as SSE which are needed by EIGEN. If still strange crashes in Eigen
+# appear change -march, use add_compile_options("-mavx") or use add_definitions(-DEIGEN_DONT_VECTORIZE)
+# to disable vectorization in Eigen.
+add_compile_options("-mtune=native" "-march=x86-64")
 
-find_package(Clapack REQUIRED)
 
-find_package(SBA REQUIRED)
+find_package(OpenCV 4.8.0 REQUIRED)
 
 #find_package(Boost COMPONENTS filesystem system date_time REQUIRED)
 
-SET( Nanoflann_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nanoflann-1.3.0/include")
+if (BUILD_WITH_CERES)
+    find_package(Ceres REQUIRED)
+endif()
 
 #
 # Library name and options
@@ -26,11 +32,14 @@ set(target poselib)
 message(STATUS "Lib ${target}")
 
 set(MAINTARGET ${target})
+
+# when compiling debug change set(CMAKE_BUILD_TYPE Release) to set(CMAKE_BUILD_TYPE Debug) in
+# poselib/thirdparty/opengv/CmakeLists.txt. They have the build type hardcoded in their cmake file...
 add_subdirectory(thirdparty/opengv)
 
 # Set API export file and macro
 string(TOUPPER ${target} target_upper)
-set(feature_file "include/${target}/${target}_features.h")
+# set(feature_file "include/${target}/${target}_features.h")
 set(export_file  "include/${target}/${target}_api.h")
 set(export_macro "${target_upper}_API")
 
@@ -43,15 +52,11 @@ set(include_path "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(source_path  "${CMAKE_CURRENT_SOURCE_DIR}/source")
 
 set(headers
-  ${include_path}/BA_driver.h
-  ${include_path}/imgproj.h
   ${include_path}/${target}/glob_includes.h
   ${include_path}/${target}/pose_estim.h
+  ${include_path}/${target}/triangulation.h
   ${include_path}/${target}/pose_helper.h
   ${include_path}/${target}/pose_linear_refinement.h
-  ${include_path}/${target}/stereo_pose_refinement.h
-  ${include_path}/${target}/stereo_pose_types.h
-  ${include_path}/${target}/nanoflannInterface.h
 
   ${include_path}/arrsac/arrsac.h
   ${include_path}/arrsac/estimator.h
@@ -88,14 +93,24 @@ set(headers
   ${include_path}/usac/usac_estimations.h
 )
 
+if (BUILD_WITH_CERES)
+    set(headers ${headers}
+        ${include_path}/ceres/ba_ceres.h
+        ${include_path}/ceres/ba_cost_functions.h
+        ${include_path}/ceres/ba_helpers.h
+        ${include_path}/ceres/ba_types.h
+        ${include_path}/ceres/camera.h
+        ${include_path}/ceres/camera_models.h
+        ${include_path}/ceres/pose.h
+        ${include_path}/ceres/types_colmap.h
+    )
+endif()
+
 set(sources
-  ${source_path}/BA_driver.cpp
-  ${source_path}/imgproj.c
   ${source_path}/pose_estim.cpp
+  ${source_path}/triangulation.cpp
   ${source_path}/pose_helper.cpp
   ${source_path}/pose_linear_refinement.cpp
-  ${source_path}/stereo_pose_refinement.cpp
-  ${source_path}/nanoflannInterface.cpp
 
   ${source_path}/arrsac/sequential_probability_ratio.cc
 
@@ -113,6 +128,17 @@ set(sources
   ${source_path}/usac/utils/weightingEssential.cpp
   ${source_path}/usac/usac_estimations.cpp
 )
+
+if (BUILD_WITH_CERES)
+    set(sources ${sources}
+        ${source_path}/ceres/ba_ceres.cpp
+        ${source_path}/ceres/ba_cost_functions.cpp
+        ${source_path}/ceres/ba_helpers.cpp
+        ${source_path}/ceres/camera.cpp
+        ${source_path}/ceres/camera_models.cpp
+        ${source_path}/ceres/pose.cpp
+    )
+endif()
 
 # Group source files
 set(header_group "Header Files (API)")
@@ -142,12 +168,12 @@ export(TARGETS ${target} NAMESPACE ${META_PROJECT_NAME}:: FILE ${PROJECT_BINARY_
 # Create feature detection header
 # Compilers: https://cmake.org/cmake/help/v3.1/variable/CMAKE_LANG_COMPILER_ID.html#variable:CMAKE_%3CLANG%3E_COMPILER_ID
 # Feature: https://cmake.org/cmake/help/v3.1/prop_gbl/CMAKE_CXX_KNOWN_FEATURES.html
-write_compiler_detection_header(
-    FILE ${feature_file}
-    PREFIX ${target_upper}
-    COMPILERS AppleClang Clang GNU MSVC
-    FEATURES cxx_alignas cxx_alignof cxx_constexpr cxx_final cxx_noexcept cxx_nullptr cxx_sizeof_member cxx_thread_local
-)
+# write_compiler_detection_header(
+#     FILE ${feature_file}
+#     PREFIX ${target_upper}
+#     COMPILERS AppleClang Clang GNU MSVC
+#     FEATURES cxx_alignas cxx_alignof cxx_constexpr cxx_final cxx_noexcept cxx_nullptr cxx_sizeof_member cxx_thread_local
+# )
 
 # Create API export header
 generate_export_header(${target}
@@ -170,21 +196,29 @@ set_target_properties(${target}
 #
 # Include directories
 #
-message(STATUS "clapack: ${CLAPACK_INCLUDE_DIRS}")
+
+set(INCLUDES_PUBLIC
+    ${OpenCV_INCLUDE_DIRS}
+    ${EIGEN_INCLUDE_DIR}
+#    ${Boost_INCLUDE_DIRS}
+)
+# if (BUILD_WITH_CERES)
+#     set(INCLUDES_PUBLIC ${INCLUDES_PUBLIC}
+#         ${CERES_INCLUDE_DIRS}
+#     )
+# endif()
+
+
 target_include_directories(${target}
     PRIVATE
     ${PROJECT_BINARY_DIR}/source/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_BINARY_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/opengv/include
-    ${Nanoflann_INCLUDE_DIR}
 
     PUBLIC
     ${DEFAULT_INCLUDE_DIRECTORIES}
-    ${OpenCV_INCLUDE_DIRS}
-    ${EIGEN_INCLUDE_DIR}
-    ${CLAPACK_INCLUDE_DIRS}
-#    ${Boost_INCLUDE_DIRS}
+    ${INCLUDES_PUBLIC}
 
     INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -199,17 +233,25 @@ target_include_directories(${target}
 #
 # Libraries
 #
-message(STATUS "clapack: ${CLAPACK_LIBRARIES}")
+
+set(LIBRARIES
+    ${OpenCV_LIBS}
+#    ${Boost_LIBRARIES}
+)
+if (BUILD_WITH_CERES)
+    set(LIBRARIES ${LIBRARIES}
+        Ceres::ceres
+    )
+    add_definitions(-DWITH_CERES)
+endif()
+
 target_link_libraries(${target}
     PRIVATE
     opengv
 
     PUBLIC
     ${DEFAULT_LIBRARIES}
-    ${OpenCV_LIBS}
-    ${CLAPACK_LIBRARIES}
-#    ${Boost_LIBRARIES}
-    sba
+    ${LIBRARIES}
 
     INTERFACE
 )
@@ -275,10 +317,6 @@ install(DIRECTORY
     ${CMAKE_CURRENT_SOURCE_DIR}/include DESTINATION ${INSTALL_INCLUDE}/${target}
     COMPONENT dev
 )
-install(DIRECTORY
-        ${Nanoflann_INCLUDE_DIR} DESTINATION ${INSTALL_INCLUDE}/${target}
-        COMPONENT dev
-        )
 
 # Generated header files
 install(DIRECTORY

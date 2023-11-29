@@ -45,18 +45,19 @@
 
 #include "precomp.hpp"
 #include "arrsac/arrsac.h"
+#include <random>
 //#include "../../Theia-master/src/theia/solvers/estimator.h"
 
 
 class CvModelEstimator3
 {
 public:
-    CvModelEstimator3(int _modelPoints, cv::Size _modelSize, int _maxBasicSolutions);
-    virtual ~CvModelEstimator3();
+	CvModelEstimator3(std::mt19937 &_mt, const int &_modelPoints, const cv::Size &_modelSize, const int &_maxBasicSolutions);
+	virtual ~CvModelEstimator3();
 
     virtual int runKernel( const cv::Mat &m1, const cv::Mat &m2, cv::Mat &model )=0;
 	virtual bool ValidModel(const cv::Mat &m1, const cv::Mat &m2, const cv::Mat &model) {return true;}
-    virtual bool runLMeDS( const cv::Mat &m1, const cv::Mat &m2, cv::Mat &model,
+    virtual bool runLMeDS( const cv::Mat &m1, const cv::Mat &m2, cv::Mat &model, 
                            cv::Mat &mask, double confidence, int maxIters );
     virtual bool runRANSAC( const cv::Mat &m1, const cv::Mat &m2, cv::Mat &model,
                             cv::Mat &mask0, double reprojThreshold,
@@ -69,7 +70,7 @@ public:
 													double *sumSqrErr_init, double *sumSqrErr,
 													cv::OutputArray errors, cv::InputOutputArray mask, int model, bool tryOrientedEpipolar, bool normalizeCorrs));
     virtual bool refine( const cv::Mat&, const cv::Mat&, cv::Mat&, int ) { return true; }
-    virtual void setSeed( int64 seed );
+    // virtual void setSeed( int64 seed );
 	virtual void computeReprojError3( const cv::Mat &m1, const cv::Mat &m2,
                                      const cv::Mat &model, cv::Mat &error ) = 0;
 
@@ -86,7 +87,8 @@ protected:
                             cv::Mat &ms1, cv::Mat &ms2, int maxAttempts );
     virtual bool checkSubset( const cv::Mat &ms1, int count );
 
-    int modelPoints;
+	std::mt19937 &mt;
+	int modelPoints;
     cv::Size modelSize;
     int maxBasicSolutions;
     bool checkPartialSubsets;

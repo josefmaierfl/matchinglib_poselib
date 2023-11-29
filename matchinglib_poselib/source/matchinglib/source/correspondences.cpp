@@ -79,6 +79,30 @@ namespace matchinglib
 
   /* --------------------- Functions --------------------- */
 
+  int getCorrespondences(Mat &img1,
+                         Mat &img2,
+                         std::vector<cv::DMatch> &finalMatches,
+                         std::vector<cv::KeyPoint> &kp1,
+                         std::vector<cv::KeyPoint> &kp2,
+                         std::string featuretype,
+                         std::string extractortype,
+                         std::string matchertype,
+                         bool dynamicKeypDet,
+                         int limitNrfeatures,
+                         bool VFCrefine,
+                         bool GMSrefine,
+                         bool ratioTest,
+                         bool SOFrefine,
+                         int subPixRefine,
+                         int verbose,
+                         std::string idxPars_NMSLIB,
+                         std::string queryPars_NMSLIB)
+  {
+    std::random_device rd;
+    std::mt19937 g(rd());
+    return getCorrespondences(img1, img2, finalMatches, kp1, kp2, g, featuretype, extractortype, matchertype, dynamicKeypDet, limitNrfeatures, VFCrefine, GMSrefine, ratioTest, SOFrefine, subPixRefine, verbose, idxPars_NMSLIB, queryPars_NMSLIB);
+  }
+
   /* Generation of features followed by matching, filtering, and subpixel-refinement.
    *
    * Mat img1           Input  -> First or left input image
@@ -147,22 +171,23 @@ namespace matchinglib
    */
   int getCorrespondences(Mat &img1,
                          Mat &img2,
-                         std::vector<cv::DMatch> & finalMatches,
-                         std::vector<cv::KeyPoint> & kp1,
-                         std::vector<cv::KeyPoint> & kp2,
+                         std::vector<cv::DMatch> &finalMatches,
+                         std::vector<cv::KeyPoint> &kp1,
+                         std::vector<cv::KeyPoint> &kp2,
+                         std::mt19937 &mt,
                          std::string featuretype,
                          std::string extractortype,
                          std::string matchertype,
                          bool dynamicKeypDet,
                          int limitNrfeatures,
                          bool VFCrefine,
-						 bool GMSrefine,
+                         bool GMSrefine,
                          bool ratioTest,
                          bool SOFrefine,
                          int subPixRefine,
                          int verbose,
-						 std::string idxPars_NMSLIB,
-						 std::string queryPars_NMSLIB)
+                         std::string idxPars_NMSLIB,
+                         std::string queryPars_NMSLIB)
   {
     if(img1.empty() || img2.empty())
     {
@@ -350,7 +375,7 @@ namespace matchinglib
     }
     else if(!onlyKeypoints)
     {
-      err = getMatches(keypoints1, keypoints2, descriptors1, descriptors2, imgSi, finalMatches, matchertype, VFCrefine, ratioTest, extractortype, idxPars_NMSLIB, queryPars_NMSLIB);
+      err = getMatches(keypoints1, keypoints2, descriptors1, descriptors2, imgSi, finalMatches, mt, matchertype, VFCrefine, ratioTest, extractortype, idxPars_NMSLIB, queryPars_NMSLIB);
     }
 
     if(err != 0)

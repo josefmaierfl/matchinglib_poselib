@@ -28,7 +28,7 @@ namespace matchinglib
     //int idx = 0;
     pts.reserve(pts_in.size());
 
-    for(int i = 0; i < pts_in.size(); i++)//(cv::Point2f p : pts_in)
+    for(int i = 0; i < static_cast<int>(pts_in.size()); i++)//(cv::Point2f p : pts_in)
     {
 		pts.push_back(ptType(pts_in[i].x, pts_in[i].y, i));
       /*pts.push_back(ptType(p.x, p.y, idx));
@@ -46,7 +46,7 @@ namespace matchinglib
     pts.reserve(pts_in.size());
     //int idx = 0;
 
-    for(int i = 0; i < pts_in.size(); i++)//(cv::Point2f p : pts_in)
+    for (int i = 0; i < static_cast<int>(pts_in.size()); i++) //(cv::Point2f p : pts_in)
     {
       if(status[i])
       {
@@ -66,7 +66,7 @@ namespace matchinglib
     //int idx = 0;
     pts.reserve(keypts.size());
 
-    for(int i = 0; i < keypts.size(); i++)//(cv::KeyPoint i : keypts)
+    for (int i = 0; i < static_cast<int>(keypts.size()); i++) //(cv::KeyPoint i : keypts)
     {
       pts.push_back(ptType(keypts[i].pt.x, keypts[i].pt.y, i));
       //idx++;
@@ -82,7 +82,7 @@ namespace matchinglib
 
     //int idx = 0;
 
-    for(int i = 0; i < pts.size(); i++)//(auto i : pts)
+    for (int i = 0; i < static_cast<int>(pts.size()); i++) //(auto i : pts)
     {
 		kpts.push_back(cv::KeyPoint(pts[i], 0.0f, -1, 0, 0, i));
      // kpts.push_back(cv::KeyPoint(i, 0.0f, -1, 0, 0, idx));
@@ -97,7 +97,7 @@ namespace matchinglib
     std::vector<cv::Point2f> pts;
     pts.reserve(keypts.size());
 
-    for(int i = 0; i < keypts.size(); i++)//(cv::KeyPoint i : keypts)
+    for(size_t i = 0; i < keypts.size(); i++)//(cv::KeyPoint i : keypts)
     {
 		pts.push_back(keypts[i].pt);
       //pts.push_back(i.pt);
