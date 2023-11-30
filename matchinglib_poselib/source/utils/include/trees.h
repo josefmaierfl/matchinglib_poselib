@@ -80,7 +80,7 @@ namespace utilslib
         bool kdtree_get_bbox(BBOX & /* bb */) const { return false; }
     };
 
-    typedef nanoflann::KDTreeSingleIndexAdaptor<nanoflann::L2_Simple_Adaptor<float, FeatureDataStorage>, FeatureDataStorage, 2 /* dim */> FeatureFlannTree;
+    typedef nanoflann::KDTreeSingleIndexAdaptor<nanoflann::L2_Simple_Adaptor<float, FeatureDataStorage>, FeatureDataStorage, 2 /* dim */, size_t> FeatureFlannTree;
 
     class UTILSLIB_API FeatureKDTree
     {

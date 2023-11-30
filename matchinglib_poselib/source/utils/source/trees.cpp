@@ -233,9 +233,17 @@ namespace utilslib
     size_t FeatureKDTree::radiusSearch(const cv::Point2f &pt, const float &radius, std::vector<std::pair<size_t, float>> &ret_matches, const bool &sorted) const
     {
         const float query_pt[2] = {pt.x, pt.y};
-        nanoflann::SearchParams params;
+        nanoflann::SearchParameters params;
         params.sorted = sorted;
-        return tree->radiusSearch(&query_pt[0], radius, ret_matches, params);
+        std::vector<nanoflann::ResultItem<size_t, float>> ret_matches2;
+        size_t nr = tree->radiusSearch(&query_pt[0], radius, ret_matches2, params);
+        ret_matches.clear();
+        for (const auto &i: ret_matches2)
+        {
+            ret_matches.emplace_back(std::make_pair(i.first, i.second));
+        }
+        
+        return nr;
     }
 
     LineSearchNode::LineSearchNode(const Circle &innerCircle, const size_t &max_leaf_entries) : innerCircle_(innerCircle), max_leaf_entries_(innerCircle.radius > 0.1 ? max_leaf_entries : 1000), hasChilds(false)
