@@ -171,7 +171,7 @@ namespace PointCloud
       }
       unsigned findInRadius(TPoint const& pt, float const search_radius, std::vector<std::pair<size_t,T> >& ret_matches)
       {
-        nanoflann::SearchParams params;
+        nanoflann::SearchParameters params;
         return mpIndex->radiusSearch((T*)&pt,search_radius, ret_matches, params);
       }
 
@@ -181,7 +181,7 @@ namespace PointCloud
         size_t ret;
         T out_dist;
         resultSet.init(&ret, &out_dist);
-        mpIndex->findNeighbors(resultSet, &pt.x, nanoflann::SearchParams(10));
+        mpIndex->findNeighbors(resultSet, &pt.x, nanoflann::SearchParameters(10));
         ret_index.push_back(ret);
         out_dist_sqr.push_back(out_dist);
       }
@@ -190,7 +190,7 @@ namespace PointCloud
       {
         nanoflann::KNNResultSet<T> resultSet(num_results);
         resultSet.init(arr_ret_index, arr_out_dist_sqr);
-        mpIndex->findNeighbors(resultSet, &pt.x, nanoflann::SearchParams(10));
+        mpIndex->findNeighbors(resultSet, &pt.x, nanoflann::SearchParameters(10));
       }
 
       std::vector<TPoint >& getPoints()
