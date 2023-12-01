@@ -260,12 +260,12 @@ namespace matchinglib
 
     if(imgSi.height >= 800)
     {
-      divy = (int)floor((float)imgSi.height/100.0);
+      divy = static_cast<int>(floor(static_cast<float>(imgSi.height)/100.0));
     }
 
-    imgpart = (float)imgSi.height/(float)divy;
-    divx = (int)floor((float)imgSi.width/imgpart);
-    lastwidthpart = (float)imgSi.width-(float)divx*imgpart;
+    imgpart = static_cast<float>(imgSi.height)/static_cast<float>(divy);
+    divx = static_cast<int>(floor(static_cast<float>(imgSi.width)/imgpart));
+    lastwidthpart = static_cast<float>(imgSi.width)-static_cast<float>(divx)*imgpart;
     imgpart2 = imgpart/2;
     lwidth2 = lastwidthpart/2;
 
@@ -385,7 +385,7 @@ namespace matchinglib
     else
     {
       ratioTestMatches(descriptorMatcher,initDescriptors1, initDescriptors2, initMatches);
-      estim_inlRatio = (double)initMatches.size() / (double)initDescriptors1.rows;
+      estim_inlRatio = static_cast<double>(initMatches.size()) / static_cast<double>(initDescriptors1.rows);
     }
 
     vector<int> queryIdxs( initMatches.size() ), trainIdxs( initMatches.size() );
@@ -431,7 +431,7 @@ namespace matchinglib
         bool nobadInitialMatching = true;
 
         //Check if the initial matches are matches that survived the ratio test
-        if(std::abs((double)initMatches.size() / (double)initDescriptors1.rows - estim_inlRatio) > 0.01)
+        if(std::abs(static_cast<double>(initMatches.size()) / static_cast<double>(initDescriptors1.rows) - estim_inlRatio) > 0.01)
         {
           ratioTestFlannMatches(descriptors1, descriptors2, filteredMatches12, NULL, true);
           nobadInitialMatching = false;
@@ -494,20 +494,20 @@ namespace matchinglib
             });
 
             //Remove duplicates
-            for(int i = 0; i < (int)mdelIdx.size() - 1; i++)
+            for(int i = 0; i < static_cast<int>(mdelIdx.size()) - 1; i++)
             {
               while(mdelIdx[i] == mdelIdx[i+1])
               {
                 mdelIdx.erase(mdelIdx.begin() + i + 1);
 
-                if(i + 1 == (int)mdelIdx.size())
+                if(i + 1 == static_cast<int>(mdelIdx.size()))
                 {
                   break;
                 }
               }
             }
 
-            for(int i = 0; i < (int)mdelIdx.size(); i++)
+            for(size_t i = 0; i < mdelIdx.size(); i++)
             {
               keypIndexes1.erase(keypIndexes1.begin() + mdelIdx[i]);
               keypIndexes2.erase(keypIndexes2.begin() + mdelIdx[i]);
@@ -527,7 +527,7 @@ namespace matchinglib
             std::sort(keypIndexes1.begin(),keypIndexes1.end());
             size_t j = 0;
 
-            for(int i = 0; i < (int)keypoints1.size(); i++)
+            for(int i = 0; i < static_cast<int>(keypoints1.size()); i++)
             {
               if(keypIndexes1[j] == i)
               {
@@ -547,7 +547,7 @@ namespace matchinglib
             std::sort(keypIndexes2.begin(),keypIndexes2.end());
             j = 0;
 
-            for(int i = 0; i < (int)keypoints2.size(); i++)
+            for(int i = 0; i < static_cast<int>(keypoints2.size()); i++)
             {
               if(keypIndexes2[j] == i)
               {
@@ -625,20 +625,20 @@ namespace matchinglib
               });
 
               //Remove duplicates
-              for(int i = 0; i < (int)mdelIdx.size() - 1; i++)
+              for(int i = 0; i < static_cast<int>(mdelIdx.size()) - 1; i++)
               {
                 while(mdelIdx[i] == mdelIdx[i+1])
                 {
                   mdelIdx.erase(mdelIdx.begin() + i + 1);
 
-                  if(i + 1 == (int)mdelIdx.size())
+                  if(i + 1 == static_cast<int>(mdelIdx.size()))
                   {
                     break;
                   }
                 }
               }
 
-              for(int i = 0; i < (int)mdelIdx.size(); i++)
+              for(size_t i = 0; i < mdelIdx.size(); i++)
               {
                 keypIndexes1.erase(keypIndexes1.begin() + mdelIdx[i]);
                 keypIndexes2.erase(keypIndexes2.begin() + mdelIdx[i]);
@@ -715,7 +715,7 @@ namespace matchinglib
 
               for (unsigned int i = 0; i < matches_reduced.size(); i++)
               {
-                if((i % (int)keepXthMatch) == 0)
+                if(i % static_cast<int>(keepXthMatch) == 0)
                 {
                   keypL_reduced1.push_back(keypL_reduced[i]);
                   matches_reduced1.push_back(matches_reduced[i]);
@@ -951,20 +951,20 @@ namespace matchinglib
         });
 
         //Remove duplicates
-        for(int i = 0; i < (int)mdelIdx.size() - 1; i++)
+        for(int i = 0; i < static_cast<int>(mdelIdx.size()) - 1; i++)
         {
           while(mdelIdx[i] == mdelIdx[i+1])
           {
             mdelIdx.erase(mdelIdx.begin() + i + 1);
 
-            if(i + 1 == (int)mdelIdx.size())
+            if(i + 1 == static_cast<int>(mdelIdx.size()))
             {
               break;
             }
           }
         }
 
-        for(int i = 0; i < (int)mdelIdx.size(); i++)
+        for(size_t i = 0; i < mdelIdx.size(); i++)
         {
           keys1.erase(keys1.begin() + mdelIdx[i]);
           keys2.erase(keys2.begin() + mdelIdx[i]);
@@ -987,18 +987,18 @@ namespace matchinglib
     {
       if(IsPopCntAvailable())
       {
-        unsigned char byte8width = (unsigned char)descriptors1.cols / 8;
+        unsigned char byte8width = static_cast<unsigned char>(descriptors1.cols / 8);
 
         for(size_t i = 0; i < filteredMatches12.size(); i++)
         {
-          filteredMatches12[i].distance = (float)getHammingL1PopCnt(descriptors1.row(queryIdxs[i]), descriptors2.row(trainIdxs[i]), byte8width);
+          filteredMatches12[i].distance = static_cast<float>(getHammingL1PopCnt(descriptors1.row(queryIdxs[i]), descriptors2.row(trainIdxs[i]), byte8width));
         }
       }
       else
       {
         for(size_t i = 0; i < filteredMatches12.size(); i++)
         {
-          filteredMatches12[i].distance = (float)getHammingL1(descriptors1.row(queryIdxs[i]), descriptors2.row(trainIdxs[i]));
+          filteredMatches12[i].distance = static_cast<float>(getHammingL1(descriptors1.row(queryIdxs[i]), descriptors2.row(trainIdxs[i])));
         }
       }
     }
@@ -1033,8 +1033,8 @@ namespace matchinglib
         float esti_pos[2], keypDiff[2];
         int singleQueryIdx = filteredMatches12[i].queryIdx;
         int singleTrainIdx = filteredMatches12[i].trainIdx;
-        grid_x = (unsigned int)floor(keypoints1[singleQueryIdx].pt.x / gridElemSize);
-        grid_y = (unsigned int)floor(keypoints1[singleQueryIdx].pt.y / gridElemSize);
+        grid_x = static_cast<unsigned int>(floor(keypoints1[singleQueryIdx].pt.x / gridElemSize));
+        grid_y = static_cast<unsigned int>(floor(keypoints1[singleQueryIdx].pt.y / gridElemSize));
 
         if(grid_y < gridSPsize[1])
         {
@@ -1139,7 +1139,7 @@ namespace matchinglib
 
             for(size_t j = 0; j < threadkeypIndexes1.back().size(); j++)
             {
-              threadkeypIndexes1.back()[j] -= (int)keyPsIdx;
+              threadkeypIndexes1.back()[j] -= static_cast<int>(keyPsIdx);
 
               if(threadkeypIndexes1.back()[j] < 0)
               {
@@ -1191,7 +1191,7 @@ namespace matchinglib
         {
           for(size_t j = 0; j < threadmatches12[i].size(); j++)
           {
-            threadmatches12[i][j].queryIdx += (int)keyPsIdx;
+            threadmatches12[i][j].queryIdx += static_cast<int>(keyPsIdx);
           }
 
           keyPsIdx += nr_keypoints[i];
@@ -1285,7 +1285,7 @@ namespace matchinglib
 
               for(size_t j = 0; j < threadkeypIndexes1.back().size(); j++)
               {
-                threadkeypIndexes1.back()[j] -= (int)keyPsIdx;
+                threadkeypIndexes1.back()[j] -= static_cast<int>(keyPsIdx);
 
                 if(threadkeypIndexes1.back()[j] < 0)
                 {
@@ -1337,7 +1337,7 @@ namespace matchinglib
           {
             for(size_t j = 0; j < threadmatches12[i].size(); j++)
             {
-              threadmatches12[i][j].queryIdx += (int)keyPsIdx;
+              threadmatches12[i][j].queryIdx += static_cast<int>(keyPsIdx);
             }
 
             keyPsIdx += nr_keypoints[i];
@@ -1398,7 +1398,7 @@ namespace matchinglib
 
               for(size_t j = 0; j < threadkeypIndexes1.back().size(); j++)
               {
-                threadkeypIndexes1.back()[j] -= (int)keyPsIdx;
+                threadkeypIndexes1.back()[j] -= static_cast<int>(keyPsIdx);
 
                 if(threadkeypIndexes1.back()[j] < 0)
                 {
@@ -1445,7 +1445,7 @@ namespace matchinglib
           {
             for(size_t j = 0; j < threadmatches12[i].size(); j++)
             {
-              threadmatches12[i][j].queryIdx += (int)keyPsIdx;
+              threadmatches12[i][j].queryIdx += static_cast<int>(keyPsIdx);
             }
 
             keyPsIdx += nr_keypoints[i];
@@ -1461,7 +1461,7 @@ namespace matchinglib
           }
         }
 
-        sizeDiff = (int)(keypoints2.size()-matches21.size());
+        sizeDiff = static_cast<int>(keypoints2.size()-matches21.size());
 
         for( size_t m = 0; m < matches12.size(); m++ )
         {
@@ -1535,7 +1535,7 @@ namespace matchinglib
 
               for(size_t j = 0; j < threadkeypIndexes1.back().size(); j++)
               {
-                threadkeypIndexes1.back()[j] -= (int)keyPsIdx;
+                threadkeypIndexes1.back()[j] -= static_cast<int>(keyPsIdx);
 
                 if(threadkeypIndexes1.back()[j] < 0)
                 {
@@ -1589,7 +1589,7 @@ namespace matchinglib
             {
               for(size_t k = 0; k < threadmatches12[i][j].size(); k++)
               {
-                threadmatches12[i][j][k].queryIdx += (int)keyPsIdx;
+                threadmatches12[i][j][k].queryIdx += static_cast<int>(keyPsIdx);
               }
             }
 
@@ -1675,7 +1675,7 @@ namespace matchinglib
 
                 for(size_t j = 0; j < threadkeypIndexes1.back().size(); j++)
                 {
-                  threadkeypIndexes1.back()[j] -= (int)keyPsIdx;
+                  threadkeypIndexes1.back()[j] -= static_cast<int>(keyPsIdx);
 
                   if(threadkeypIndexes1.back()[j] < 0)
                   {
@@ -1724,7 +1724,7 @@ namespace matchinglib
               {
                 for(size_t k = 0; k < threadmatches12[i][j].size(); k++)
                 {
-                  threadmatches12[i][j][k].queryIdx += (int)keyPsIdx;
+                  threadmatches12[i][j][k].queryIdx += static_cast<int>(keyPsIdx);
                 }
               }
 
@@ -1759,7 +1759,7 @@ namespace matchinglib
           }*/
 
           m21si = matches21.size()-1;
-          sizeDiff = (int)(keypoints2.size() - matches21.size());
+          sizeDiff = static_cast<int>(keypoints2.size() - matches21.size());
 
           for( size_t m = 0; m < matches12.size(); m++ )
           {
@@ -1773,7 +1773,7 @@ namespace matchinglib
 #endif
 
               for( int bk0 = forward.trainIdx > sizeDiff ? forward.trainIdx-sizeDiff:0;
-                   bk0 <= (forward.trainIdx > (int)m21si ? (int)m21si:forward.trainIdx); bk0++ )
+                   bk0 <= (forward.trainIdx > static_cast<int>(m21si) ? static_cast<int>(m21si):forward.trainIdx); bk0++ )
               {
                 if(matches21[bk0][0].queryIdx == forward.trainIdx)
                 {
@@ -1846,8 +1846,8 @@ namespace matchinglib
                   unsigned int grid_x, grid_y;
                   float esti_pos[3], keypDiff[2];
                   int singleQueryIdx = matches12[q][0].queryIdx;
-                  grid_x = (unsigned int)floor(keypoints1[singleQueryIdx].pt.x / gridElemSize);
-                  grid_y = (unsigned int)floor(keypoints1[singleQueryIdx].pt.y / gridElemSize);
+                  grid_x = static_cast<unsigned int>(floor(keypoints1[singleQueryIdx].pt.x / gridElemSize));
+                  grid_y = static_cast<unsigned int>(floor(keypoints1[singleQueryIdx].pt.y / gridElemSize));
 
                   if(grid_y < gridSearchParams.size())
                   {
@@ -2075,8 +2075,8 @@ namespace matchinglib
         }
         else if(estim_inlRatio > 0.45)
         {
-            cost_th = 5.833f * (float)estim_inlRatio - 1.375f;
-            dist_th = 4.167f * (float)estim_inlRatio + 0.125f;
+            cost_th = 5.833f * static_cast<float>(estim_inlRatio) - 1.375f;
+            dist_th = 4.167f * static_cast<float>(estim_inlRatio) + 0.125f;
         }
     }
     else if(descriptors1.type() == CV_8U)
@@ -2088,8 +2088,8 @@ namespace matchinglib
         }
         else if(estim_inlRatio > 0.23)
         {
-            cost_th = 8.333f * (float)estim_inlRatio - 0.667f;
-            dist_th = 5.952f * (float)estim_inlRatio + 0.631f;
+            cost_th = 8.333f * static_cast<float>(estim_inlRatio) - 0.667f;
+            dist_th = 5.952f * static_cast<float>(estim_inlRatio) + 0.631f;
         }
     }*/
     filteredMatches12_tmp.reserve(filteredMatches12.size());
@@ -2123,7 +2123,7 @@ namespace matchinglib
     std::vector<std::pair<size_t,float> >   del_neighbors;
     int idxe = 0;
     float search_delrad;
-    int maxareadels = (int)std::floor(0.2f * (float)delsize + 0.5f);
+    int maxareadels = static_cast<int>(std::floor(0.2f * static_cast<float>(delsize) + 0.5f));
     if(maxareadels == 0) maxareadels = 1;
     for(unsigned int i = 0;i < filteredMatches12.size();i++)
     {
@@ -2219,7 +2219,7 @@ namespace matchinglib
 
           for (unsigned int i = 0; i < matches_reduced.size(); i++)
           {
-            if((i % (int)keepXthMatch) == 0)
+            if(i % static_cast<int>(keepXthMatch) == 0)
             {
               keypL_reduced1.push_back(keypL_reduced[i]);
               matches_reduced1.push_back(matches_reduced[i]);
@@ -2272,8 +2272,8 @@ namespace matchinglib
 
     const unsigned int gigs = 5; //grid in grid size e.g. 5x5 grid in one original bin
     unsigned int idx_max = gigs - 1;
-    float remaining_pix = fmod((float)imgSi.width, gridElemSize);
-    float gridSi = gridElemSize / (float)gigs;
+    float remaining_pix = fmod(static_cast<float>(imgSi.width), gridElemSize);
+    float gridSi = gridElemSize / static_cast<float>(gigs);
     size_t x_last_max;
     size_t origGridSi[2];
     origGridSi[0] = gridSearchParams[0].size() - 1;
@@ -2690,21 +2690,21 @@ namespace matchinglib
     {
       if(!minYGridSize)
       {
-        divy = (int)floor((float)imgSi.height/100.0);
+        divy = static_cast<int>(floor(static_cast<float>(imgSi.height)/100.0));
       }
       else
       {
-        divy = (int)minYGridSize;
+        divy = static_cast<int>(minYGridSize);
       }
 
-      float xyRatio = (float)imgSi.width/(float)imgSi.height;
+      float xyRatio = static_cast<float>(imgSi.width)/static_cast<float>(imgSi.height);
 
       if(keypts1idxall)
       {
-        imgpart = (float)imgSi.height/(float)divy;
+        imgpart = static_cast<float>(imgSi.height)/static_cast<float>(divy);
         *gridElemSize = imgpart;
-        divx = (int)floor((float)imgSi.width/imgpart);
-        lastwidthpart = (float)imgSi.width-(float)divx*imgpart;
+        divx = static_cast<int>(floor(static_cast<float>(imgSi.width)/imgpart));
+        lastwidthpart = static_cast<float>(imgSi.width)-static_cast<float>(divx)*imgpart;
         imgpart2 = imgpart/2;
 
         if(lastwidthpart > remainGridPix) //if the remaining column of the image is too small forget it
@@ -2743,7 +2743,7 @@ namespace matchinglib
           {
             ret_matches.clear();
             keypts1idxall->index_->radiusSearch(&gridPoints(idx+j,0), imgpart22, ret_matches, nanoflann::SearchParameters(maxDepthSearch));
-            int resSize = (int)ret_matches.size();
+            int resSize = static_cast<int>(ret_matches.size());
 
             if(resSize < 5)
             {
@@ -2756,11 +2756,10 @@ namespace matchinglib
         {
           divy = 1;
         }
-        else if((float)keyP1.rows()/((float)(divy * divx) * ((float)(gridPoints.rows() - usedGridElems) / (float)gridPoints.rows())) <
-                (float)minPtsPerSqr)
+        else if(static_cast<float>(keyP1.rows())/(static_cast<float>(divy * divx) * (static_cast<float>(gridPoints.rows() - usedGridElems) / static_cast<float>(gridPoints.rows()))) <
+                static_cast<float>(minPtsPerSqr))
         {
-          divy = (int)floor(std::sqrt((float)keyP1.rows() * ((float)gridPoints.rows() / (float)(gridPoints.rows() - usedGridElems))/((
-                                        float)minPtsPerSqr * xyRatio)));
+          divy = static_cast<int>(floor(std::sqrt(static_cast<float>(keyP1.rows()) * (static_cast<float>(gridPoints.rows()) / static_cast<float>(gridPoints.rows() - usedGridElems))/(static_cast<float>(minPtsPerSqr) * xyRatio))));
 
           if(!divy || (divy < 0))
           {
@@ -2775,9 +2774,9 @@ namespace matchinglib
       }
       else
       {
-        if((float)keyP1.rows()/((float)(divy * divy) * xyRatio) < (float)minPtsPerSqr)
+        if(static_cast<float>(keyP1.rows())/(static_cast<float>(divy * divy) * xyRatio) < static_cast<float>(minPtsPerSqr))
         {
-          divy = (int)floor(std::sqrt((float)keyP1.rows()/((float)minPtsPerSqr * xyRatio)));
+          divy = static_cast<int>(floor(std::sqrt(static_cast<float>(keyP1.rows())/(static_cast<float>(minPtsPerSqr) * xyRatio))));
 
           if(!divy || (divy < 0))
           {
@@ -2807,10 +2806,10 @@ namespace matchinglib
       if(divy > 1)
       {
         calcNewGrid = false;
-        imgpart = (float)imgSi.height/(float)divy;
+        imgpart = static_cast<float>(imgSi.height)/static_cast<float>(divy);
         *gridElemSize = imgpart;
-        divx = (int)floor((float)imgSi.width/imgpart);
-        lastwidthpart = (float)imgSi.width-(float)divx*imgpart;
+        divx = static_cast<int>(floor(static_cast<float>(imgSi.width)/imgpart));
+        lastwidthpart = static_cast<float>(imgSi.width)-static_cast<float>(divx)*imgpart;
         imgpart2 = imgpart/2;
 
         if(lastwidthpart > remainGridPix) //if the remaining column of the image is too small forget it
@@ -2851,7 +2850,7 @@ namespace matchinglib
           {
             ret_matches.clear();
             keypts1idx.index_->radiusSearch(&gridPoints(idx+j,0), radius1, ret_matches, nanoflann::SearchParameters(maxDepthSearch));
-            int resSize = (int)ret_matches.size();
+            int resSize = static_cast<int>(ret_matches.size());
 
             if(!resSize)
             {
@@ -2880,7 +2879,7 @@ namespace matchinglib
             {
               ret_matches.clear();
               keypts1idxall->index_->radiusSearch(&gridPoints(idx+j,0), imgpart22, ret_matches, nanoflann::SearchParameters(maxDepthSearch));
-              int resSize = (int)ret_matches.size();
+              int resSize = static_cast<int>(ret_matches.size());
 
               if(resSize < 5)
               {
@@ -2890,30 +2889,30 @@ namespace matchinglib
           }
 
           //Check if the mesh is too fine (if true, recalculate the mesh)
-          if((float)lessPtSqrs.size() >= 0.5 * (float)validSqrs.size())
+          if(static_cast<float>(lessPtSqrs.size()) >= 0.5 * static_cast<float>(validSqrs.size()))
           {
             float meanPts = 0;
             int divy1;
 
             for(unsigned int i = 0; i < lessPtSqrs.size(); i++)
             {
-              meanPts += (float)lessPtSqrs[i].first.z;
+              meanPts += static_cast<float>(lessPtSqrs[i].first.z);
             }
 
             for(unsigned int i = 0; i < validSqrs.size(); i++)
             {
-              meanPts += (float)validSqrs[i].first.z;
+              meanPts += static_cast<float>(validSqrs[i].first.z);
             }
 
-            meanPts /= (float)(lessPtSqrs.size() + validSqrs.size());
+            meanPts /= static_cast<float>(lessPtSqrs.size() + validSqrs.size());
 
             if((gridPoints.rows() - usedGridElems) < 2)
             {
-              divy1 = (int)floor((float)divy * meanPts / (float)minPtsPerSqr);
+              divy1 = static_cast<int>(floor(static_cast<float>(divy) * meanPts / static_cast<float>(minPtsPerSqr)));
             }
             else
             {
-              divy1 = (int)floor((float)divy * ((float)gridPoints.rows() / (float)(gridPoints.rows() - usedGridElems)) * meanPts / (float)minPtsPerSqr);
+              divy1 = static_cast<int>(floor(static_cast<float>(divy) * (static_cast<float>(gridPoints.rows()) / static_cast<float>(gridPoints.rows() - usedGridElems)) * meanPts / static_cast<float>(minPtsPerSqr)));
             }
 
             if(!divy1 || (divy1 < 0))
@@ -2938,22 +2937,22 @@ namespace matchinglib
         else
         {
           //Check if the mesh is too fine (if true, recalculate the mesh)
-          if((float)lessPtSqrs.size() >= 0.5 * (float)validSqrs.size())
+          if(static_cast<float>(lessPtSqrs.size()) >= 0.5 * static_cast<float>(validSqrs.size()))
           {
             float meanPts = 0;
 
             for(unsigned int i = 0; i < lessPtSqrs.size(); i++)
             {
-              meanPts += (float)lessPtSqrs[i].first.z;
+              meanPts += static_cast<float>(lessPtSqrs[i].first.z);
             }
 
             for(unsigned int i = 0; i < validSqrs.size(); i++)
             {
-              meanPts += (float)validSqrs[i].first.z;
+              meanPts += static_cast<float>(validSqrs[i].first.z);
             }
 
-            meanPts /= (float)(lessPtSqrs.size() + validSqrs.size());
-            int divy1 = (int)floor((float)divy * meanPts / (float)minPtsPerSqr);
+            meanPts /= static_cast<float>(lessPtSqrs.size() + validSqrs.size());
+            int divy1 = static_cast<int>(floor(static_cast<float>(divy) * meanPts / static_cast<float>(minPtsPerSqr)));
 
             if(!divy1 || (divy1 < 0))
             {
@@ -3198,7 +3197,7 @@ namespace matchinglib
                           else
                           {
                             //Only add the index if it is no duplicate
-                            int gTMsi = (int)gridTreeMatches.back().size();
+                            int gTMsi = static_cast<int>(gridTreeMatches.back().size());
                             int vSqsi = validSqrs[cnt].first.z;
 
                             for(int j1 = 0; j1 < vSqsi; j1++)
@@ -3266,7 +3265,7 @@ namespace matchinglib
                           else
                           {
                             //Only add the index if it is no duplicate
-                            int gTMsi = (int)gridTreeMatches.back().size();
+                            int gTMsi = static_cast<int>(gridTreeMatches.back().size());
                             int vSqsi = lessPtSqrs[cnt].first.z;
 
                             for(int j1 = 0; j1 < vSqsi; j1++)
@@ -3346,7 +3345,7 @@ namespace matchinglib
         }
 
         //Check if some grid elements couldnt be filled
-        if(divx * divy != (int)gridTreeMatches.size())
+        if(divx * divy != static_cast<int>(gridTreeMatches.size()))
         {
           divy = 1;
           calcNewGrid = true;
@@ -3373,12 +3372,12 @@ namespace matchinglib
 
           if(ang < 0.0)
           {
-            ang += (float)(2.0 * PI);
+            ang += 2.f * static_cast<float>(PI);
           }
 
-          tmp.push_back((double)dist2);
+          tmp.push_back(static_cast<double>(dist2));
           flow_dist.push_back(tmp);
-          tmp[0] = (double)ang;
+          tmp[0] = static_cast<double>(ang);
           flow_ang.push_back(tmp);
 
           for(unsigned int j = 1; j < gridTreeMatches[i].size(); j++)
@@ -3398,11 +3397,11 @@ namespace matchinglib
 
             if(ang < 0.0)
             {
-              ang += (float)(2.0 * PI);
+              ang += 2.f * static_cast<float>(PI);
             }
 
-            flow_dist.back().push_back((double)dist2);
-            flow_ang.back().push_back((double)ang);
+            flow_dist.back().push_back(static_cast<double>(dist2));
+            flow_ang.back().push_back(static_cast<double>(ang));
           }
         }
 
@@ -3501,10 +3500,10 @@ namespace matchinglib
           }
 
           //Filter the flow according to the statistic from the statistic
-          ang_th[0] = (float)(tmp_ang.arithErr - stdMult_th * tmp_ang.arithStd);
-          ang_th[1] = (float)(tmp_ang.arithErr + stdMult_th * tmp_ang.arithStd);
-          dist_th[0] = (float)(tmp_dist.arithErr - stdMult_th * tmp_dist.arithStd);
-          dist_th[1] = (float)(tmp_dist.arithErr + stdMult_th * tmp_dist.arithStd);
+          ang_th[0] = static_cast<float>(tmp_ang.arithErr - stdMult_th * tmp_ang.arithStd);
+          ang_th[1] = static_cast<float>(tmp_ang.arithErr + stdMult_th * tmp_ang.arithStd);
+          dist_th[0] = static_cast<float>(tmp_dist.arithErr - stdMult_th * tmp_dist.arithStd);
+          dist_th[1] = static_cast<float>(tmp_dist.arithErr + stdMult_th * tmp_dist.arithStd);
 
           if(ang_th[0] >= PI)
           {
@@ -3824,7 +3823,7 @@ namespace matchinglib
               {
                 vector<double> flow_dist_glob, flow_ang_glob;
 
-                for(int i1 = 0; i1 < (int)keyP2.rows(); i1++)
+                for(int i1 = 0; i1 < static_cast<int>(keyP2.rows()); i1++)
                 {
                   float dist2, ang, xdist, ydist;
                   xdist = keyP2(i1,0) - keyP1(i1,0);
@@ -3842,11 +3841,11 @@ namespace matchinglib
 
                   if(ang < 0.0)
                   {
-                    ang += (float)(2.0 * PI);
+                    ang += 2.f * static_cast<float>(PI);
                   }
 
-                  flow_dist_glob.push_back((double)dist2);
-                  flow_ang_glob.push_back((double)ang);
+                  flow_dist_glob.push_back(static_cast<double>(dist2));
+                  flow_ang_glob.push_back(static_cast<double>(ang));
                 }
 
                 getStatisticfromVec(flow_dist_glob, &stat_dist_glob, true);
@@ -3910,10 +3909,10 @@ namespace matchinglib
       {
         calcNewGrid = false;
         divx = 1;
-        *gridElemSize = (float)imgSi.width;
+        *gridElemSize = static_cast<float>(imgSi.width);
         vector<double> flow_dist_glob, flow_ang_glob;
 
-        for(int i1 = 0; i1 < (int)keyP2.rows(); i1++)
+        for(int i1 = 0; i1 < static_cast<int>(keyP2.rows()); i1++)
         {
           float dist2, ang, xdist, ydist;
           xdist = keyP2(i1,0) - keyP1(i1,0);
@@ -3931,11 +3930,11 @@ namespace matchinglib
 
           if(ang < 0.0)
           {
-            ang += (float)(2.0 * PI);
+            ang += 2.f * static_cast<float>(PI);
           }
 
-          flow_dist_glob.push_back((double)dist2);
-          flow_ang_glob.push_back((double)ang);
+          flow_dist_glob.push_back(static_cast<double>(dist2));
+          flow_ang_glob.push_back(static_cast<double>(ang));
         }
 
         getStatisticfromVec(flow_dist_glob, &stat_dist_glob, true);
@@ -3980,16 +3979,16 @@ namespace matchinglib
 
     if(mask.needed())
     {
-      mask.create((int)keyP2.rows(),1, CV_8U);
+      mask.create(static_cast<int>(keyP2.rows()),1, CV_8U);
       mask_ = mask.getMat();
-      mask_ = Mat::ones((int)keyP2.rows(),1, CV_8U);
+      mask_ = Mat::ones(static_cast<int>(keyP2.rows()),1, CV_8U);
     }
 
     if(divy == 1)
     {
-      flow_x = (float)(std::cos(stat_ang[0].medErr) * stat_dist[0].medErr);
-      flow_y = (float)(std::sin(stat_ang[0].medErr) * stat_dist[0].medErr);
-      r_std = (float)(stdMult * stat_dist[0].medStd);
+      flow_x = static_cast<float>(std::cos(stat_ang[0].medErr) * stat_dist[0].medErr);
+      flow_y = static_cast<float>(std::sin(stat_ang[0].medErr) * stat_dist[0].medErr);
+      r_std = static_cast<float>(stdMult * stat_dist[0].medStd);
       gridSearchParams.push_back(vector<Point3f>(1,Point3f(flow_x, flow_y, r_std)));
 
       if(mask.needed())
@@ -4027,7 +4026,7 @@ namespace matchinglib
           ang_th[2] = 2 * PI;
         }
 
-        for(int i1 = 0; i1 < (int)keyP2.rows(); i1++)
+        for(int i1 = 0; i1 < static_cast<int>(keyP2.rows()); i1++)
         {
           if((flow_dist[0][i1] > dist_th[1]) || (flow_dist[0][i1] < dist_th[0]) ||
               (flow_ang[0][i1] < ang_th[0]) ||
@@ -4184,7 +4183,7 @@ namespace matchinglib
     vals_tmp = vals;
 
     //Split angles to eliminate the influence of the angles 0 and 2pi which are equal but numerically far from each other
-    for(int i = 0; i < (int)vals_tmp.size(); i++)
+    for(size_t i = 0; i < vals_tmp.size(); i++)
     {
       vals_tmp[i] += pi2;//Add 2pi to prevent negative values at later angular operations
 
@@ -4204,9 +4203,9 @@ namespace matchinglib
       return;
     }
 
-    if((float)vals2.size() / (float)vals1.size() < 0.1)
+    if(static_cast<float>(vals2.size()) / static_cast<float>(vals1.size()) < 0.1f)
     {
-      for(int i = 0; i < (int)vals1.size(); i++)
+      for(size_t i = 0; i < vals1.size(); i++)
       {
         vals1[i] -= pi2;
       }
@@ -4215,9 +4214,9 @@ namespace matchinglib
       return;
     }
 
-    if((float)vals1.size() / (float)vals2.size() < 0.1)
+    if(static_cast<float>(vals1.size()) / static_cast<float>(vals2.size()) < 0.1f)
     {
-      for(int i = 0; i < (int)vals2.size(); i++)
+      for(size_t i = 0; i < vals2.size(); i++)
       {
         vals2[i] -= pi2;
       }
@@ -4234,7 +4233,7 @@ namespace matchinglib
     vals1_2 = vals1;
     vals2_2 = vals2;
 
-    for(int i = 0; i < (int)vals1.size(); i++)
+    for(size_t i = 0; i < vals1.size(); i++)
     {
       const double ang_diff = abs(hyp2Stats.medErr - vals1[i]);
 
@@ -4248,7 +4247,7 @@ namespace matchinglib
       }
     }
 
-    for(int i = 0; i < (int)vals2.size(); i++)
+    for(size_t i = 0; i < vals2.size(); i++)
     {
       const double ang_diff = abs(vals2[i] - hyp1Stats.medErr);
 
@@ -4311,7 +4310,7 @@ namespace matchinglib
     }
 
     int n = vals.size();
-    int qrt_si = (int)floor(0.25 * (double)n);
+    int qrt_si = static_cast<int>(floor(0.25 * static_cast<double>(n)));
     std::vector<double> vals_tmp(vals);
 
     std::sort(vals_tmp.begin(),vals_tmp.end(),[](double const & first, double const & second)
@@ -4347,9 +4346,9 @@ namespace matchinglib
       n -= 2 * qrt_si;
     }
 
-    stats->arithErr /= (double)n;
+    stats->arithErr /= static_cast<double>(n);
 
-    hlp = err2sum - (double)n * (stats->arithErr) * (stats->arithErr);
+    hlp = err2sum - static_cast<double>(n) * (stats->arithErr) * (stats->arithErr);
 
     if(std::abs(hlp) < 1e-6)
     {
@@ -4357,7 +4356,7 @@ namespace matchinglib
     }
     else
     {
-      stats->arithStd = std::sqrt(hlp/((double)n - 1.0));
+      stats->arithStd = std::sqrt(hlp/(static_cast<double>(n) - 1.0));
     }
 
     if(std::abs(medstdsum) < 1e-6)
@@ -4366,7 +4365,7 @@ namespace matchinglib
     }
     else
     {
-      stats->medStd = std::sqrt(medstdsum/((double)n - 1.0));
+      stats->medStd = std::sqrt(medstdsum/(static_cast<double>(n) - 1.0));
     }
   }
 
@@ -4478,7 +4477,7 @@ namespace matchinglib
 
       if(descriptors1.cols != 64)
       {
-        byte8width = (unsigned char)(descriptors1.cols / 8);
+        byte8width = static_cast<unsigned char>(descriptors1.cols / 8);
         //descrCols = descriptors1.cols;
       }
 
@@ -4487,9 +4486,9 @@ namespace matchinglib
 
     if(gridSPsize[1] == 1)
     {
-      gridSearchParams[0][0].z = (float)searchRadius > gridSearchParams[0][0].z ? (float)searchRadius:gridSearchParams[0][0].z;
+      gridSearchParams[0][0].z = static_cast<float>(searchRadius) > gridSearchParams[0][0].z ? static_cast<float>(searchRadius):gridSearchParams[0][0].z;
       gridSearchParams[0][0].z *= gridSearchParams[0][0].z; //The radius is squared because the L2-norm is used within the KD-tree
-      var_searchRadius = (int)ceil(gridSearchParams[0][0].z);
+      var_searchRadius = static_cast<int>(ceil(gridSearchParams[0][0].z));
     }
     else
     {
@@ -4497,7 +4496,7 @@ namespace matchinglib
       {
         for(unsigned int j = 0; j < gridSPsize[0]; i++)
         {
-          gridSearchParams[i][j].z = (float)searchRadius > gridSearchParams[i][j].z ? (float)searchRadius:gridSearchParams[i][j].z;
+          gridSearchParams[i][j].z = static_cast<float>(searchRadius) > gridSearchParams[i][j].z ? static_cast<float>(searchRadius):gridSearchParams[i][j].z;
           gridSearchParams[i][j].z *= gridSearchParams[i][j].z; //The radius is squared because the L2-norm is used within the KD-tree
           gridSearchParams[i][j].z = ceil(gridSearchParams[i][j].z);
         }
@@ -4510,7 +4509,7 @@ namespace matchinglib
     }
 
     //float pDistM, xdistnorm,ydistnorm;
-    for(int i = 0; i<(int)keypoints.size(); i++)
+    for(int i = 0; i<static_cast<int>(keypoints.size()); i++)
     {
       std::vector<nanoflann::ResultItem<Eigen::Index, float>> ret_matches;
       unsigned int* idx1;
@@ -4521,7 +4520,7 @@ namespace matchinglib
       {
         if(keypIndexes[idx] == i) //continue for already found correspondences
         {
-          if(idx < ((int)keypIndexes.size()-1))
+          if(idx < (static_cast<int>(keypIndexes.size())-1))
           {
             idx++;
           }
@@ -4540,8 +4539,8 @@ namespace matchinglib
       }
       else
       {
-        grid_x = (unsigned int)floor(keypoints[i].pt.x / gridElemSize);
-        grid_y = (unsigned int)floor(keypoints[i].pt.y / gridElemSize);
+        grid_x = static_cast<unsigned int>(floor(keypoints[i].pt.x / gridElemSize));
+        grid_y = static_cast<unsigned int>(floor(keypoints[i].pt.y / gridElemSize));
 
         if(grid_y < gridSPsize[1])
         {
@@ -4549,13 +4548,13 @@ namespace matchinglib
           {
             x2e(0) = keypoints[i].pt.x + gridSearchParams[grid_y][grid_x].x;
             x2e(1) = keypoints[i].pt.y + gridSearchParams[grid_y][grid_x].y;
-            var_searchRadius = (int)gridSearchParams[grid_y][grid_x].z;
+            var_searchRadius = static_cast<int>(gridSearchParams[grid_y][grid_x].z);
           }
           else
           {
             x2e(0) = keypoints[i].pt.x + gridSearchParams[grid_y].back().x;
             x2e(1) = keypoints[i].pt.y + gridSearchParams[grid_y].back().y;
-            var_searchRadius = (int)gridSearchParams[grid_y].back().z;
+            var_searchRadius = static_cast<int>(gridSearchParams[grid_y].back().z);
             grid_x = gridSPsizeIdx[0];
           }
         }
@@ -4565,14 +4564,14 @@ namespace matchinglib
           {
             x2e(0) = keypoints[i].pt.x + gridSearchParams.back()[grid_x].x;
             x2e(1) = keypoints[i].pt.y + gridSearchParams.back()[grid_x].y;
-            var_searchRadius = (int)gridSearchParams.back()[grid_x].z;
+            var_searchRadius = static_cast<int>(gridSearchParams.back()[grid_x].z);
             grid_y = gridSPsizeIdx[1];
           }
           else
           {
             x2e(0) = keypoints[i].pt.x + gridSearchParams.back().back().x;
             x2e(1) = keypoints[i].pt.y + gridSearchParams.back().back().y;
-            var_searchRadius = (int)gridSearchParams.back().back().z;
+            var_searchRadius = static_cast<int>(gridSearchParams.back().back().z);
             grid_x = gridSPsizeIdx[0];
             grid_y = gridSPsizeIdx[1];
           }
@@ -4589,7 +4588,7 @@ namespace matchinglib
       /*xdistnorm = x2e(0)-imgSi2.width;
       ydistnorm = x2e(1)-imgSi2.height;
       pDistM = (xdistnorm*xdistnorm+ydistnorm*ydistnorm)/imgDiag;*/
-      keypointtree.index_->radiusSearch(&x2e(0),/*(1+pDistM)**/(float)var_searchRadius, ret_matches,
+      keypointtree.index_->radiusSearch(&x2e(0),/*(1+pDistM)**/static_cast<float>(var_searchRadius), ret_matches,
                                         nanoflann::SearchParameters(maxDepthSearch)); //The larger the distance from the image center, the larger the search radius (compensate for radial distortion)
 
       if(ret_matches.empty())
@@ -4608,7 +4607,7 @@ namespace matchinglib
         {
           for(unsigned int k = 0; k < ret_matches.size(); k++)
           {
-            l1norms[k] = getHammingL1PopCnt(descriptors1.row(i), descriptors2.row((int)ret_matches[k].first), byte8width);
+            l1norms[k] = getHammingL1PopCnt(descriptors1.row(i), descriptors2.row(static_cast<int>(ret_matches[k].first)), byte8width);
           }
         }
         else
@@ -4616,7 +4615,7 @@ namespace matchinglib
           //double* weights = new double[ret_matches.size()];
           for(unsigned int k = 0; k < ret_matches.size(); k++)
           {
-            l1norms[k] = getHammingL1(descriptors1.row(i), descriptors2.row((int)ret_matches[k].first));
+            l1norms[k] = getHammingL1(descriptors1.row(i), descriptors2.row(static_cast<int>(ret_matches[k].first)));
             //*(weights+k) = pow((double)(*(l1norms+k)),2)+36*(1-0.6*pDistM)*ret_matches[k].second; //The larger the distance from the image center, the less important is the distance to the estimated point (compensate for radial distortion)
           }
         }
@@ -4629,10 +4628,10 @@ namespace matchinglib
         }
 
         //Be careful the distance values in the DMatch structs represent the weights of the features and not the distances to the query keypoints
-        matches_knn1.push_back(DMatch(i,(int)ret_matches[idx1-l1norms].first,(float)(*idx1)/*sqrtf(powf(distp.x,2)+powf(distp.y,2))*/));
+        matches_knn1.push_back(DMatch(i,static_cast<int>(ret_matches[idx1-l1norms].first),static_cast<float>(*idx1)/*sqrtf(powf(distp.x,2)+powf(distp.y,2))*/));
         //delete [] weights;
 #if FILTER_WITH_CD_RATIOS
-        mprop_tmp.costs = (float)(*idx1);
+        mprop_tmp.costs = static_cast<float>(*idx1);
         mprop_tmp.distance = ret_matches[idx1-l1norms].second;
         mprop_tmp.x = grid_x;
         mprop_tmp.y = grid_y;
@@ -4643,13 +4642,13 @@ namespace matchinglib
       {
         for(unsigned int k = 0; k < ret_matches.size(); k++)
         {
-          l2norms[k] = getL2Distance(descriptors1.row(i), descriptors2.row((int)ret_matches[k].first));
+          l2norms[k] = getL2Distance(descriptors1.row(i), descriptors2.row(static_cast<int>(ret_matches[k].first)));
         }
 
         idx2 = min_element(l2norms,l2norms + ret_matches.size() * sizeof(float));
 
         //Be careful the distance values in the DMatch structs represent the weights of the features and not the distances to the query keypoints
-        matches_knn1.push_back(DMatch(i, (int)ret_matches[idx2-l2norms].first, *idx2));
+        matches_knn1.push_back(DMatch(i, static_cast<int>(ret_matches[idx2-l2norms].first), *idx2));
 #if FILTER_WITH_CD_RATIOS
         mprop_tmp.costs = *idx2;
         mprop_tmp.distance = ret_matches[idx2-l2norms].second;
@@ -4859,7 +4858,7 @@ namespace matchinglib
 
       if(descriptors1.cols != 64)
       {
-        byte8width = (unsigned char)(descriptors1.cols / 8);
+        byte8width = static_cast<unsigned char>(descriptors1.cols / 8);
         descrCols = descriptors1.cols;
       }
 
@@ -4868,7 +4867,7 @@ namespace matchinglib
 
     if(gridSPsize[1] == 1)
     {
-      gridSearchParams[0][0].z = (float)searchRadius > gridSearchParams[0][0].z ? (float)searchRadius:gridSearchParams[0][0].z;
+      gridSearchParams[0][0].z = static_cast<float>(searchRadius) > gridSearchParams[0][0].z ? static_cast<float>(searchRadius):gridSearchParams[0][0].z;
       gridSearchParams[0][0].z *= gridSearchParams[0][0].z; //The radius is squared because the L2-norm is used within the KD-tree
       gridSearchParams[0][0].z = ceil(gridSearchParams[0][0].z);
       //var_searchRadius = ceil(gridSearchParams[0][0].z);
@@ -4879,7 +4878,7 @@ namespace matchinglib
       {
         for(unsigned int j = 0; j < gridSPsize[0]; j++)
         {
-          gridSearchParams[i][j].z = (float)searchRadius > gridSearchParams[i][j].z ? (float)searchRadius:gridSearchParams[i][j].z;
+          gridSearchParams[i][j].z = static_cast<float>(searchRadius) > gridSearchParams[i][j].z ? static_cast<float>(searchRadius):gridSearchParams[i][j].z;
           gridSearchParams[i][j].z *= gridSearchParams[i][j].z; //The radius is squared because the L2-norm is used within the KD-tree
           gridSearchParams[i][j].z = ceil(gridSearchParams[i][j].z);
         }
@@ -4892,7 +4891,7 @@ namespace matchinglib
     }
 
     //float pDistM, xdistnorm,ydistnorm;
-    for(int i = 0; i<(int)keypoints.size(); i++)
+    for(int i = 0; i<static_cast<int>(keypoints.size()); i++)
     {
       std::vector<nanoflann::ResultItem<Eigen::Index, float>> ret_matches;
       max_search_its = MAX_ENLARGE_ITS;
@@ -4901,7 +4900,7 @@ namespace matchinglib
       {
         if(keypIndexes[idx] == i) //continue for already found correspondences
         {
-          if(idx < ((int)keypIndexes.size()-1))
+          if(idx < (static_cast<int>(keypIndexes.size())-1))
           {
             idx++;
           }
@@ -4924,8 +4923,8 @@ namespace matchinglib
       }
       else
       {
-        grid_x = (unsigned int)floor(keypoints[i].pt.x / gridElemSize);
-        grid_y = (unsigned int)floor(keypoints[i].pt.y / gridElemSize);
+        grid_x = static_cast<unsigned int>(floor(keypoints[i].pt.x / gridElemSize));
+        grid_y = static_cast<unsigned int>(floor(keypoints[i].pt.y / gridElemSize));
 
         if(grid_y < gridSPsize[1])
         {
@@ -5011,7 +5010,7 @@ namespace matchinglib
         {
           for(unsigned int k = 0; k < ret_matches.size(); k++)
           {
-            l1norms[k] = getHammingL1PopCnt(descriptors1.row(i), descriptors2.row((int)ret_matches[k].first), byte8width);
+            l1norms[k] = getHammingL1PopCnt(descriptors1.row(i), descriptors2.row(static_cast<int>(ret_matches[k].first)), byte8width);
           }
         }
         else
@@ -5019,7 +5018,7 @@ namespace matchinglib
           //double* weights = new double[ret_matches.size()];
           for(unsigned int k = 0; k < ret_matches.size(); k++)
           {
-            l1norms[k] = getHammingL1(descriptors1.row(i), descriptors2.row((int)ret_matches[k].first));
+            l1norms[k] = getHammingL1(descriptors1.row(i), descriptors2.row(static_cast<int>(ret_matches[k].first)));
             //*(weights+k) = pow((double)(*(l1norms+k)),2)+36*(1-0.6*pDistM)*ret_matches[k].second; //The larger the distance from the image center, the less important is the distance to the estimated point (compensate for radial distortion)
           }
         }
@@ -5043,9 +5042,9 @@ namespace matchinglib
         {
 
           //Be careful the distance values in the DMatch structs represent the L1-norms of the features and not the distances to the query keypoints
-          matches.push_back(vector<DMatch>(1,DMatch(i, ret_matches[normIdx[0]].first, (float)l1norms[0])));
+          matches.push_back(vector<DMatch>(1,DMatch(i, ret_matches[normIdx[0]].first, static_cast<float>(l1norms[0]))));
 #if FILTER_WITH_CD_RATIOS
-          mprop_tmp.costs = (float)l1norms[0];
+          mprop_tmp.costs = static_cast<float>(l1norms[0]);
           mprop_tmp.distance = ret_matches[normIdx[0]].second;
           mprop_tmp.x = grid_x;
           mprop_tmp.y = grid_y;
@@ -5057,9 +5056,9 @@ namespace matchinglib
             if(l1norms[k] - l1norms[0] <=
                 knn0hammL1tresh) //Be careful the distance values in the DMatch structs represent the weights of the features and not the distances to the query keypoints
             {
-              matches.back().push_back(DMatch(i, ret_matches[normIdx[k]].first, (float)l1norms[k]));
+              matches.back().push_back(DMatch(i, ret_matches[normIdx[k]].first, static_cast<float>(l1norms[k])));
 #if FILTER_WITH_CD_RATIOS
-              mprop_tmp.costs = (float)l1norms[k];
+              mprop_tmp.costs = static_cast<float>(l1norms[k]);
               mprop_tmp.distance = ret_matches[normIdx[k]].second;
               mprop_tmp.x = grid_x;
               mprop_tmp.y = grid_y;
@@ -5075,9 +5074,9 @@ namespace matchinglib
         else
         {
           //Be careful the distance values in the DMatch structs represent the weights of the features and not the distances to the query keypoints
-          matches.push_back(vector<DMatch>(1, DMatch(i, ret_matches[normIdx[0]].first, (float)l1norms[0])));
+          matches.push_back(vector<DMatch>(1, DMatch(i, ret_matches[normIdx[0]].first, static_cast<float>(l1norms[0]))));
 #if FILTER_WITH_CD_RATIOS
-          mprop_tmp.costs = (float)l1norms[0];
+          mprop_tmp.costs = static_cast<float>(l1norms[0]);
           mprop_tmp.distance = ret_matches[normIdx[0]].second;
           mprop_tmp.x = grid_x;
           mprop_tmp.y = grid_y;
@@ -5087,9 +5086,9 @@ namespace matchinglib
           for(unsigned int k = 1; (k < ret_matches.size()) && (k<knn); k++)
           {
             //Be careful the distance values in the DMatch structs represent the weights of the features and not the distances to the query keypoints
-            matches.back().push_back(DMatch(i, ret_matches[normIdx[k]].first, (float)l1norms[k]));
+            matches.back().push_back(DMatch(i, ret_matches[normIdx[k]].first, static_cast<float>(l1norms[k])));
 #if FILTER_WITH_CD_RATIOS
-            mprop_tmp.costs = (float)l1norms[k];
+            mprop_tmp.costs = static_cast<float>(l1norms[k]);
             mprop_tmp.distance = ret_matches[normIdx[k]].second;
             mprop_tmp.x = grid_x;
             mprop_tmp.y = grid_y;
@@ -5103,7 +5102,7 @@ namespace matchinglib
       {
         for(unsigned int k = 0; k < ret_matches.size(); k++)
         {
-          l2norms[k] = getL2Distance(descriptors1.row(i), descriptors2.row((int)ret_matches[k].first));
+          l2norms[k] = getL2Distance(descriptors1.row(i), descriptors2.row(static_cast<int>(ret_matches[k].first)));
         }
 
         memcpy( normIdx, HamL1NormIdx, ret_matches.size() * sizeof(unsigned int) );
@@ -5228,7 +5227,7 @@ namespace matchinglib
     //const int response_thresh[] = {35,18,8}; //bei FAST f�r die Response-Bereiche >100, 50-100 und <50
     const float threshMultFactors[3] = {1.0/4.0, 1.0/8.0, 1.0/16.0}; // for the response-sorted upper, middel and lower third of the correspondences
 
-    const int minNperGridElem = (int)std::ceil(50.0/((float)(divx * divy)));
+    const int minNperGridElem = static_cast<int>(std::ceil(50.0/(static_cast<float>(divx * divy))));
     //const int maxNperGridElem = eigkeypts.rows()/3.0 < (float)minNperGridElem ? minNperGridElem:(int)std::floor(eigkeypts.rows()/3.0);
 
     imgpart2 = imgpart/2; //Devide the width/height of the grid element by 2 to get the radius
@@ -5484,8 +5483,8 @@ namespace matchinglib
           distBinsMed[0][0] = (distBins[0][0][sumpts/2] + distBins[0][0][sumpts/2-1]) / 2.0f;
         }
 
-        costBinsQuart[0][0] = costBins[0][0][(int)std::floor(0.75f * (float)sumpts)];
-        distBinsQuart[0][0] = distBins[0][0][(int)std::floor(0.75f * (float)sumpts)];
+        costBinsQuart[0][0] = costBins[0][0][static_cast<int>(std::floor(0.75f * static_cast<float>(sumpts)))];
+        distBinsQuart[0][0] = distBins[0][0][static_cast<int>(std::floor(0.75f * static_cast<float>(sumpts)))];
       }
 
       if(costBinsMed[0][0] == 0)
@@ -5506,7 +5505,7 @@ namespace matchinglib
 
       if(costBinsQuart[0][0] == 0)
       {
-        int idx = (int)std::floor(0.75f * (float)sumpts);
+        int idx = static_cast<int>(std::floor(0.75f * static_cast<float>(sumpts)));
 
         while((idx < (sumpts-1)) && (costBinsQuart[0][0] == 0))
         {
@@ -5803,8 +5802,8 @@ namespace matchinglib
               distBinsMed[i][j] = (distBins_tmp[i][j][sumpts/2] + distBins_tmp[i][j][sumpts/2-1]) / 2.0f;
             }
 
-            costBinsQuart[i][j] = costBins_tmp[i][j][(int)std::floor(0.75f * (float)sumpts)];
-            distBinsQuart[i][j] = distBins_tmp[i][j][(int)std::floor(0.75f * (float)sumpts)];
+            costBinsQuart[i][j] = costBins_tmp[i][j][static_cast<int>(std::floor(0.75f * static_cast<float>(sumpts)))];
+            distBinsQuart[i][j] = distBins_tmp[i][j][static_cast<int>(std::floor(0.75f * static_cast<float>(sumpts)))];
           }
 
           if(costBinsMed[i][j] == 0)
@@ -5825,7 +5824,7 @@ namespace matchinglib
 
           if(costBinsQuart[i][j] == 0)
           {
-            int idx = (int)std::floor(0.75f * (float)sumpts);
+            int idx = static_cast<int>(std::floor(0.75f * static_cast<float>(sumpts)));
 
             while((idx < (sumpts-1)) && (costBinsQuart[i][j] == 0))
             {
