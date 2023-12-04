@@ -56,7 +56,6 @@ file(GLOB_RECURSE header_files
 )
 set(headers
    "${CMAKE_CURRENT_SOURCE_DIR}/include/FileHelper.h"
-   "${CMAKE_CURRENT_SOURCE_DIR}/include/matching_structs.h"
    "${CMAKE_CURRENT_SOURCE_DIR}/include/random_numbers.h"
    "${CMAKE_CURRENT_SOURCE_DIR}/include/ransac.h"
    "${CMAKE_CURRENT_SOURCE_DIR}/include/trees.h"
@@ -66,7 +65,6 @@ set(headers
 
 set(sources
     ${source_path}/FileHelper.cpp
-    ${source_path}/matching_structs.cpp
     ${source_path}/random_numbers.cpp
     ${source_path}/ransac.cpp
     ${source_path}/trees.cpp

@@ -22,14 +22,15 @@
 //
 //Author: Josef Maier (josefjohann-dot-maier-at-gmail-dot-at)
 
-#include <matching_structs.h>
-#include <FileHelper.h>
+#include <matchinglib/matching_structs.h>
+#include "matchinglib/glob_includes.h"
+// #include <FileHelper.h>
 
 #include <map>
 
 #include <opencv2/imgproc.hpp>
 
-namespace utilslib
+namespace matchinglib
 {
     double getDescriptorDist(const cv::Mat &descr1, const cv::Mat &descr2)
     {
@@ -75,6 +76,34 @@ namespace utilslib
             return false;
         }
         return true;
+    }
+
+    MatchDataCams::MatchDataCams(const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &imageMap, 
+                                 const std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &features_, 
+                                 const std::unordered_map<int, MatchData> &matches_, 
+                                 const std::vector<int> &indices_, 
+                                 const int &nr_cameras_, 
+                                 const double &imgScale_) : features(features_), 
+                                                            matches(matches_), 
+                                                            indices(indices_), 
+                                                            nr_cameras(nr_cameras_), 
+                                                            imgScale(imgScale_)
+    {
+        for (auto &m : imageMap)
+        {
+            masks.emplace(m.first, m.second.second);
+            images.emplace(m.first, m.second.first);
+        }
+    }
+
+    std::shared_ptr<MatchDataCams> MatchDataCams::copyToSharedPtr() const
+    {
+        return std::make_shared<MatchDataCams>(*this);
+    }
+
+    std::shared_ptr<MatchDataCams> moveMatchDataCamsToSharedPtr(MatchDataCams &data)
+    {
+        return std::make_shared<MatchDataCams>(std::move(data));
     }
 
     std::size_t MatchSearchBase::KeyHasher::operator()(const cv::Point2f &pt) const

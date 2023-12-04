@@ -69,6 +69,9 @@ set(headers
    "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}/vfcMatches.h"
    "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}/glob_includes.h"
    "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}/gms.h"
+   "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}/matching_structs.h"
+   "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}/trees.h"
+   "${CMAKE_CURRENT_SOURCE_DIR}/include/${target}/random_numbers.h"
 )
 
 set(sources
@@ -81,6 +84,9 @@ set(sources
     ${source_path}/vfcMatches.cpp
     ${source_path}/ratioMatches_Flann.cpp
 	${source_path}/gms.cpp
+    ${source_path}/matching_structs.cpp
+    ${source_path}/trees.cpp
+    ${source_path}/random_numbers.cpp
 
     ${source_path}/CascadeHash/BucketBuilder.cc
     ${source_path}/CascadeHash/CasHashMatcher.cc

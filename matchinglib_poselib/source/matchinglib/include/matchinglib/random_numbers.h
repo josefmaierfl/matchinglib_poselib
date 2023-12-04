@@ -31,12 +31,12 @@
 #include <iostream>
 
 #include <opencv2/highgui.hpp>
-#include "utilslib/utilslib_api.h"
+#include "matchinglib/matchinglib_api.h"
 
 namespace utilslib
 {
     // From: https://stackoverflow.com/questions/1008019/c-singleton-design-pattern
-    class UTILSLIB_API RandomGenerator
+    class MATCHINGLIB_API RandomGenerator
     {
     public:
         static RandomGenerator &getInstance(std::seed_seq seed = {0})
@@ -80,7 +80,7 @@ namespace utilslib
         }
     };
 
-    std::vector<size_t> UTILSLIB_API getVecOfMapSizes(const std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &keypoints_descriptors);
-    std::seed_seq UTILSLIB_API getSeedSeqFromVec(const std::vector<size_t> &vec);
-    std::seed_seq UTILSLIB_API getSeedSeqFromVecOfMapSizes(const std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &keypoints_descriptors);
+    std::vector<size_t> MATCHINGLIB_API getVecOfMapSizes(const std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &keypoints_descriptors);
+    std::seed_seq MATCHINGLIB_API getSeedSeqFromVec(const std::vector<size_t> &vec);
+    std::seed_seq MATCHINGLIB_API getSeedSeqFromVecOfMapSizes(const std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &keypoints_descriptors);
 }

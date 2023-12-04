@@ -26,7 +26,6 @@
 #include "opencv2/imgproc.hpp"
 #include <opencv2/calib3d/calib3d.hpp>
 
-#include <matching_structs.h>
 #include <ransac.h>
 
 #include <map>
@@ -583,34 +582,13 @@ namespace utilslib
         return cv::norm(diff);
     }
 
-    bool getMatch3Corrs(const cv::Point2f &pt1, const cv::Point2f &pt2, const cv::Mat &F1, const cv::Mat &F2, const cv::Mat descr1, const cv::Mat descr2, const FeatureKDTree &ft, cv::Mat &descr3, cv::Point2f &pt3, const double &descr_dist_max, const float r_sqrd)
+    double getDescriptorDist(const cv::Mat &descr1, const cv::Mat &descr2)
     {
-        //Two matching feature positions in 2 cams (c1, c2)
-        cv::Mat x1 = (cv::Mat_<double>(3, 1) << static_cast<double>(pt1.x), static_cast<double>(pt1.y), 1.0);
-        cv::Mat x2 = (cv::Mat_<double>(3, 1) << static_cast<double>(pt2.x), static_cast<double>(pt2.y), 1.0);
-        //Calculate epipolar line in target image using first match and F (c1 -> c3)
-        cv::Mat l31 = F1 * x1;
-        //Calculate epipolar line in target image using second match and F (c2 -> c3)
-        cv::Mat l32 = F2 * x2;
-        //Calculate point where both epipolar lines meet
-        cv::Mat x3 = l31.cross(l32);
-        x3 /= x3.at<double>(2);
-        const cv::Point2f pt312(static_cast<float>(x3.at<double>(0)), static_cast<float>(x3.at<double>(1)));
-
-        //Search near the estimated point from above and check the descriptor distance
-        cv::KeyPoint kp3;
-        double dd1;
-        if (!ft.getBestKeypointDescriptorMatch(pt312, descr1, kp3, descr3, dd1, descr_dist_max, r_sqrd))
+        if (descr1.type() == CV_8U)
         {
-            return false;
+            return norm(descr1, descr2, cv::NORM_HAMMING);
         }
-        const double dd2 = getDescriptorDist(descr2, descr3);
-        if (dd2 > descr_dist_max)
-        {
-            return false;
-        }
-        pt3 = kp3.pt;
-        return true;
+        return norm(descr1, descr2, cv::NORM_L2);
     }
 
     int getVectorMainDirIdx(const cv::Mat vec)

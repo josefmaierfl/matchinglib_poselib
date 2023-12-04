@@ -30,15 +30,15 @@
 #include <iostream>
 #include <fstream>
 #include <opencv2/highgui.hpp>
-#include <utils_common.h>
+#include "matchinglib/glob_includes.h"
 
-#include "utilslib/utilslib_api.h"
+#include "matchinglib/matchinglib_api.h"
 
-namespace utilslib
+namespace matchinglib
 {
-    double UTILSLIB_API getDescriptorDist(const cv::Mat &descr1, const cv::Mat &descr2);
+    double MATCHINGLIB_API getDescriptorDist(const cv::Mat &descr1, const cv::Mat &descr2);
 
-    struct UTILSLIB_API MatchData
+    struct MATCHINGLIB_API MatchData
     {
         std::vector<cv::DMatch> matches;
         std::vector<cv::KeyPoint> kps1, kps2;
@@ -52,7 +52,31 @@ namespace utilslib
         bool check() const;
     };
 
-    class UTILSLIB_API MatchSearchBase
+    typedef ptr_wrapper<std::unordered_map<int, cv::Mat>> ImgDataPtr;
+
+    struct MatchDataCams
+    {
+        std::unordered_map<int, cv::Mat> masks;
+        std::unordered_map<int, cv::Mat> images;
+        std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> features;
+        std::unordered_map<int, MatchData> matches;
+        std::vector<int> indices;
+        int nr_cameras = -1;
+        double imgScale = 0.5;
+
+        MatchDataCams() = default;
+        MatchDataCams(const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &imageMap, 
+                      const std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &features_, 
+                      const std::unordered_map<int, MatchData> &matches_, 
+                      const std::vector<int> &indices_, 
+                      const int &nr_cameras_, 
+                      const double &imgScale_);
+        ImgDataPtr getImg_ptr() { return &images; }
+        ImgDataPtr getMask_ptr() { return &masks; }
+        std::shared_ptr<MatchDataCams> copyToSharedPtr() const;
+    };
+
+    class MATCHINGLIB_API MatchSearchBase
     {
     public:
         explicit MatchSearchBase(int minPointDistanceXY) : accuracy(minPointDistanceXY) {}
@@ -85,7 +109,7 @@ namespace utilslib
         };
     };
 
-    class UTILSLIB_API MatchInfoBase
+    class MATCHINGLIB_API MatchInfoBase
     {
     public:
         std::vector<cv::DMatch> matches;
@@ -96,7 +120,7 @@ namespace utilslib
         size_t contains(const cv::KeyPoint &kp2, const double &acc = 2.0);
     };
 
-    class UTILSLIB_API MatchInfo : public MatchInfoBase
+    class MATCHINGLIB_API MatchInfo : public MatchInfoBase
     {
     public:
         cv::Mat descr1_, descr2_;
@@ -106,7 +130,7 @@ namespace utilslib
         bool replace(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::DMatch &match, const cv::Mat &descr1, const cv::Mat &descr2, const int &img_idx);
     };
 
-    class UTILSLIB_API ReMatchInfo : public MatchInfoBase
+    class MATCHINGLIB_API ReMatchInfo : public MatchInfoBase
     {
     public:
         std::vector<double> epipolar_distance;
@@ -119,7 +143,7 @@ namespace utilslib
     };
 
     template <typename T>
-    class UTILSLIB_API MatchSearchTemplate : private MatchSearchBase
+    class MATCHINGLIB_API MatchSearchTemplate : private MatchSearchBase
     {
     public:
         explicit MatchSearchTemplate(int minPointDistanceXY = 2) : MatchSearchBase(minPointDistanceXY)
@@ -171,7 +195,7 @@ namespace utilslib
         std::unordered_map<cv::Point2f, T, KeyHasher, EqualTo> kpMap;
     };
 
-    class UTILSLIB_API MatchSearch : public MatchSearchTemplate<MatchInfo>
+    class MATCHINGLIB_API MatchSearch : public MatchSearchTemplate<MatchInfo>
     {
     public:
         explicit MatchSearch(int minPointDistanceXY = 2) : MatchSearchTemplate(minPointDistanceXY) {}
@@ -198,7 +222,7 @@ namespace utilslib
         }
     };
 
-    class UTILSLIB_API ReMatchSearch : public MatchSearchTemplate<ReMatchInfo>
+    class MATCHINGLIB_API ReMatchSearch : public MatchSearchTemplate<ReMatchInfo>
     {
     public:
         explicit ReMatchSearch(int minPointDistanceXY = 2) : MatchSearchTemplate(minPointDistanceXY) {}
@@ -227,7 +251,7 @@ namespace utilslib
     };
 
     template <typename T>
-    class UTILSLIB_API KeypointSearchBase : protected MatchSearchBase
+    class MATCHINGLIB_API KeypointSearchBase : protected MatchSearchBase
     {
     public:
         explicit KeypointSearchBase(int minPointDistanceXY = 1) : MatchSearchBase(minPointDistanceXY)
@@ -286,7 +310,7 @@ namespace utilslib
         std::unordered_map<cv::Point2f, T, KeyHasher, EqualTo> kpMap;
     };
 
-    class UTILSLIB_API KeypointSearch : public KeypointSearchBase<std::pair<cv::KeyPoint, cv::Mat>>
+    class MATCHINGLIB_API KeypointSearch : public KeypointSearchBase<std::pair<cv::KeyPoint, cv::Mat>>
     {
     public:
         explicit KeypointSearch(int minPointDistanceXY = 1) : KeypointSearchBase(minPointDistanceXY) {}
@@ -393,7 +417,7 @@ namespace utilslib
         }
     };
 
-    class UTILSLIB_API KeypointSearchSimple : public KeypointSearchBase<cv::KeyPoint>
+    class MATCHINGLIB_API KeypointSearchSimple : public KeypointSearchBase<cv::KeyPoint>
     {
     public:
         explicit KeypointSearchSimple(int minPointDistanceXY = 1) : KeypointSearchBase(minPointDistanceXY) {}
@@ -403,7 +427,7 @@ namespace utilslib
         std::vector<cv::KeyPoint> composeAll() const;
     };
 
-    class UTILSLIB_API PointSearchSimpleQ : public KeypointSearchBase<int>
+    class MATCHINGLIB_API PointSearchSimpleQ : public KeypointSearchBase<int>
     {
     public:
         explicit PointSearchSimpleQ(int minPointDistanceXY = 1) : KeypointSearchBase(minPointDistanceXY), first_it(true) {}
@@ -504,7 +528,7 @@ namespace utilslib
         bool first_it = true;
     };
 
-    class UTILSLIB_API PointSearch : private MatchSearchBase
+    class MATCHINGLIB_API PointSearch : private MatchSearchBase
     {
     public:
         explicit PointSearch(int minPointDistanceXY = 1);

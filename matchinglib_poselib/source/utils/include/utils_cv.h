@@ -55,14 +55,7 @@ namespace utilslib
     cv::Mat_<double> UTILSLIB_API estimateRigid3DTansformation(const cv::Mat_<double> &points1, const cv::Mat_<double> &points2, double *scaling = nullptr);
     double UTILSLIB_API getRigidTransformPt3DError(const cv::Mat_<double> &P, const cv::Mat_<double> &X1, const cv::Mat_<double> &X2);
 
-    bool UTILSLIB_API getMatch3Corrs(const cv::Point2f &pt1, const cv::Point2f &pt2, 
-                                     const cv::Mat &F1, const cv::Mat &F2, 
-                                     const cv::Mat descr1, const cv::Mat descr2, 
-                                     const FeatureKDTree &ft, 
-                                     cv::Mat &descr3, 
-                                     cv::Point2f &pt3, 
-                                     const double &descr_dist_max, 
-                                     const float r_sqrd = 200.f);
+    double UTILSLIB_API getDescriptorDist(const cv::Mat &descr1, const cv::Mat &descr2);
 
     int UTILSLIB_API getVectorMainDirIdx(const cv::Mat vec);
     double UTILSLIB_API getAngleBetwVecs(const cv::Mat vec1, const cv::Mat vec2);
