@@ -33,7 +33,7 @@
 #include <opencv2/highgui.hpp>
 #include "matchinglib/matchinglib_api.h"
 
-namespace utilslib
+namespace matchinglib
 {
     // From: https://stackoverflow.com/questions/1008019/c-singleton-design-pattern
     class MATCHINGLIB_API RandomGenerator

@@ -210,6 +210,7 @@ namespace matchinglib
                                                const cv::Size imgSize, 
                                                std::shared_ptr<std::vector<std::shared_ptr<std::pair<std::vector<cv::KeyPoint>, cv::Mat>>>> filtered_features);
 
+  size_t convert4PixelValsTo32bit(const int &d_x, const int &d_y, const cv::Point &start, const cv::Mat &img);
   /* --------------------- Functions --------------------- */
 
   int getCorrespondences(Mat &img1,
@@ -894,11 +895,11 @@ namespace matchinglib
       {
         if(haveMasks)
         {
-          img_mask_names.emplace_back(make_pair(img_file_names.at(i), mask_file_names.at(i)));
+          img_mask_names.emplace(i, make_pair(img_file_names.at(i), mask_file_names.at(i)));
         }
         else
         {
-          img_mask_names.emplace_back(make_pair(img_file_names.at(i), ""));
+          img_mask_names.emplace(i, make_pair(img_file_names.at(i), ""));
         }
       }
     }
@@ -920,11 +921,11 @@ namespace matchinglib
         indices.emplace_back(i.second);
         if(haveMasks)
         {
-          img_mask_names.emplace_back(make_pair(img_file_names.at(i.first), mask_file_names.at(i.first)));
+          img_mask_names.emplace(i.second, make_pair(img_file_names.at(i.first), mask_file_names.at(i.first)));
         }
         else
         {
-          img_mask_names.emplace_back(make_pair(img_file_names.at(i.first), ""));
+          img_mask_names.emplace(i.second, make_pair(img_file_names.at(i.first), ""));
         }
       }
     }
@@ -935,6 +936,7 @@ namespace matchinglib
     
     std::cout << "Loading image data ..." << endl;
     loadImages();
+    imgs_ID = getIDfromImages(imageMap);
   }
 
   Matching::Matching(const std::vector<cv::Mat> &imgs,
@@ -1012,6 +1014,10 @@ namespace matchinglib
         }
       }
     }
+
+    std::cout << "Preprocessing image data ..." << endl;
+    preprocessImages();
+    imgs_ID = getIDfromImages(imageMap);
   }
 
   Matching::~Matching()
@@ -1057,25 +1063,7 @@ namespace matchinglib
         {
             throw runtime_error("Unable to read image " + img_mask_names.at(idx).first);
         }
-        if (!nearZero(img_scaling - 1.0))
-        {
-            cv::Size imgSi = img1.size();
-            cv::Size newImgSi(static_cast<int>(std::round(img_scaling * static_cast<double>(imgSi.width))), static_cast<int>(std::round(img_scaling * static_cast<double>(imgSi.height))));
-            cv::Mat img1o = img1;
-            cv::resize(img1o, img1, newImgSi, 0, 0, cv::INTER_AREA);
-        }
-        if (equalizeImgs_){
-#if USE_CLAHE_FOR_HIST_EQU
-            cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(3.0, cv::Size(16,16));
-            clahe->apply(img1, imageMap[idx].first);
-#else
-            cv::equalizeHist(img1, imageMap[idx].first);
-#endif
-        }
-        else
-        {
-            img1.copyTo(imageMap[idx].first);
-        }
+        scaleEqualizeImg(img1, imageMap[idx].first, img_scaling, equalizeImgs_);
         if(haveMasks)
         {
           cv::Mat img2 = cv::imread(img_mask_names.at(idx).second, cv::IMREAD_GRAYSCALE);
@@ -1083,23 +1071,173 @@ namespace matchinglib
           {
               throw runtime_error("Unable to read mask image " + img_mask_names.at(idx).second);
           }
-          if (!nearZero(img_scaling - 1.0))
-          {
-              cv::Size imgSi = img2.size();
-              cv::Size newImgSi(static_cast<int>(std::round(img_scaling * static_cast<double>(imgSi.width))), static_cast<int>(std::round(img_scaling * static_cast<double>(imgSi.height))));
-              cv::Mat img2o = img2;
-              cv::resize(img2o, img2, newImgSi, 0, 0, cv::INTER_AREA);
-          }
-          if (equalizeImgs_){
-              cv::equalizeHist(img2, imageMap[idx].second);
-          }
-          else
-          {
-              img2.copyTo(imageMap[idx].second);
-          }
+          scaleEqualizeImg(img2, imageMap[idx].second, img_scaling, false);
+          // if (equalizeImgs_)
+          // {
+          //     cv::equalizeHist(img2, imageMap[idx].second);
+          // }
+          // else
+          // {
+          //     img2.copyTo(imageMap[idx].second);
+          // }
         }
     }
   }
+
+  void Matching::preprocessImages()
+  {
+    auto startTime = std::chrono::steady_clock::now();
+
+    std::vector<std::thread> threads;
+    const unsigned imageCount = indices.size();
+    const unsigned threadCount = std::min(imageCount, std::max(std::thread::hardware_concurrency() / 2u, 1u));
+    const unsigned batchSize = std::ceil(imageCount / static_cast<float>(threadCount));
+
+    for (unsigned int i = 0; i < threadCount; ++i)
+    {
+        const int startIdx = i * batchSize;
+        const int endIdx = std::min((i + 1u) * batchSize, imageCount);
+        threads.push_back(std::thread(std::bind(&Matching::preprocessImageThreadFunc, this, startIdx, endIdx)));
+    }
+
+    for (auto &t : threads)
+    {
+        if (t.joinable())
+        {
+            t.join();
+        }
+    }
+
+    auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - startTime).count();
+    cout << "Preprocessing images took " << timeDiff / 1e3 << " seconds." << endl;
+  }
+
+  void Matching::preprocessImageThreadFunc(const int startIdx, const int endIdx)
+  {
+    for (auto i = startIdx; i < endIdx; ++i)
+    {
+        const int &idx = indices[i];
+        scaleEqualizeImg(imageMap[idx].first, imageMap[idx].first, img_scaling, equalizeImgs_);
+        if(haveMasks)
+        {
+          scaleEqualizeImg(imageMap[idx].second, imageMap[idx].second, img_scaling, false);
+          // if (equalizeImgs_)
+          // {
+          //     cv::equalizeHist(imageMap[idx].second, imageMap[idx].second);
+          // }
+          // else
+          // {
+          //     imageMap[idx].second.copyTo(imageMap[idx].second);
+          // }
+        }
+    }
+  }
+
+  void scaleEqualizeImg(const cv::Mat &img_in, cv::Mat &img_out, const double &img_scaling, const bool equalizeImg)
+  {
+    cv::Mat img_tmp = img_in;
+    if (!nearZero(img_scaling - 1.0))
+    {
+        cv::Size imgSi = img_in.size();
+        cv::Size newImgSi(static_cast<int>(std::round(img_scaling * static_cast<double>(imgSi.width))), static_cast<int>(std::round(img_scaling * static_cast<double>(imgSi.height))));
+        cv::resize(img_in, img_tmp, newImgSi, 0, 0, cv::INTER_AREA);
+    }
+    if (equalizeImg)
+    {
+#if USE_CLAHE_FOR_HIST_EQU
+        cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(3.0, cv::Size(16,16));
+        clahe->apply(img_tmp, img_out);
+#else
+        cv::equalizeHist(img_tmp, img_out);
+#endif
+    }
+    else
+    {
+        img_tmp.copyTo(img_out);
+    }
+  }
+
+  size_t convert4PixelValsTo32bit(const int &d_x, const int &d_y, const cv::Point &start, const cv::Mat &img)
+  {
+    size_t vals = 0;
+    for (int i = 0; i < 4; i++)
+    {
+      const int x = start.x + i * d_x;
+      const int y = start.y + i * d_y;
+      const size_t val = static_cast<size_t>(img.at<unsigned char>(y, x));
+      vals |= (val << (i * 8));
+    }
+    return vals;
+  }
+
+  std::string getIDfromImages(const std::vector<cv::Mat> &imgs)
+  {
+    const double borderIgnore = 0.1;
+    size_t imgVals[16] = {0};
+    for(const auto &img: imgs)
+    {
+      const cv::Size imgSi = img.size();
+      const cv::Point lu(static_cast<int>(std::round(borderIgnore * static_cast<double>(imgSi.width))), static_cast<int>(std::round(borderIgnore * static_cast<double>(imgSi.height))));
+      const cv::Point rl(imgSi.width - lu.x, imgSi.height - lu.y);
+      const cv::Size newImgSi(rl.x - lu.x, rl.y - lu.y);
+      const int d_x = newImgSi.width / 16;
+      const int d_y = newImgSi.height / 16;
+      const int d_x4 = d_x / 4;
+      const int d_y4 = d_y / 4;
+      for (int i = 0; i < 16; i++)
+      {
+        const int i_dx = i * d_x;
+        const int x1 = lu.x + i_dx;
+        const int x2 = rl.x - i_dx;
+        const int y = lu.y + i * d_y;
+        size_t val1 = convert4PixelValsTo32bit(d_x4, d_y4, cv::Point(x1, y), img);
+        val1 ^= convert4PixelValsTo32bit(-1 * d_x4, d_y4, cv::Point(x2, y), img);
+        imgVals[i] ^= val1;
+      }
+    }
+
+    //Map to 62 different characters [0-9][a-z][A-Z]
+    char imgCharVals[17] = {0};
+    imgCharVals[16] = '\0';//null-termination to convert it to string later on
+    for (int i = 0; i < 16; i++)
+    {
+      char &val = imgCharVals[i];
+      val = static_cast<char>(imgVals[i] % 62);
+      if(val < 10){
+        val += '0';//maps to [0-9]
+      }
+      else if(val < 36)
+      {
+        val += 'A' - static_cast<char>(10);//maps to [A-Z]
+      }
+      else
+      {
+        val += 'a' - static_cast<char>(36);//maps to [a-z]
+      }
+    }
+    
+    return std::string(imgCharVals);
+  }
+
+  std::string getIDfromImages(const std::unordered_map<int, cv::Mat> &images)
+  {
+    std::vector<cv::Mat> imgs_vec;
+    for(const auto &i: images)
+    {
+      imgs_vec.emplace_back(i.second);
+    }
+    return getIDfromImages(imgs_vec);
+  }
+  
+  std::string getIDfromImages(const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &imageMap)
+  {
+    std::vector<cv::Mat> imgs_vec;
+    for(const auto &i: imageMap)
+    {
+      imgs_vec.emplace_back(i.second.first);
+    }
+    return getIDfromImages(imgs_vec);
+  }    
 
   bool Matching::compute(const bool affineInvariant, const bool useCuda)
   {
@@ -1514,7 +1652,7 @@ namespace matchinglib
       const unsigned int add_cpu_gpu = indices_kp_gpu.empty() ? add_cpu : add_cpu + threadCount_gpu;
 #ifdef WITH_AKAZE_CUDA
       if(!indices_akaze_gpu.empty()){
-          std::mt19937 &mt = RandomGenerator::getInstance(std::seed_seq(config_data_ptr->id.begin(), config_data_ptr->id.end())).getTwisterEngineRef();
+          std::mt19937 &mt = RandomGenerator::getInstance(std::seed_seq(imgs_ID.begin(), imgs_ID.end())).getTwisterEngineRef();
           cv::Size imgSi = imageMap_.begin()->second.first.size();
           for (unsigned int i = 1; i < threadCount_akaze; ++i)
           {
@@ -1961,7 +2099,7 @@ namespace matchinglib
       else if (useAkazeCuda)
       {
           cv::Size imgSi = imageMap_.begin()->second.first.size();
-          std::mt19937 &mt = RandomGenerator::getInstance(std::seed_seq(config_data_ptr->id.begin(), config_data_ptr->id.end())).getTwisterEngineRef();
+          std::mt19937 &mt = RandomGenerator::getInstance(std::seed_seq(imgs_ID.begin(), imgs_ID.end())).getTwisterEngineRef();
           for (unsigned int i = 0; i < threadCount; ++i)
           {
               if(i){
@@ -2325,7 +2463,7 @@ namespace matchinglib
 #ifdef WITH_AKAZE_CUDA
       else if(useAkazeCuda)
       {
-          std::mt19937 &mt = RandomGenerator::getInstance(std::seed_seq(config_data_ptr->id.begin(), config_data_ptr->id.end())).getTwisterEngineRef();
+          std::mt19937 &mt = RandomGenerator::getInstance(std::seed_seq(imgs_ID.begin(), imgs_ID.end())).getTwisterEngineRef();
           cv::Size imgSi = imageMap_.begin()->second.first.size();
           for (unsigned int i = 1; i < threadCount; ++i)
           {
@@ -2403,10 +2541,10 @@ namespace matchinglib
   void getFeaturesCudaThreadFunc(const int startIdx, 
                                  const int endIdx, 
                                  const std::vector<std::pair<std::string, int>> indices_kp_threads, 
-                                 const std::unordered_map<std::pair<std::string, int>> *imageMap_threads, 
+                                 const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> *imageMap_threads, 
                                  cv::Ptr<cv::cuda::Feature2DAsync> kp_detect_ptr, 
-                                 std::shared_ptr<std::unordered_map<std::pair<std::string, int>>> keypoints, 
-                                 std::shared_ptr<std::unordered_map<std::pair<std::string, int>>> descriptors)
+                                 std::shared_ptr<std::unordered_map<int, std::vector<cv::KeyPoint>>> keypoints, 
+                                 std::shared_ptr<std::unordered_map<int, cv::Mat>> descriptors)
   {
       cv::cuda::Stream stream;
       for (auto i = startIdx; i < endIdx; ++i)
@@ -2431,10 +2569,11 @@ namespace matchinglib
   void getFeaturesAkazeCudaThreadFunc(const int startIdx, 
                                       const int endIdx, 
                                       const std::vector<std::pair<std::string, int>> indices_kp_threads, 
-                                      const std::unordered_map<std::pair<std::string, int>> *imageMap_threads, 
+                                      const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> *imageMap_threads, 
                                       cv::Ptr<matchinglib::cuda::Feature2DAsync> kp_detect_ptr, 
-                                      std::shared_ptr<std::unordered_map<std::pair<std::string, int>>> keypoints, 
-                                      std::shared_ptr<std::unordered_map<std::pair<std::string, int>>> descriptors, std::mt19937 mt)
+                                      std::shared_ptr<std::unordered_map<int, std::vector<cv::KeyPoint>>> keypoints, 
+                                      std::shared_ptr<std::unordered_map<int, cv::Mat>> descriptors, 
+                                      std::mt19937 mt)
   {
       cv::cuda::Stream stream;
       for (auto i = startIdx; i < endIdx; ++i)

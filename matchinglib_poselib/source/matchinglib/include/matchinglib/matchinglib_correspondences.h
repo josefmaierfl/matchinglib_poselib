@@ -134,6 +134,12 @@ struct MATCHINGLIB_API AffineMatchesFilterData{
     void emplaceIdx(const int &c, const int &val);
 };
 
+void MATCHINGLIB_API scaleEqualizeImg(const cv::Mat &img_in, cv::Mat &img_out, const double &img_scaling, const bool equalizeImg = true);
+
+std::string MATCHINGLIB_API getIDfromImages(const std::vector<cv::Mat> &imgs);
+std::string getIDfromImages(const std::unordered_map<int, cv::Mat> &images);
+std::string getIDfromImages(const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &imageMap);
+
 class MATCHINGLIB_API Matching
 {
 public:
@@ -216,6 +222,8 @@ public:
 private:
     void loadImages();
     void loadImageThreadFunc(const int startIdx, const int endIdx);
+    void preprocessImages();
+    void preprocessImageThreadFunc(const int startIdx, const int endIdx);
 
     bool getKeypoints(const bool useCuda = true);
     bool getKeypoints(const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &imageMap_, 
@@ -332,7 +340,7 @@ private:
     const int nrFeaturesToExtract;
     double kp_time_ms = -1., descr_time_ms = -1., match_time_ms = -1.;
     // camera index: rgb image, mask image
-    std::vector<std::pair<std::string, std::string>> img_mask_names;
+    std::unordered_map<int, std::pair<std::string, std::string>> img_mask_names;
     std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> imageMap;
     std::vector<int> indices, cam_pair_idx;
     // std::unordered_map<int, std::unordered_set<int>> indices_available;
@@ -346,6 +354,7 @@ private:
     std::vector<std::pair<int, int>> matchIdx;
     // first cam camera index, second cam camera index: all matches - filtered
     std::unordered_map<int, MatchData> matches_filt;
+    std::string imgs_ID;
 };
 
 } // namepace matchinglib
