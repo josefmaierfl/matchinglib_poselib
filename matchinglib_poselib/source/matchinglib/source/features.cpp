@@ -1011,7 +1011,7 @@ namespace matchinglib
 #if defined(USE_NON_FREE_CODE)
       10;
 #else
-      8;
+      9;
 #endif
 
     static std::string types [] = {"FAST",
@@ -1048,7 +1048,7 @@ namespace matchinglib
 #if defined(USE_NON_FREE_CODE)
       22;
 #else
-      20;
+      21;
 #endif
     static std::string types [] = {"BRISK",
                                    "ORB",
@@ -1078,5 +1078,68 @@ namespace matchinglib
     return std::vector<std::string>(types, types + nrSupportedTypes);
   }
 
+  bool IsKeypointTypeToDescriptorTypeCompatible(const std::string &keypointType, const std::string &descriptorType)
+  {
+    const std::unordered_map<std::string, std::unordered_set<std::string>> unsupported = GetUnsupportedKeypointDescriptorCombs();
+    const auto kp_it = unsupported.find(keypointType);
+    if(kp_it == unsupported.end())
+    {
+      return false;
+    }
+    if(kp_it->second.find(descriptorType) == kp_it->second.end())
+    {
+      return true;
+    }
+    return false;
+  }
 
+  const std::unordered_map<std::string, std::unordered_set<std::string>> &GetUnsupportedKeypointDescriptorCombs()
+  {
+    const static std::unordered_map<std::string, std::unordered_set<std::string>> kp_descr_unsupported{
+                                                                                  {"FAST", {"AKAZE", "KAZE"}},
+                                                                                  {"MSER", {"AKAZE", "KAZE"}},
+                                                                                  {"ORB", {"AKAZE", "KAZE"}},
+                                                                                  {"BRISK", {"AKAZE", "KAZE"}},
+                                                                                  {"KAZE", {"AKAZE"}},
+                                                                                  {"AKAZE", {"KAZE"}},
+                                                                                  {"SIFT", {"AKAZE", "KAZE", "ORB"}},
+#if defined(USE_NON_FREE_CODE)
+                                                                                  {"SURF", {"AKAZE", "KAZE", "ORB"}},
+#endif
+                                                                                  {"STAR", {"AKAZE", "KAZE"}},
+                                                                                  {"MSD", {"AKAZE", "KAZE", "SIFT"}}
+                                                                                  };
+    return kp_descr_unsupported;
+  }
+
+  bool IsBinaryDescriptor(const std::string &type)
+  {
+    std::vector<std::string> vecbinaryTypes = GetBinaryDescriptorTypes();
+
+    if(std::find(vecbinaryTypes.begin(), vecbinaryTypes.end(), type) != vecbinaryTypes.end())
+    {
+      return true;
+    }
+
+    return false;
+  }
+
+  std::vector<std::string> GetBinaryDescriptorTypes()
+  {
+    int const nrSupportedTypes = 12;
+    static std::string types [] = {"BRISK",
+                                  "ORB",
+                                  "FREAK",
+                                  "LATCH",
+                                  "BGM",
+                                  "BGM_HARD",
+                                  "BGM_BILINEAR",
+                                  "LBGM",
+                                  "BINBOOST_64",
+                                  "BINBOOST_128",
+                                  "BINBOOST_256",
+                                  "BOLD"
+                                  };
+    return std::vector<std::string>(types, types + nrSupportedTypes);
+  }
 } // namepace matchinglib

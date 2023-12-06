@@ -110,11 +110,13 @@ void MATCHINGLIB_API filterMatchesSOF(const std::vector<cv::KeyPoint> &keypoints
                           const cv::Size &imgSi,
                           std::vector<cv::DMatch> &matches);
 
-bool MATCHINGLIB_API IsKeypointTypeSupported(std::string const& type);
-std::vector<std::string> MATCHINGLIB_API GetSupportedKeypointTypes();
+// bool MATCHINGLIB_API IsKeypointTypeSupported(std::string const& type);
+// std::vector<std::string> MATCHINGLIB_API GetSupportedKeypointTypes();
 
-bool MATCHINGLIB_API IsDescriptorTypeSupported(std::string const& type);
-std::vector<std::string> MATCHINGLIB_API GetSupportedDescriptorTypes();
+// bool MATCHINGLIB_API IsDescriptorTypeSupported(std::string const& type);
+// std::vector<std::string> MATCHINGLIB_API GetSupportedDescriptorTypes();
+
+bool MATCHINGLIB_API IsDescriptorSupportedByMatcher(const std::string &descriptorType, const std::string &matcherType);
 
 bool MATCHINGLIB_API getMatch3Corrs(const cv::Point2f &pt1, const cv::Point2f &pt2, 
                                     const cv::Mat &F1, const cv::Mat &F2, 
@@ -146,6 +148,7 @@ public:
     Matching(const std::vector<std::string> &img_file_names,
              const std::vector<std::string> &keypoint_types, 
              const std::string &descriptor_type, 
+             const std::string &matcher_type = "HNSW",
              const std::vector<std::string> &mask_file_names = std::vector<std::string>(),
              const std::vector<int> &img_indices = std::vector<int>(),
              const bool sort_file_names = false,
@@ -156,6 +159,7 @@ public:
     Matching(const std::vector<cv::Mat> &imgs,
              const std::vector<std::string> &keypoint_types, 
              const std::string &descriptor_type, 
+             const std::string &matcher_type = "HNSW",
              const std::vector<cv::Mat> &masks = std::vector<cv::Mat>(),
              const std::vector<int> &img_indices = std::vector<int>(),
              const double &img_scale = 0.5, 
@@ -295,11 +299,11 @@ private:
     void getMatchesThreadFunc(const int startIdx, 
                               const int endIdx, 
                               const std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> *kp_descr_in, 
-                              std::unordered_map<std::tuple<int, int, int, int>, std::vector<cv::DMatch>, hash_tuple::hashT<std::tuple<int, int, int, int>>, hash_tuple::equalTo<std::tuple<int, int, int, int>>> *matches_out, 
+                              std::unordered_map<std::pair<int, int>, std::vector<cv::DMatch>, pair_hash, pair_EqualTo> *matches_out, 
                               std::exception_ptr &thread_exception, 
                               std::mt19937 mt);
     bool filterMatches(std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &kp_descr_in, 
-                       std::unordered_map<std::tuple<int, int, int, int>, std::vector<cv::DMatch>, hash_tuple::hashT<std::tuple<int, int, int, int>>, hash_tuple::equalTo<std::tuple<int, int, int, int>>> &matches_in);
+                       std::unordered_map<std::pair<int, int>, std::vector<cv::DMatch>, pair_hash, pair_EqualTo> &matches_in);
 
     void filterAreaBasedAffine();
     void filterResponseAffine();
@@ -307,14 +311,13 @@ private:
     void filterResponseAreaBasedAffine(const int &limitNrFeatures = 12000);
     void filterResponseAreaBasedAffineImpl(std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &features_map, 
                                            const std::unordered_map<int, int> &individual_limits);
-    bool checkNrMatches(const std::unordered_map<std::tuple<int, int, int, int>, std::vector<cv::DMatch>, hash_tuple::hashT<std::tuple<int, int, int, int>>, hash_tuple::equalTo<std::tuple<int, int, int, int>>> &matches_in);
+    bool checkNrMatches(const std::unordered_map<std::pair<int, int>, std::vector<cv::DMatch>, pair_hash, pair_EqualTo> &matches_in);
     void filterKeypointsClassIDAffine(std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &kp_descr_in, 
-                                      std::unordered_map<std::tuple<int, int, int, int>, std::vector<cv::DMatch>, hash_tuple::hashT<std::tuple<int, int, int, int>>, hash_tuple::equalTo<std::tuple<int, int, int, int>>> &matches_in);
+                                      std::unordered_map<std::pair<int, int>, std::vector<cv::DMatch>, pair_hash, pair_EqualTo> &matches_in);
     void filterKeypointsClassIDAffineThreadFunc(const int startIdx, 
                                                 const int endIdx, 
-                                                const std::vector<std::tuple<int, int, int>> &cpii, 
                                                 const std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &kp_descr_in, 
-                                                const std::unordered_map<std::tuple<int, int, int, int>, std::vector<cv::DMatch>, hash_tuple::hashT<std::tuple<int, int, int, int>>, hash_tuple::equalTo<std::tuple<int, int, int, int>>> &matches_in, 
+                                                std::unordered_map<std::pair<int, int>, std::vector<cv::DMatch>, pair_hash, pair_EqualTo> &matches_in, 
                                                 AffineMatchesFilterData &data);
     void generateMotionMasks();
     void generateMotionMasksThreadFunc(const int startIdx, const int endIdx);
@@ -331,6 +334,7 @@ private:
     const double img_scaling;
     const std::vector<std::string> keypoint_types_;
     const std::string descriptor_type_;
+    const std::string matcher_type_;
     bool affineInvariantUsed = false;
     const bool equalizeImgs_;
     const size_t nr_keypoint_types;
@@ -342,7 +346,7 @@ private:
     // camera index: rgb image, mask image
     std::unordered_map<int, std::pair<std::string, std::string>> img_mask_names;
     std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> imageMap;
-    std::vector<int> indices, cam_pair_idx;
+    std::vector<int> indices;
     // std::unordered_map<int, std::unordered_set<int>> indices_available;
     std::vector<std::pair<std::string, int>> indices_kp;
     // KEYPOINT_TYPES: camera index: vector of keypoints
@@ -351,9 +355,9 @@ private:
     std::unordered_map<int, std::vector<cv::KeyPoint>> keypoints_combined;
     // camera index: all descriptors for every keypoint type
     std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> keypoints_descriptors;
-    std::vector<std::pair<int, int>> matchIdx;
+    std::vector<std::pair<int, int>> cam_pair_idx;
     // first cam camera index, second cam camera index: all matches - filtered
-    std::unordered_map<int, MatchData> matches_filt;
+    std::unordered_map<std::pair<int, int>, MatchData> matches_filt;
     std::string imgs_ID;
 };
 

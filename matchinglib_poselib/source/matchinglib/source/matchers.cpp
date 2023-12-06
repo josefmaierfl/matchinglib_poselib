@@ -1321,4 +1321,27 @@ namespace matchinglib
     return std::vector<std::string>(types, std::end(types));
   }
 
+  bool IsBinaryMatcher(const std::string &type)
+  {
+    std::vector<std::string> vecbinaryTypes = GetBinaryMatcherTypes();
+
+    if(std::find(vecbinaryTypes.begin(), vecbinaryTypes.end(), type) != vecbinaryTypes.end())
+    {
+      return true;
+    }
+
+    return false;
+  }
+
+  std::vector<std::string> GetBinaryMatcherTypes()
+  {
+    int const nrSupportedTypes = 12;
+    static std::string types [] = {"GMBSOF",
+                                   "LINEAR", 
+                                   "SWGRAPH", 
+                                   "HNSW", 
+                                   "BRUTEFORCENMS"};
+    return std::vector<std::string>(types, types + nrSupportedTypes);
+  }
+
 }

@@ -46,6 +46,9 @@
 #include "opencv2/features2d.hpp"
 #include "matchinglib/glob_includes.h"
 
+#include <unordered_map>
+#include <unordered_set>
+
 #include "matchinglib/matchinglib_api.h"
 
 namespace matchinglib
@@ -81,5 +84,11 @@ namespace matchinglib
 
   bool MATCHINGLIB_API IsDescriptorTypeSupported(std::string const& type);
   std::vector<std::string> MATCHINGLIB_API GetSupportedDescriptorTypes();
+
+  bool MATCHINGLIB_API IsKeypointTypeToDescriptorTypeCompatible(const std::string &keypointType, const std::string &descriptorType);
+  const MATCHINGLIB_API std::unordered_map<std::string, std::unordered_set<std::string>> &GetUnsupportedKeypointDescriptorCombs();
+
+  bool MATCHINGLIB_API IsBinaryDescriptor(const std::string &type);
+  std::vector<std::string> MATCHINGLIB_API GetBinaryDescriptorTypes();
 
 } // namepace matchinglib

@@ -800,6 +800,15 @@ namespace matchinglib
   }
 #endif
 
+  bool IsDescriptorSupportedByMatcher(const std::string &descriptorType, const std::string &matcherType)
+  {
+    if(IsBinaryDescriptor(descriptorType))
+    {
+      return IsBinaryMatcher(matcherType);
+    }
+    return true;
+  }
+
   bool getMatch3Corrs(const cv::Point2f &pt1, const cv::Point2f &pt2, const cv::Mat &F1, const cv::Mat &F2, const cv::Mat descr1, const cv::Mat descr2, const FeatureKDTree &ft, cv::Mat &descr3, cv::Point2f &pt3, const double &descr_dist_max, const float r_sqrd)
   {
     // Two matching feature positions in 2 cams (c1, c2)
@@ -851,6 +860,7 @@ namespace matchinglib
   Matching::Matching(const std::vector<std::string> &img_file_names,
                      const std::vector<std::string> &keypoint_types, 
                      const std::string &descriptor_type,
+                     const std::string &matcher_type,
                      const std::vector<std::string> &mask_file_names,
                      const std::vector<int> &img_indices,
                      const bool sort_file_names,
@@ -860,6 +870,7 @@ namespace matchinglib
                      const int &cpuCnt_) : img_scaling(img_scale), 
                                            keypoint_types_(keypoint_types), 
                                            descriptor_type_(descriptor_type), 
+                                           matcher_type_(matcher_type),
                                            equalizeImgs_(equalizeImgs), 
                                            nr_keypoint_types(keypoint_types_.size()), 
                                            cpuCnt(cpuCnt_),
@@ -880,6 +891,25 @@ namespace matchinglib
     if(haveMasks && img_file_names.size() != mask_file_names.size())
     {
       throw runtime_error("Number of masks must be the same as images.");
+    }
+    for(const auto &kpt: keypoint_types_)
+    {
+      if(!IsKeypointTypeSupported(kpt))
+      {
+        throw runtime_error("Keypoint type " + kpt + " is not supported");
+      }
+    }
+    if(!IsDescriptorTypeSupported(descriptor_type_))
+    {
+      throw runtime_error("Descriptor type " + descriptor_type_ + " is not supported");
+    }
+    if(!IsMatcherSupported(matcher_type_))
+    {
+      throw runtime_error("Matcher type " + matcher_type_ + " is not supported");
+    }
+    if(!IsDescriptorSupportedByMatcher(descriptor_type_, matcher_type))
+    {
+      throw runtime_error("Matcher " + matcher_type_ + " and descriptor " + descriptor_type_ + " are not compatible");
     }
 
     indices = img_indices.empty() ? vector<int>(largest_cam_idx):img_indices;
@@ -942,6 +972,7 @@ namespace matchinglib
   Matching::Matching(const std::vector<cv::Mat> &imgs,
                      const std::vector<std::string> &keypoint_types, 
                      const std::string &descriptor_type,
+                     const std::string &matcher_type,
                      const std::vector<cv::Mat> &masks,
                      const std::vector<int> &img_indices,
                      const double &img_scale, 
@@ -950,6 +981,7 @@ namespace matchinglib
                      const int &cpuCnt_) : img_scaling(img_scale), 
                                            keypoint_types_(keypoint_types), 
                                            descriptor_type_(descriptor_type), 
+                                           matcher_type_(matcher_type),
                                            equalizeImgs_(equalizeImgs), 
                                            nr_keypoint_types(keypoint_types_.size()), 
                                            cpuCnt(cpuCnt_),
@@ -970,6 +1002,25 @@ namespace matchinglib
     if(haveMasks && imgs.size() != masks.size())
     {
       throw runtime_error("Number of masks must be the same as images.");
+    }
+    for(const auto &kpt: keypoint_types_)
+    {
+      if(!IsKeypointTypeSupported(kpt))
+      {
+        throw runtime_error("Keypoint type " + kpt + " is not supported");
+      }
+    }
+    if(!IsDescriptorTypeSupported(descriptor_type_))
+    {
+      throw runtime_error("Descriptor type " + descriptor_type_ + " is not supported");
+    }
+    if(!IsMatcherSupported(matcher_type_))
+    {
+      throw runtime_error("Matcher type " + matcher_type_ + " is not supported");
+    }
+    if(!IsDescriptorSupportedByMatcher(descriptor_type_, matcher_type))
+    {
+      throw runtime_error("Matcher " + matcher_type_ + " and descriptor " + descriptor_type_ + " are not compatible");
     }
 
     indices = img_indices.empty() ? vector<int>(largest_cam_idx):img_indices;
@@ -1277,7 +1328,7 @@ namespace matchinglib
               }
 #if DBG_SHOW_KEYPOINTS == 2
               if (keypoint_types_.size() > 1){
-                  visualizeKeypoints(init_keypoints, imageMap, config_data_ptr, descriptor_type_);
+                  visualizeKeypoints(init_keypoints, imageMap, descriptor_type_);
               }
 #endif
           }
@@ -1288,7 +1339,7 @@ namespace matchinglib
           kp_str += kpt + "_";
       }
       kp_str += descriptor_type_;
-      visualizeKeypoints(keypoints_descriptors, imageMap, config_data_ptr, kp_str);
+      visualizeKeypoints(keypoints_descriptors, imageMap, kp_str);
 #endif
       generateMotionMasks();
       findAdditionalKeypointsLessTexture();
@@ -1383,7 +1434,7 @@ namespace matchinglib
 #if DBG_SHOW_KEYPOINTS == 2 && DBG_SHOW_ADDITIONAL_KP_GEN != 2
               if (keypoint_types_.size() > 1)
               {
-                  visualizeKeypoints(*init_keypoints_tmp_ptr, imageMap_, config_data_ptr, descriptor_type_);
+                  visualizeKeypoints(*init_keypoints_tmp_ptr, imageMap_, descriptor_type_);
               }
 #endif
           }
@@ -1395,7 +1446,7 @@ namespace matchinglib
           kp_str += kpt + "_";
       }
       kp_str += descriptor_type_;
-      visualizeKeypoints(keypoints_descriptors_, imageMap_, config_data_ptr, kp_str);
+      visualizeKeypoints(keypoints_descriptors_, imageMap_, kp_str);
 #endif
       return true;
   }
@@ -2588,5 +2639,1036 @@ namespace matchinglib
       }
   }
 #endif
+
+  bool Matching::getFeaturesAffine(const bool useCuda)
+  {
+      std::unordered_map<int, std::vector<cv::KeyPoint>> kps;
+      indices_kp.clear();
+      for (auto &idx : indices)
+      {
+          indices_kp.emplace_back(make_pair(descriptor_type_, idx));
+          kps.emplace(idx, std::vector<cv::KeyPoint>());
+      }
+      init_keypoints.clear();
+      init_keypoints.emplace(descriptor_type_, move(kps));
+      keypoints_combined = init_keypoints.at(descriptor_type_);
+
+      int nrKeyPointsMax = getMaxNrFeatures(true);
+
+      auto startTime = std::chrono::steady_clock::now();
+
+      bool ret = getFeaturesAffine(imageMap, indices, indices_kp, keypoints_descriptors, nrKeyPointsMax, useCuda);
+      if(!ret){
+          return false;
+      }
+
+      for(const auto &kpd: keypoints_descriptors){
+          init_keypoints.at(descriptor_type_).at(kpd.first) = kpd.second.first;
+      }
+      keypoints_combined = init_keypoints.at(descriptor_type_);
+
+      kp_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - startTime).count();
+      cout << "Detecting affine invariant features took " << kp_time_ms / 1e3 << " seconds." << endl;
+      return true;
+  }
+
+  bool Matching::getFeaturesAffine(const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &imageMap_, 
+                                   const std::vector<int> &indices_, 
+                                   std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &keypoints_descriptors_, 
+                                   std::unordered_map<std::string, std::unordered_map<int, std::vector<cv::KeyPoint>>> *init_keypoints_, 
+                                   std::unordered_map<int, std::vector<cv::KeyPoint>> *keypoints_combined_, 
+                                   const int &nrKeyPointsMax, 
+                                   const bool useCuda)
+  {
+      std::vector<std::pair<std::string, int>> indices_kp_tmp;
+      std::unordered_map<int, std::vector<cv::KeyPoint>> kps;
+      for (auto &idx : indices_)
+      {
+          indices_kp_tmp.emplace_back(make_pair(descriptor_type_, idx));
+          kps.emplace(idx, std::vector<cv::KeyPoint>());
+      }
+      if (init_keypoints_)
+      {
+          init_keypoints_->emplace(descriptor_type_, move(kps));
+      }
+
+      bool ret = getFeaturesAffine(imageMap_, indices_, indices_kp_tmp, keypoints_descriptors_, nrKeyPointsMax, useCuda);
+      if (!ret)
+      {
+          return false;
+      }
+
+      if (init_keypoints_)
+      {
+          for (const auto &kpd : keypoints_descriptors_)
+          {
+              init_keypoints_->at(descriptor_type_).at(kpd.first) = kpd.second.first;
+          }
+      }
+      else if (keypoints_combined_){
+          for (const auto &kpd : keypoints_descriptors_)
+          {
+              keypoints_combined_->emplace(kpd.first, kpd.second.first);
+          }
+      }
+      if (init_keypoints_ && keypoints_combined_){
+          *keypoints_combined_ = init_keypoints_->at(descriptor_type_);
+      }
+      return true;
+  }
+
+  bool Matching::getFeaturesAffine(const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &imageMap_, 
+                                   const std::vector<int> &indices_, 
+                                   const std::vector<std::pair<std::string, int>> &indices_kp_, 
+                                   std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &keypoints_descriptors_, 
+                                   const int &nrKeyPointsMax, 
+                                   const bool useCuda)
+    {
+      assert(!indices_.empty() && indices_.size() == indices_kp_.size());
+#ifdef WITH_AKAZE_CUDA
+      const bool useCudaOpenCV = (useCuda && !descriptor_type_.compare("ORB"));
+      const bool useAkazeCuda = (useCuda && !useCudaOpenCV && !descriptor_type_.compare("AKAZE"));
+#else
+      const bool useCudaOpenCV = false
+      const bool useAkazeCuda = false
+#endif
+
+      keypoints_descriptors_.clear();
+      for (auto &idx : indices_)
+      {
+          keypoints_descriptors_.emplace(idx, make_pair(keypoints_combined.at(idx), cv::Mat()));
+      }
+
+      std::vector<std::thread> threads;
+      const unsigned extractionsCount = indices_kp_.size();
+      unsigned threadCount = useAkazeCuda ? 1 : std::min(extractionsCount, static_cast<unsigned>(cpuCnt));
+      unsigned batchSize = std::ceil(extractionsCount / static_cast<float>(threadCount));
+      getThreadBatchSize(extractionsCount, threadCount, batchSize);
+
+      vector<cv::Ptr<cv::Feature2D>> kp_detect_ptrs;
+      vector<cv::Ptr<cv::Feature2D>> kp_aff_detect_ptrs;
+      vector<std::shared_ptr<std::unordered_map<int, std::vector<cv::KeyPoint>>>> kps_thread;
+      vector<std::shared_ptr<std::unordered_map<int, cv::Mat>>> descr_thread;
+      for (unsigned int i = 0; i < threadCount; ++i)
+      {
+          kps_thread.emplace_back(std::make_shared<std::unordered_map<int, std::vector<cv::KeyPoint>>>());
+          descr_thread.emplace_back(std::make_shared<std::unordered_map<int, cv::Mat>>());
+      }
+
+      if (useCudaOpenCV || useAkazeCuda)
+      {
+#ifdef WITH_AKAZE_CUDA
+          if (useCudaOpenCV){
+              for (unsigned int i = 0; i < threadCount; ++i)
+              {
+                  kp_detect_ptrs.emplace_back(matchinglib::cuda::ORB::create(nrKeyPointsMax));
+                  kp_aff_detect_ptrs.emplace_back(matchinglib::cuda::AffineFeature::create(kp_detect_ptrs.back(), 5, 0, 1.414213538f, 72.f, true, static_cast<int>(threadCount)));
+              }
+          }
+          else
+          {
+              cv::Size imgSi = imageMap_.begin()->second.first.size();
+              kp_detect_ptrs.emplace_back(matchinglib::cuda::AKAZE::create(imgSi.width, imgSi.height));
+              kp_detect_ptrs.back().dynamicCast<matchinglib::cuda::AKAZE>()->setMaxNrKeypoints(nrKeyPointsMax);
+              kp_aff_detect_ptrs.emplace_back(matchinglib::cuda::AffineFeature::create(kp_detect_ptrs.back(), 5, 0, 1.414213538f, 72.f, true));
+          }
+#else
+          throw runtime_error("Was compiled without CUDA.");
+#endif
+      }else{
+          for (unsigned int i = 0; i < threadCount; ++i)
+          {
+              kp_detect_ptrs.emplace_back(createExtractor(descriptor_type_, descriptor_type_, nrKeyPointsMax));
+              kp_aff_detect_ptrs.emplace_back(cv::AffineFeature::create(kp_detect_ptrs.back()));
+          }
+      }
+
+      for (unsigned int i = 0; i < threadCount; ++i)
+      {
+          const int startIdx = i * batchSize;
+          const int endIdx = std::min((i + 1u) * batchSize, extractionsCount);
+          threads.push_back(std::thread(std::bind(&getFeaturesAffineThreadFunc, startIdx, endIdx, indices_kp_, &imageMap_, kp_aff_detect_ptrs.at(i), kps_thread.at(i), descr_thread.at(i))));
+      }
+
+      for (auto &t : threads)
+      {
+          if (t.joinable())
+          {
+              t.join();
+          }
+      }
+
+      for (unsigned int i = 0; i < threadCount; ++i){
+          for (const auto &kp_ci : *kps_thread.at(i)){
+              if(kp_ci.second.empty()){
+                  return false;
+              }
+              keypoints_descriptors_.at(kp_ci.first).first = kp_ci.second;
+              keypoints_descriptors_.at(kp_ci.first).second = descr_thread.at(i)->at(kp_ci.first).clone();
+          }
+      }
+
+      return true;
+  }
+
+  void getFeaturesAffineThreadFunc(const int startIdx, 
+                                   const int endIdx, 
+                                   const std::vector<std::pair<std::string, int>> indices_kp_threads, 
+                                   const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> *imageMap_threads, 
+                                   cv::Ptr<cv::Feature2D> kp_detect_ptr, 
+                                   std::shared_ptr<std::unordered_map<int, std::vector<cv::KeyPoint>>> keypoints, 
+                                   std::shared_ptr<std::unordered_map<int, cv::Mat>> descriptors)
+  {
+      for (auto i = startIdx; i < endIdx; ++i)
+      {
+          const std::pair<string, int> idx = indices_kp_threads.at(i);
+          const int img_idx = idx.second;
+#ifdef WITH_AKAZE_CUDA
+          std::string info = std::to_string(img_idx);
+          if (std::get<0>(idx).compare("AKAZE") == 0)
+          {
+              kp_detect_ptr.dynamicCast<matchinglib::cuda::AffineFeature>()->getBackendPtr().dynamicCast<matchinglib::cuda::AKAZE>()->setImageInfo(info, false);
+          }
+          kp_detect_ptr.dynamicCast<matchinglib::cuda::AffineFeature>()->setImgInfoStr(info);
+#endif
+          descriptors->emplace(img_idx, cv::Mat());
+          keypoints->emplace(img_idx, std::vector<cv::KeyPoint>());
+          cv::Mat &descr_tmp = descriptors->at(img_idx);
+          std::vector<cv::KeyPoint> &kps_tmp = keypoints->at(img_idx);
+          kp_detect_ptr->detectAndCompute(imageMap_threads->at(img_idx).first, cv::noArray(), kps_tmp, descr_tmp);
+          unordered_set<int> del_idx;
+          cv::Size imgSi = imageMap_threads->at(img_idx).first.size();
+          imgSi.width -= 1;
+          imgSi.height -= 1;
+          for (int j = 0; j < descr_tmp.rows; j++)
+          {
+              const cv::Point2f &pt = kps_tmp.at(j).pt;
+              if (pt.x < 0 || pt.y < 0 || pt.x > static_cast<float>(imgSi.width) || pt.y > static_cast<float>(imgSi.height))
+              {
+                  del_idx.emplace(j);
+              }
+          }
+          if(!del_idx.empty()){
+              std::vector<cv::KeyPoint> keypoints_fd1;
+              cv::Mat descr;
+              for (int j = 0; j < descr_tmp.rows; j++)
+              {
+                  if (del_idx.find(j) != del_idx.end()){
+                      continue;
+                  }
+                  keypoints_fd1.emplace_back(kps_tmp.at(j));
+                  descr.push_back(descr_tmp.row(j));
+              }
+              kps_tmp = keypoints_fd1;
+              descr.copyTo(descr_tmp);
+          }
+      }
+  }
+
+#define MATCHING_INTERNAL_THREADS 0
+  bool Matching::getMatches(const bool affineInvariant)
+  {
+      // Get matching permutations
+      for (int c1 = 0; c1 < largest_cam_idx - 1; c1++)
+      {
+          for (int c2 = c1 + 1; c2 < largest_cam_idx; c2++)
+          {
+              if (c1 == 0 && c2 == (largest_cam_idx - 1))
+              {
+                  continue;
+              }
+              cam_pair_idx.emplace_back(make_pair(c1, c2));
+          }
+      }
+      cam_pair_idx.emplace_back(make_pair(largest_cam_idx - 1, 0));
+
+      std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> kp_descr_mask;
+      if(haveMasks)
+      {
+        applyMaskToFeatures(false, kp_descr_mask);
+      }
+      else
+      {
+        kp_descr_mask = keypoints_descriptors;
+      }
+      keypoints_descriptors = move(kp_descr_mask);
+
+      auto startTime = std::chrono::steady_clock::now();
+      std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> keypoints_descriptors_sv;
+      bool data_without_filtering = false;
+      if (affineInvariant)
+      {
+          data_without_filtering = true;
+          filterResponseAffine();
+          //Copy data for backup
+          for (auto &mdata : keypoints_descriptors)
+          {
+              keypoints_descriptors_sv.emplace(mdata.first, make_pair(mdata.second.first, mdata.second.second.clone()));
+          }
+          filterResponseAreaBasedAffine(24000);
+      }
+      auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - startTime).count();
+      cout << "First feature filtering step took " << timeDiff / 1e3 << " seconds." << endl;
+
+      // KEYPOINT_TYPES, DESCRIPTOR_TYPES: first cam camera index, first cam image index, second cam camera index, second cam image index: matches
+      std::unordered_map<std::pair<int, int>, std::vector<cv::DMatch>, pair_hash, pair_EqualTo> matches;
+      std::mt19937 &mt = RandomGenerator::getInstance(std::seed_seq(imgs_ID.begin(), imgs_ID.end())).getTwisterEngineRef();
+      do
+      {
+          for (auto &mi : cam_pair_idx)
+          {
+              matches.emplace(mi, std::vector<cv::DMatch>());
+          }
+
+          startTime = std::chrono::steady_clock::now();
+#if !MATCHING_INTERNAL_THREADS
+          std::vector<std::thread> threads;
+#endif
+          const unsigned matchImgsCount = cam_pair_idx.size();
+          unsigned threadCount = std::min(matchImgsCount, static_cast<unsigned>(cpuCnt));
+          unsigned batchSize = std::ceil(matchImgsCount / static_cast<float>(threadCount));
+          getThreadBatchSize(matchImgsCount, threadCount, batchSize);
+          std::vector<std::exception_ptr> thread_exceptions(threadCount, nullptr);
+
+//To get rid of repeatability issue
+#if !MATCHING_INTERNAL_THREADS
+          Matching::getMatchesThreadFunc(0, 1, &keypoints_descriptors, &matches, thread_exceptions.at(0), mt);
+          try
+          {
+              if (thread_exceptions.at(0))
+              {
+                  std::rethrow_exception(thread_exceptions.at(0));
+              }
+          }
+          catch (const std::exception &e)
+          {
+              cerr << "Exception during matching: " << e.what() << endl;
+              return false;
+          }
+#endif
+
+          for (unsigned int i = 0; i < threadCount; ++i)
+          {
+              int startIdx = i * batchSize;
+              const int endIdx = std::min((i + 1u) * batchSize, matchImgsCount);
+#if MATCHING_INTERNAL_THREADS
+              Matching::getMatchesThreadFunc(startIdx, endIdx, &keypoints_descriptors, &matches, thread_exceptions.at(i), mt);
+#else
+              if(i == 0){
+                  startIdx++;
+              }
+              threads.push_back(std::thread(std::bind(&Matching::getMatchesThreadFunc, this, startIdx, endIdx, &keypoints_descriptors, &matches, thread_exceptions.at(i), mt)));
+#endif
+          }
+
+#if !MATCHING_INTERNAL_THREADS
+          for (auto &t : threads)
+          {
+              if (t.joinable())
+              {
+                  t.join();
+              }
+          }
+#endif
+
+          try
+          {
+              for (auto &e : thread_exceptions)
+              {
+                  if (e)
+                  {
+                      std::rethrow_exception(e);
+                  }
+              }
+          }
+          catch (const std::exception &e)
+          {
+              cerr << "Exception during matching: " << e.what() << endl;
+              return false;
+          }
+
+          match_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - startTime).count();
+          cout << "Calculating matches took " << match_time_ms / 1e3 << " seconds." << endl;
+
+          bool enough_matches = checkNrMatches(matches);
+
+          if (!enough_matches && !data_without_filtering)
+          {
+              cout << "Too less matches found." << endl;
+              return false;
+          }
+          else if (!enough_matches && data_without_filtering)
+          {
+              cout << "Too less matches found. Trying without pre-filtered keypoints ..." << endl;
+              data_without_filtering = false;
+              //Copy unfiltered data back
+              keypoints_descriptors = move(keypoints_descriptors_sv);
+              matches.clear();
+          }else{
+              break;
+          }
+      } while (true);
+
+      startTime = std::chrono::steady_clock::now();
+      if (affineInvariant)
+      {
+          filterKeypointsClassIDAffine(keypoints_descriptors, matches);
+      }
+
+      if(!filterMatches(keypoints_descriptors, matches))
+      {
+          cout << "Too less matches remaining after filtering." << endl;
+          return false;
+      }
+
+      if(affineInvariant){
+          filterAreaBasedAffine();
+          // filterResponseAffine();
+          filterResponseAreaBasedAffine();
+      }
+
+#if DBG_SHOW_KEYPOINTS_FILTERED
+      string kp_str = "filtered_";
+      for (const auto &kpt : keypoint_types_)
+      {
+          kp_str += kpt + "_";
+      }
+      kp_str += descriptor_type_;
+      visualizeKeypoints(keypoints_descriptors, imageMap, kp_str);
+#endif
+
+      timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - startTime).count();
+      cout << "Concatonation/filtering of all matches took " << timeDiff / 1e3 << " seconds." << endl;
+      return true;
+  }
+
+  void Matching::getMatchesThreadFunc(const int startIdx, 
+                                      const int endIdx, 
+                                      const std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> *kp_descr_in, 
+                                      std::unordered_map<std::pair<int, int>, std::vector<cv::DMatch>, pair_hash, pair_EqualTo> *matches_out, 
+                                      std::exception_ptr &thread_exception, 
+                                      std::mt19937 mt)
+  {
+      try
+      {
+          for (auto i = startIdx; i < endIdx; ++i)
+          {
+              const std::pair<int, int> &idx = cam_pair_idx.at(i);
+              const int img1_idx = idx.first;
+              if (imageMap.find(img1_idx) == imageMap.end())
+              {
+                  continue;
+              }
+              const int img2_idx = idx.second;
+              if (imageMap.find(img2_idx) == imageMap.end())
+              {
+                  continue;
+              }
+              const std::vector<cv::KeyPoint> &kps1 = kp_descr_in->at(img1_idx).first;
+              const std::vector<cv::KeyPoint> &kps2 = kp_descr_in->at(img2_idx).first;
+              const cv::Mat descr1 = kp_descr_in->at(img1_idx).second;
+              const cv::Mat descr2 = kp_descr_in->at(img2_idx).second;
+
+              cv::Size imgSi = imageMap.at(img1_idx).first.size();
+              std::vector<cv::DMatch> &matches_out_ref = matches_out->at(idx);
+#if MATCHING_INTERNAL_THREADS
+              unsigned threadCount = static_cast<unsigned>(cpuCnt);
+              // To get the same results from run to run using the same data, set parameter "indexThreadQty=1",
+              // For speedup set it to threadCount
+              string index_pars = "M=50,efConstruction=10,delaunay_type=1,indexThreadQty=1"; // + std::to_string(threadCount);
+              string query_pars = "efSearch=10";
+              // string index_pars = "indexThreadQty=" + std::to_string(threadCount);
+              int err = matchinglib::getMatches(kps1, kps2, descr1, descr2, imgSi, matches_out_ref, mt, matcher_type_, false, true, descriptor_type_, index_pars, query_pars, threadCount); // std::max(std::thread::hardware_concurrency(), 1u))
+#else
+              string index_pars = "M=50,efConstruction=10,delaunay_type=1,indexThreadQty=1"; // + std::to_string(threadCount);
+              string query_pars = "efSearch=10";
+              int err = matchinglib::getMatches(kps1, kps2, descr1, descr2, imgSi, matches_out_ref, mt, matcher_type_, false, true, descriptor_type_, index_pars, query_pars, 1u);
+#endif
+              if (err)
+              {
+                  string msg = "Unable to calculate matches with " + descriptor_type_ + " descriptor for image pair (" + std::to_string(img1_idx) + "-" + std::to_string(img2_idx) + ")";
+                  throw runtime_error(msg);
+              }
+#if DBG_SHOW_MATCHES
+              drawMatchesImgPair(imageMap.at(img1_idx).first, imageMap.at(img2_idx).first, kps1, kps2, matches_out_ref, img1_idx, img2_idx, 200);
+#endif
+          }
+      }
+      catch (...)
+      {
+          thread_exception = std::current_exception();
+          return;
+      }
+  }
+
+  void Matching::applyMaskToFeatures(bool invertMask, std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &kp_descr_out)
+  {
+      kp_descr_out.clear();
+      for (auto &idx : indices)
+      {
+          cv::Mat mask;
+          if (invertMask)
+          {
+              cv::bitwise_not(imageMap[idx].second, mask);
+          }
+          else
+          {
+              mask = imageMap[idx].second;
+          }
+          kp_descr_out.emplace(idx, make_pair(std::vector<cv::KeyPoint>(), cv::Mat()));
+          cv::Mat &descr_out = kp_descr_out[idx].second;
+          std::vector<cv::KeyPoint> &kp_out = kp_descr_out[idx].first;
+          std::vector<cv::KeyPoint> &kp_ref = keypoints_descriptors[idx].first;
+          cv::Mat descr = keypoints_descriptors[idx].second;
+          for (size_t i = 0; i < kp_ref.size(); ++i)
+          {
+              int row = static_cast<int>(std::round(kp_ref[i].pt.y));
+              int col = static_cast<int>(std::round(kp_ref[i].pt.x));
+              if (mask.at<unsigned char>(row, col) > 0)
+              {
+                  kp_out.push_back(kp_ref[i]);
+                  descr_out.push_back(descr.row(static_cast<int>(i)));
+              }
+          }
+      }
+  }
+
+  bool Matching::filterMatches(std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &kp_descr_in, 
+                               std::unordered_map<std::pair<int, int>, std::vector<cv::DMatch>, pair_hash, pair_EqualTo> &matches_in)
+  {
+      for (auto &cpi : cam_pair_idx)
+      {
+          MatchSearch m_filtered;
+          std::vector<cv::DMatch> &mi = matches_in.at(cpi);
+          if (mi.empty())
+          {
+              continue;
+          }
+          const std::pair<std::vector<cv::KeyPoint>, cv::Mat> &feature_data1 = kp_descr_in.at(cpi.first);
+          const std::pair<std::vector<cv::KeyPoint>, cv::Mat> &feature_data2 = kp_descr_in.at(cpi.second);
+          const std::vector<cv::KeyPoint> &kps1 = feature_data1.first;
+          const std::vector<cv::KeyPoint> &kps2 = feature_data2.first;
+          const cv::Mat descr1 = feature_data1.second;
+          const cv::Mat descr2 = feature_data2.second;
+          for (const auto &m : mi)
+          {
+              m_filtered.addMatch(kps1.at(m.queryIdx), kps2.at(m.trainIdx), m, descr1.row(m.queryIdx), descr2.row(m.trainIdx));
+          }
+          MatchData mdata;
+          m_filtered.composeAll(mdata.matches, mdata.kps1, mdata.kps2, mdata.descr1, mdata.descr2);
+          if (mdata.matches.size() < 500)
+          {
+              cout << "Only " << mdata.matches.size() << " matches remaining for cam pair (" << cpi.first << "-" << cpi.second << ")." << endl;
+              return false;
+          }
+          matches_filt.emplace(cpi, move(mdata));
+      }
+
+      return true;
+  }
+
+  void Matching::filterAreaBasedAffine()
+  {
+      const cv::Size imgSi = imageMap.begin()->second.first.size();
+      std::vector<cv::Mat> mask_kp(largest_cam_idx);
+      for (int i = 0; i < largest_cam_idx; i++)
+      {
+          mask_kp[i] = cv::Mat::zeros(imgSi, CV_8UC1);
+      }
+      for (const auto &mdata : matches_filt){
+          const std::vector<cv::KeyPoint> &kp1 = mdata.second.kps1;
+          const std::vector<cv::KeyPoint> &kp2 = mdata.second.kps2;
+          cv::Mat &mask1 = mask_kp[mdata.first.first];
+          cv::Mat &mask2 = mask_kp[mdata.first.second];
+          for (const auto &m : mdata.second.matches){
+              const cv::Point2f &pt1f = kp1.at(m.queryIdx).pt;
+              cv::Point2i pt1(static_cast<int>(round(pt1f.x)), static_cast<int>(round(pt1f.y)));
+              mask1.at<unsigned char>(pt1) = UCHAR_MAX;
+
+              const cv::Point2f &pt2f = kp2.at(m.trainIdx).pt;
+              cv::Point2i pt2(static_cast<int>(round(pt2f.x)), static_cast<int>(round(pt2f.y)));
+              mask2.at<unsigned char>(pt2) = UCHAR_MAX;
+          }
+      }
+      int kernel_si = max(min(imgSi.height, imgSi.width) / 100, 5);
+      cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(2 * kernel_si + 1, 2 * kernel_si + 1), cv::Point(kernel_si, kernel_si));
+      for (int i = 0; i < largest_cam_idx; i++)
+      {
+          cv::dilate(mask_kp[i], mask_kp[i], kernel);
+#if DBG_SHOW_KP_FILT_MASK
+          string kp_str = "kp_filt_mask_";
+          string kp_type_str;
+          for (const auto &kpt : keypoint_types_)
+          {
+              kp_type_str += kpt + "_";
+          }
+          kp_type_str += descriptor_type_;
+          kp_str += kp_type_str;
+          visualizeImg(mask_kp[i], kp_str, i);
+          std::vector<cv::KeyPoint> kp_all_virt_imgs;
+          for (const auto &mdata : keypoints_descriptors)
+          {
+              if(mdata.first == i){
+                  kp_all_virt_imgs.insert(kp_all_virt_imgs.end(), mdata.second.first.begin(), mdata.second.first.end());
+              }
+          }
+          visualizeKeypoints(imageMap.at(std::make_pair(i, 0)).first, kp_all_virt_imgs, std::to_string(i), kp_type_str);
+#endif
+      }
+
+      for (auto &mdata : keypoints_descriptors)
+      {
+          std::vector<cv::KeyPoint> &kps = mdata.second.first;
+          cv::Mat &descr = mdata.second.second;
+          const cv::Mat mask = mask_kp[mdata.first];
+
+          std::vector<cv::KeyPoint> kpsNew;
+          cv::Mat descrNew;
+          for (int i = 0; i < static_cast<int>(kps.size()); i++)
+          {
+              const auto &kp = kps.at(i);
+              cv::Point2i pt(static_cast<int>(round(kp.pt.x)), static_cast<int>(round(kp.pt.y)));
+              if(mask.at<unsigned char>(pt)){
+                  kpsNew.emplace_back(kp);
+                  descrNew.push_back(descr.row(i));
+              }
+          }
+          kps = move(kpsNew);
+          descr = descrNew;
+      }
+  }
+
+  void Matching::filterResponseAffine()
+  {
+      filterResponseAffine(keypoints_descriptors);
+  }
+
+  void Matching::filterResponseAffine(std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &features_map)
+  {
+      std::vector<std::thread> threads;
+      const unsigned filterCount = features_map.size();
+      unsigned threadCount = std::min(filterCount, static_cast<unsigned>(cpuCnt));
+      unsigned batchSize = std::ceil(filterCount / static_cast<float>(threadCount));
+      getThreadBatchSize(filterCount, threadCount, batchSize);
+      std::shared_ptr<std::vector<std::shared_ptr<std::pair<std::vector<cv::KeyPoint>, cv::Mat>>>> filtered_features = make_shared<std::vector<std::shared_ptr<std::pair<std::vector<cv::KeyPoint>, cv::Mat>>>>(std::vector<std::shared_ptr<std::pair<std::vector<cv::KeyPoint>, cv::Mat>>>());
+      for (unsigned int i = 0; i < filterCount; ++i)
+      {
+          filtered_features->emplace_back(make_shared<std::pair<std::vector<cv::KeyPoint>, cv::Mat>>(make_pair(std::vector<cv::KeyPoint>(), cv::Mat())));
+      }
+
+      for (unsigned int i = 0; i < threadCount; ++i)
+      {
+          const int startIdx = i * batchSize;
+          const int endIdx = std::min((i + 1u) * batchSize, filterCount);
+          threads.push_back(std::thread(std::bind(&filterResponseAffineThreadFunc, startIdx, endIdx, &features_map, filtered_features)));
+      }
+
+      for (auto &t : threads)
+      {
+          if (t.joinable())
+          {
+              t.join();
+          }
+      }
+
+      std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>>::iterator it = features_map.begin();
+      for (unsigned i = 0; i < filterCount; i++)
+      {
+          it->second.first = std::move(filtered_features->at(i)->first);
+          filtered_features->at(i)->second.copyTo(it->second.second);
+          it++;
+      }
+
+      // for (auto &mdata : features_map)
+      // {
+      //     std::vector<cv::KeyPoint> &kps = mdata.second.first;
+      //     cv::Mat &descr = mdata.second.second;
+
+      //     KeypointSearch ks;
+      //     for (int i = 0; i < static_cast<int>(kps.size()); i++)
+      //     {
+      //         ks.add(kps.at(i), descr.row(i));
+      //     }
+      //     ks.composeAll(kps, descr);
+      // }
+  }
+
+  void filterResponseAffineThreadFunc(const int startIdx, 
+                                      const int endIdx, 
+                                      const std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> *keypoints_descriptors, 
+                                      std::shared_ptr<std::vector<std::shared_ptr<std::pair<std::vector<cv::KeyPoint>, cv::Mat>>>> filtered_features)
+  {
+      std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>>::const_iterator it = keypoints_descriptors->begin();
+      if (startIdx)
+      {
+          std::advance(it, startIdx);
+      }
+      for (int i = startIdx; i < endIdx; i++)
+      {
+          const std::vector<cv::KeyPoint> &kps = it->second.first;
+          const cv::Mat &descr = it->second.second;
+          if (descr.rows > 100)
+          {
+              KeypointSearch ks;
+              for (int i = 0; i < static_cast<int>(kps.size()); i++)
+              {
+                  ks.add(kps.at(i), descr.row(i));
+              }
+              ks.composeAll(filtered_features->at(i)->first, filtered_features->at(i)->second);
+          }
+          else if (!descr.empty())
+          {
+              filtered_features->at(i)->first = kps;
+              descr.copyTo(filtered_features->at(i)->second);
+          }
+          it++;
+      }
+  }
+
+  void Matching::filterResponseAreaBasedAffine(const int &limitNrFeatures)
+  {
+      std::unordered_map<int, int> individual_limits;
+      for (const auto &kpd : keypoints_descriptors){
+          individual_limits.emplace(kpd.first, limitNrFeatures);
+      }
+      filterResponseAreaBasedAffineImpl(keypoints_descriptors, individual_limits);
+  }
+
+  void Matching::filterResponseAreaBasedAffineImpl(std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &features_map, 
+                                                   const std::unordered_map<int, int> &individual_limits)
+  {
+      std::vector<std::thread> threads;
+      const unsigned filterCount = features_map.size();
+      unsigned threadCount = std::min(filterCount, static_cast<unsigned>(cpuCnt));
+      unsigned batchSize = std::ceil(filterCount / static_cast<float>(threadCount));
+      getThreadBatchSize(filterCount, threadCount, batchSize);
+      std::shared_ptr<std::vector<std::shared_ptr<std::pair<std::vector<cv::KeyPoint>, cv::Mat>>>> filtered_features = make_shared<std::vector<std::shared_ptr<std::pair<std::vector<cv::KeyPoint>, cv::Mat>>>>(std::vector<std::shared_ptr<std::pair<std::vector<cv::KeyPoint>, cv::Mat>>>());
+      for (unsigned int i = 0; i < filterCount; ++i)
+      {
+          filtered_features->emplace_back(make_shared<std::pair<std::vector<cv::KeyPoint>, cv::Mat>>(make_pair(std::vector<cv::KeyPoint>(), cv::Mat())));
+      }
+
+      const cv::Size imgSize = imageMap.begin()->second.first.size();
+      for (unsigned int i = 0; i < threadCount; ++i)
+      {
+          const int startIdx = i * batchSize;
+          const int endIdx = std::min((i + 1u) * batchSize, filterCount);
+          threads.push_back(std::thread(std::bind(static_cast<void (&)(const int, 
+                                                                       const int, 
+                                                                       const std::unordered_map<int, int> &, 
+                                                                       const std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> *, 
+                                                                       const cv::Size, std::shared_ptr<std::vector<std::shared_ptr<std::pair<std::vector<cv::KeyPoint>, cv::Mat>>>>)>(filterResponseAreaBasedAffineThreadFunc), 
+                                                  startIdx, endIdx, individual_limits, &features_map, imgSize, filtered_features)));
+      }
+
+      for (auto &t : threads)
+      {
+          if (t.joinable())
+          {
+              t.join();
+          }
+      }
+
+      std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>>::iterator it = features_map.begin();
+      for (unsigned i = 0; i < filterCount; i++)
+      {
+          it->second.first = std::move(filtered_features->at(i)->first);
+          filtered_features->at(i)->second.copyTo(it->second.second);
+          it++;
+      }
+
+      // for (auto &mdata : features_map)
+      // {
+      //     std::vector<cv::KeyPoint> kps = mdata.second.first;
+      //     PointSearchSimpleQ pss;
+      //     for (int i = 0; i < static_cast<int>(kps.size()); i++)
+      //     {
+      //         pss.add(kps.at(i).pt, i);
+      //     }
+      //     cv::Mat &descr = mdata.second.second;
+      //     matchinglib::responseFilterGridBased(kps, imageMap.at(mdata.first).first.size(), limitNrFeatures);
+
+      //     cv::Mat descr2;
+      //     for (const auto &kp : kps)
+      //     {
+      //         int idx = pss.getIdx(kp.pt);
+      //         descr2.push_back(descr.row(idx));
+      //     }
+      //     descr2.copyTo(descr);
+      //     mdata.second.first = move(kps);
+      // }
+  }
+
+  void filterResponseAreaBasedAffineThreadFunc(const int startIdx, 
+                                               const int endIdx, 
+                                               const std::unordered_map<int, int> &individual_limits, 
+                                               const std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> *keypoints_descriptors, 
+                                               const cv::Size imgSize, 
+                                               std::shared_ptr<std::vector<std::shared_ptr<std::pair<std::vector<cv::KeyPoint>, cv::Mat>>>> filtered_features)
+  {
+      std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>>::const_iterator it = keypoints_descriptors->begin();
+      if (startIdx)
+      {
+          std::advance(it, startIdx);
+      }
+      for (int i = startIdx; i < endIdx; i++)
+      {
+          std::vector<cv::KeyPoint> kps = it->second.first;
+          const cv::Mat &descr = it->second.second;
+          if (descr.rows > 100)
+          {
+              PointSearchSimpleQ pss;
+              for (int j = 0; j < static_cast<int>(kps.size()); j++)
+              {
+                  pss.add(kps.at(j).pt, j);
+              }
+              const int limitNrFeatures = individual_limits.at(it->first);
+              matchinglib::responseFilterGridBased(kps, imgSize, limitNrFeatures);
+
+              cv::Mat &descr2 = filtered_features->at(i)->second;
+              for (const auto &kp : kps)
+              {
+                  int idx = pss.getIdx(kp.pt);
+                  descr2.push_back(descr.row(idx));
+              }
+              filtered_features->at(i)->first = move(kps);
+          }
+          else if (!descr.empty())
+          {
+              filtered_features->at(i)->first = kps;
+              descr.copyTo(filtered_features->at(i)->second);
+          }
+          it++;
+      }
+  }
+
+  void filterResponseAreaBasedAffineThreadFunc(const int startIdx, 
+                                               const int endIdx, 
+                                               const int limitNrFeatures, 
+                                               const std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> *keypoints_descriptors, 
+                                               const cv::Size imgSize, 
+                                               std::shared_ptr<std::vector<std::shared_ptr<std::pair<std::vector<cv::KeyPoint>, cv::Mat>>>> filtered_features)
+  {
+      std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>>::const_iterator it = keypoints_descriptors->begin();
+      if(startIdx){
+          std::advance(it, startIdx);
+      }
+      std::unordered_map<int, int> individual_limits;
+      for (int i = startIdx; i < endIdx; i++)
+      {
+          individual_limits.emplace(it->first, limitNrFeatures);
+          it++;
+      }
+      filterResponseAreaBasedAffineThreadFunc(startIdx, endIdx, individual_limits, keypoints_descriptors, imgSize, filtered_features);
+  }
+
+  bool Matching::checkNrMatches(const std::unordered_map<std::pair<int, int>, std::vector<cv::DMatch>, pair_hash, pair_EqualTo> &matches_in)
+  {
+      for (auto &cpi : cam_pair_idx)
+      {
+          const std::vector<cv::DMatch> &mi = matches_in.at(cpi);
+          if (mi.size() < 300)
+          {
+              return false;
+          }
+      }
+      return true;
+  }
+
+  void Matching::filterKeypointsClassIDAffine(std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &kp_descr_in, 
+                                              std::unordered_map<std::pair<int, int>, std::vector<cv::DMatch>, pair_hash, pair_EqualTo> &matches_in)
+  {
+      std::unordered_map<int, std::set<int>> kp_descr_valid_indices;
+      AffineMatchesFilterData data(kp_descr_valid_indices);
+
+      std::vector<std::thread> threads;
+      const unsigned imgsCount = cam_pair_idx.size();
+      unsigned threadCount = std::min(imgsCount, static_cast<unsigned>(cpuCnt));
+      unsigned batchSize = std::ceil(imgsCount / static_cast<float>(threadCount));
+      getThreadBatchSize(imgsCount, threadCount, batchSize);
+
+      for (unsigned int i = 0; i < threadCount; ++i)
+      {
+          const int startIdx = i * batchSize;
+          const int endIdx = std::min((i + 1u) * batchSize, imgsCount);
+          threads.push_back(std::thread(std::bind(&Matching::filterKeypointsClassIDAffineThreadFunc, this, startIdx, endIdx, std::ref(kp_descr_in), std::ref(matches_in), std::ref(data))));
+      }
+
+      for (auto &t : threads)
+      {
+          if (t.joinable())
+          {
+              t.join();
+          }
+      }
+
+      std::unordered_map<int, unordered_map<int, int>> kp_descr_valid_idx_map;
+      for (const auto &vi : kp_descr_valid_indices)
+      {
+          std::pair<std::vector<cv::KeyPoint>, cv::Mat> &feature_data = kp_descr_in.at(vi.first);
+          std::vector<cv::KeyPoint> &kps = feature_data.first;
+          cv::Mat &descr = feature_data.second;
+
+          std::vector<cv::KeyPoint> kpsNew;
+          cv::Mat descrNew;
+          int idx = 0;
+          unordered_map<int, int> idxOldNew;
+          for (const auto &vi1 : vi.second)
+          {
+              kpsNew.emplace_back(kps.at(vi1));
+              descrNew.push_back(descr.row(vi1));
+              idxOldNew.emplace(vi1, idx++);
+          }
+          kps = move(kpsNew);
+          descr = descrNew;
+          kp_descr_valid_idx_map.emplace(vi.first, move(idxOldNew));
+      }
+
+      for (const auto &cpi : cam_pair_idx)
+      {
+          std::vector<cv::DMatch> &mi = matches_in.at(cpi);
+          if (mi.empty())
+          {
+              continue;
+          }
+          const unordered_map<int, int> &idxOldNew1 = kp_descr_valid_idx_map.at(cpi.first);
+          const unordered_map<int, int> &idxOldNew2 = kp_descr_valid_idx_map.at(cpi.second);
+          std::vector<cv::DMatch> matchesNew;
+          for (const auto &m : mi)
+          {
+              if (idxOldNew1.find(m.queryIdx) != idxOldNew1.end() && idxOldNew2.find(m.trainIdx) != idxOldNew2.end())
+              {
+                  cv::DMatch m1 = m;
+                  m1.queryIdx = idxOldNew1.at(m.queryIdx);
+                  m1.trainIdx = idxOldNew2.at(m.trainIdx);
+                  matchesNew.emplace_back(move(m1));
+              }
+          }
+          mi = move(matchesNew);
+      }
+  }
+
+  void Matching::filterKeypointsClassIDAffineThreadFunc(const int startIdx, 
+                                                        const int endIdx, 
+                                                        const std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &kp_descr_in, 
+                                                        const std::unordered_map<std::pair<int, int>, std::vector<cv::DMatch>, pair_hash, pair_EqualTo> &matches_in, 
+                                                        AffineMatchesFilterData &data)
+  {
+      for (int icp = startIdx; icp < endIdx; icp++)
+      {
+          const std::pair<int, int> &cpi = cam_pair_idx.at(icp);
+          const std::vector<cv::DMatch> &mi = matches_in.at(cpi);
+          if (mi.empty())
+          {
+              continue;
+          }
+          const int img1_idx = cpi.first;
+          const int img2_idx = cpi.second;
+          data.find_emplace(img1_idx);
+          data.find_emplace(img2_idx);
+          std::vector<cv::DMatch> mi1 = mi;
+          const std::pair<std::vector<cv::KeyPoint>, cv::Mat> &feature_data1 = kp_descr_in.at(img1_idx);
+          const std::pair<std::vector<cv::KeyPoint>, cv::Mat> &feature_data2 = kp_descr_in.at(img2_idx);
+          const std::vector<cv::KeyPoint> &kps1 = feature_data1.first;
+          const std::vector<cv::KeyPoint> &kps2 = feature_data2.first;
+          const cv::Mat descr1 = feature_data1.second;
+          const cv::Mat descr2 = feature_data2.second;
+          const cv::Mat &img = imageMap.at(img1_idx).first;
+          matchinglib::filterMatchesSOF(kps1, kps2, img.size(), mi1);
+          unordered_map<int, int> classIds[2];
+          for (const auto &m : mi1)
+          {
+              const int classID1 = kps1.at(m.queryIdx).class_id;
+              const int classID2 = kps2.at(m.trainIdx).class_id;
+              if (classIds[0].find(classID1) == classIds[0].end())
+              {
+                  classIds[0].emplace(classID1, 1);
+              }
+              else
+              {
+                  classIds[0].at(classID1)++;
+              }
+              if (classIds[1].find(classID2) == classIds[1].end())
+              {
+                  classIds[1].emplace(classID2, 1);
+              }
+              else
+              {
+                  classIds[1].at(classID2)++;
+              }
+          }
+          vector<int> classIDs_del[2];
+          for (int j = 0; j < 2; j++)
+          {
+              for (const auto &cid : classIds[j])
+              {
+                  if (cid.second < 5)
+                  {
+                      classIDs_del[j].emplace_back(j);
+                  }
+              }
+              for (const auto &di : classIDs_del[j])
+              {
+                  classIds[j].erase(di);
+              }
+          }
+          FeatureKDTree kdtree[2];
+          for (const auto &m : mi)
+          {
+              kdtree[0].add(kps1.at(m.queryIdx), descr1.row(m.queryIdx));
+              kdtree[1].add(kps2.at(m.trainIdx), descr2.row(m.trainIdx));
+          }
+          kdtree[0].buildIndex();
+          kdtree[1].buildIndex();
+          for (int j = 0; j < descr1.rows; j++)
+          {
+              const cv::KeyPoint &kp = kps1.at(j);
+              if (classIds[0].find(kp.class_id) == classIds[0].end())
+              {
+                  continue;
+              }
+              std::vector<cv::KeyPoint> kp2s;
+              if (kdtree[0].getKeypointDescriptorMatches(kp.pt, kp2s, 900.f))
+              {
+                  for (const auto &kp2 : kp2s)
+                  {
+                      if (kp2.class_id == kp.class_id)
+                      {
+                          data.emplaceIdx(img1_idx, j);
+                          break;
+                      }
+                  }
+              }
+              else
+              {
+                  data.emplaceIdx(img1_idx, j);
+              }
+          }
+          for (int j = 0; j < descr2.rows; j++)
+          {
+              const cv::KeyPoint &kp = kps2.at(j);
+              if (classIds[1].find(kp.class_id) == classIds[1].end())
+              {
+                  continue;
+              }
+              std::vector<cv::KeyPoint> kp2s;
+              if (kdtree[1].getKeypointDescriptorMatches(kp.pt, kp2s, 900.f))
+              {
+                  for (const auto &kp2 : kp2s)
+                  {
+                      if (kp2.class_id == kp.class_id)
+                      {
+                          data.emplaceIdx(img2_idx, j);
+                          break;
+                      }
+                  }
+              }
+              else
+              {
+                  data.emplaceIdx(img2_idx, j);
+              }
+          }
+      }
+  }
 
 } // namepace matchinglib

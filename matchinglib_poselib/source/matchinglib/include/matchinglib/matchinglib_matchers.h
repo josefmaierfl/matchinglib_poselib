@@ -99,6 +99,7 @@ namespace matchinglib
   bool MATCHINGLIB_API IsMatcherSupported(std::string const& type);
   std::vector<std::string> MATCHINGLIB_API GetSupportedMatcher();
 
-
+  bool MATCHINGLIB_API IsBinaryMatcher(const std::string &type);
+  std::vector<std::string> MATCHINGLIB_API GetBinaryMatcherTypes();
 
 }

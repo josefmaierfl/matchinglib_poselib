@@ -50,7 +50,6 @@ namespace matchinglib
         descr2.copyTo(data.descr2);
         inlier_mask.copyTo(data.inlier_mask);
         data.used_cnt = used_cnt;
-        data.img_idxs = img_idxs;
     }
 
     MatchData MatchData::clone() const
@@ -80,12 +79,12 @@ namespace matchinglib
 
     MatchDataCams::MatchDataCams(const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &imageMap, 
                                  const std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &features_, 
-                                 const std::unordered_map<int, MatchData> &matches_, 
-                                 const std::vector<int> &indices_, 
+                                 const std::unordered_map<std::pair<int, int>, MatchData, pair_hash, pair_EqualTo> &matches_, 
+                                 const std::vector<std::pair<int, int>> &cam_pair_indices_, 
                                  const int &nr_cameras_, 
                                  const double &imgScale_) : features(features_), 
                                                             matches(matches_), 
-                                                            indices(indices_), 
+                                                            cam_pair_indices(cam_pair_indices_), 
                                                             nr_cameras(nr_cameras_), 
                                                             imgScale(imgScale_)
     {
@@ -159,15 +158,14 @@ namespace matchinglib
         return -1;
     }
 
-    MatchInfo::MatchInfo(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::DMatch &match, const cv::Mat &descr1, const cv::Mat &descr2, const int &img_idx) : MatchInfoBase(kp1, kp2, match)
+    MatchInfo::MatchInfo(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::DMatch &match, const cv::Mat &descr1, const cv::Mat &descr2) : MatchInfoBase(kp1, kp2, match)
     {
         CV_Assert(descr1.rows == 1 && descr2.rows == 1);
         descr1_.push_back(descr1);
         descr2_.push_back(descr2);
-        img_idxs.push_back(img_idx);
     }
 
-    bool MatchInfo::replace(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::DMatch &match, const cv::Mat &descr1, const cv::Mat &descr2, const int &img_idx)
+    bool MatchInfo::replace(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::DMatch &match, const cv::Mat &descr1, const cv::Mat &descr2)
     {
         int pos = contains(kp2);
         if (pos < 0)
@@ -177,7 +175,6 @@ namespace matchinglib
             kps2.push_back(kp2);
             descr1_.push_back(descr1);
             descr2_.push_back(descr2);
-            img_idxs.push_back(img_idx);
             return true;
         }
         else
@@ -200,7 +197,6 @@ namespace matchinglib
                     m_old = match;
                     descr1.copyTo(descr1_.row(pos));
                     descr2.copyTo(descr2_.row(pos));
-                    img_idxs.at(pos) = img_idx;
                     return true;
                 }
             }
@@ -211,23 +207,21 @@ namespace matchinglib
                 m_old = match;
                 descr1.copyTo(descr1_.row(pos));
                 descr2.copyTo(descr2_.row(pos));
-                img_idxs.at(pos) = img_idx;
                 return true;
             }
         }
         return false;
     }
 
-    ReMatchInfo::ReMatchInfo(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::DMatch &match, const cv::Mat &descr1, const cv::Mat &descr2, const double &F_dist, const int &img_idx, const double &acc) : MatchInfoBase(kp1, kp2, match), img2_max_dist(acc)
+    ReMatchInfo::ReMatchInfo(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::DMatch &match, const cv::Mat &descr1, const cv::Mat &descr2, const double &F_dist, const double &acc) : MatchInfoBase(kp1, kp2, match), img2_max_dist(acc)
     {
         CV_Assert(descr1.rows == 1 && descr2.rows == 1);
         descr1_.push_back(descr1);
         descr2_.push_back(descr2);
         epipolar_distance.push_back(F_dist);
-        img_idxs.push_back(img_idx);
     }
 
-    bool ReMatchInfo::replace(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::DMatch &match, const cv::Mat &descr1, const cv::Mat &descr2, const double &F_dist, const int &img_idx)
+    bool ReMatchInfo::replace(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::DMatch &match, const cv::Mat &descr1, const cv::Mat &descr2, const double &F_dist)
     {
         int pos = contains(kp2, img2_max_dist);
         if (pos < 0)
@@ -238,7 +232,6 @@ namespace matchinglib
             descr1_.push_back(descr1);
             descr2_.push_back(descr2);
             epipolar_distance.push_back(F_dist);
-            img_idxs.push_back(img_idx);
             return true;
         }
         else
@@ -262,7 +255,6 @@ namespace matchinglib
                     d_old = F_dist;
                     descr1.copyTo(descr1_.row(pos));
                     descr2.copyTo(descr2_.row(pos));
-                    img_idxs.at(pos) = img_idx;
                     return true;
                 }
                 else
@@ -279,7 +271,6 @@ namespace matchinglib
                             d_old = F_dist;
                             descr1.copyTo(descr1_.row(pos));
                             descr2.copyTo(descr2_.row(pos));
-                            img_idxs.at(pos) = img_idx;
                             return true;
                         }
                     }
@@ -291,7 +282,6 @@ namespace matchinglib
                         d_old = F_dist;
                         descr1.copyTo(descr1_.row(pos));
                         descr2.copyTo(descr2_.row(pos));
-                        img_idxs.at(pos) = img_idx;
                         return true;
                     }
                 }

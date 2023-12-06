@@ -45,7 +45,6 @@ namespace matchinglib
         cv::Mat descr1, descr2;
         cv::Mat inlier_mask;
         int used_cnt = 0;
-        std::vector<int> img_idxs;
 
         void copyTo(MatchData &data) const;
         MatchData clone() const;
@@ -59,16 +58,16 @@ namespace matchinglib
         std::unordered_map<int, cv::Mat> masks;
         std::unordered_map<int, cv::Mat> images;
         std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> features;
-        std::unordered_map<int, MatchData> matches;
-        std::vector<int> indices;
+        std::unordered_map<std::pair<int, int>, MatchData, pair_hash, pair_EqualTo> matches;
+        std::vector<std::pair<int, int>> cam_pair_indices;
         int nr_cameras = -1;
         double imgScale = 0.5;
 
         MatchDataCams() = default;
         MatchDataCams(const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &imageMap, 
                       const std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &features_, 
-                      const std::unordered_map<int, MatchData> &matches_, 
-                      const std::vector<int> &indices_, 
+                      const std::unordered_map<std::pair<int, int>, MatchData, pair_hash, pair_EqualTo> &matches_, 
+                      const std::vector<std::pair<int, int>> &cam_pair_indices_, 
                       const int &nr_cameras_, 
                       const double &imgScale_);
         ImgDataPtr getImg_ptr() { return &images; }
@@ -124,10 +123,9 @@ namespace matchinglib
     {
     public:
         cv::Mat descr1_, descr2_;
-        std::vector<int> img_idxs;
 
-        MatchInfo(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::DMatch &match, const cv::Mat &descr1, const cv::Mat &descr2, const int &img_idx);
-        bool replace(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::DMatch &match, const cv::Mat &descr1, const cv::Mat &descr2, const int &img_idx);
+        MatchInfo(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::DMatch &match, const cv::Mat &descr1, const cv::Mat &descr2);
+        bool replace(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::DMatch &match, const cv::Mat &descr1, const cv::Mat &descr2);
     };
 
     class MATCHINGLIB_API ReMatchInfo : public MatchInfoBase
@@ -136,10 +134,9 @@ namespace matchinglib
         std::vector<double> epipolar_distance;
         cv::Mat descr1_, descr2_;
         const double img2_max_dist;
-        std::vector<int> img_idxs;
 
-        ReMatchInfo(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::DMatch &match, const cv::Mat &descr1, const cv::Mat &descr2, const double &F_dist, const int &img_idx, const double &acc = 2.0);
-        bool replace(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::DMatch &match, const cv::Mat &descr1, const cv::Mat &descr2, const double &F_dist, const int &img_idx);
+        ReMatchInfo(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::DMatch &match, const cv::Mat &descr1, const cv::Mat &descr2, const double &F_dist, const double &acc = 2.0);
+        bool replace(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::DMatch &match, const cv::Mat &descr1, const cv::Mat &descr2, const double &F_dist);
     };
 
     template <typename T>
@@ -200,7 +197,7 @@ namespace matchinglib
     public:
         explicit MatchSearch(int minPointDistanceXY = 2) : MatchSearchTemplate(minPointDistanceXY) {}
 
-        void composeAll(std::vector<cv::DMatch> &matches, std::vector<cv::KeyPoint> &kps1, std::vector<cv::KeyPoint> &kps2, cv::Mat &descr1, cv::Mat &descr2, std::vector<int> &img_idxs)
+        void composeAll(std::vector<cv::DMatch> &matches, std::vector<cv::KeyPoint> &kps1, std::vector<cv::KeyPoint> &kps2, cv::Mat &descr1, cv::Mat &descr2)
         {
             size_t idx = 0;
             for (auto &ms : kpMap)
@@ -217,7 +214,6 @@ namespace matchinglib
                 }
                 descr1.push_back(ms.second.descr1_);
                 descr2.push_back(ms.second.descr2_);
-                img_idxs.insert(img_idxs.end(), ms.second.img_idxs.begin(), ms.second.img_idxs.end());
             }
         }
     };
@@ -227,7 +223,7 @@ namespace matchinglib
     public:
         explicit ReMatchSearch(int minPointDistanceXY = 2) : MatchSearchTemplate(minPointDistanceXY) {}
 
-        void composeAll(const size_t &start_idx, std::vector<cv::DMatch> &matches, std::vector<cv::KeyPoint> &kps1, std::vector<cv::KeyPoint> &kps2, cv::Mat &descr1, cv::Mat &descr2, std::vector<double> &sampson_errors, std::vector<int> &img_idxs)
+        void composeAll(const size_t &start_idx, std::vector<cv::DMatch> &matches, std::vector<cv::KeyPoint> &kps1, std::vector<cv::KeyPoint> &kps2, cv::Mat &descr1, cv::Mat &descr2, std::vector<double> &sampson_errors)
         {
             size_t idx = start_idx;
             for (auto &ms : kpMap)
@@ -245,7 +241,6 @@ namespace matchinglib
                 }
                 descr1.push_back(ms.second.descr1_);
                 descr2.push_back(ms.second.descr2_);
-                img_idxs.insert(img_idxs.end(), ms.second.img_idxs.begin(), ms.second.img_idxs.end());
             }
         }
     };
