@@ -35,6 +35,10 @@
 
 #include "utilslib/utilslib_api.h"
 
+#define DEBUG_IMG_STOREPATH "/app/results"
+//values for defines: 1 ... Show in window, 2 ... Save to disk
+#define DBG_SHOW_MASK_IMG_DIFFS 0
+
 namespace utilslib
 {
     //Computes the Sampson distance (first-order geometric error) for the provided point correspondence
@@ -70,4 +74,10 @@ namespace utilslib
                                                    const float &highlight_tone_percent, 
                                                    const int &highlight_radius, 
                                                    const bool histEqual = true);
+    
+    //Difference mask generation based on DCT
+    cv::Mat UTILSLIB_API getDCTMask(const cv::Mat img1, const cv::Mat img2, const std::pair<int, int> &ci0, const int &i_other, const std::string *info = nullptr);
+
+    void UTILSLIB_API storeDebugImgToDisk(const cv::Mat &img, const std::string &folder, const std::string &main_path_store, const std::string &base_name, const std::string &img_name, const bool overwrite_existing = true);
+    void UTILSLIB_API displayCircle(const std::vector<cv::Point2d> &pts, const cv::Point2d &center, const double &radius);
 }

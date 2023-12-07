@@ -114,10 +114,6 @@ namespace matchinglib
 //Sorts the input vector based on the response values (largest elements first) until the given number is reached.
   int sortResponses(std::vector<keyPIdx>& keys, int number);
 
-  // returns one of the supportet detectors
-  cv::Ptr<FeatureDetector> createDetector(std::string const& keypointtype, int const limitNrfeatures);
-  cv::Ptr<cv::DescriptorExtractor> createExtractor(std::string const& descriptortype, std::string const& keypointtype = "");
-
 
   /* --------------------- Functions --------------------- */
 
@@ -844,11 +840,10 @@ namespace matchinglib
     }
     else if(!keypointtype.compare("AKAZE"))
     {
-      detector = AKAZE::create();
+      detector = cv::AKAZE::create(cv::AKAZE::DescriptorType::DESCRIPTOR_MLDB, 0, 3, 0.011f);
     }
     else if(!keypointtype.compare("SIFT"))
     {
-      //cv::initModule_nonfree();
       detector = SIFT::create();
     }
 #if defined(USE_NON_FREE_CODE)
@@ -871,7 +866,7 @@ namespace matchinglib
     return detector;
   }
 
-  cv::Ptr<cv::DescriptorExtractor> createExtractor(std::string const& descriptortype, std::string const& keypointtype)
+  cv::Ptr<cv::DescriptorExtractor> createExtractor(std::string const& descriptortype, std::string const& keypointtype, const int &nrFeaturesMax)
   {
     cv::Ptr<cv::DescriptorExtractor> extractor;
 
@@ -916,7 +911,7 @@ namespace matchinglib
     }
     else if(!descriptortype.compare("AKAZE"))
     {
-      extractor = AKAZE::create();
+      extractor = cv::AKAZE::create(cv::AKAZE::DescriptorType::DESCRIPTOR_MLDB, 0, 3, 0.011f);
     }
     else if(!descriptortype.compare("FREAK"))
     {

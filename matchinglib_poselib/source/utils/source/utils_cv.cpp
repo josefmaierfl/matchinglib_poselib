@@ -27,6 +27,7 @@
 #include <opencv2/calib3d/calib3d.hpp>
 
 #include <ransac.h>
+#include <FileHelper.h>
 
 #include <map>
 
@@ -760,5 +761,287 @@ namespace utilslib
         }
 
         return histequ;
+    }
+
+    cv::Mat getDCTMask(const cv::Mat img1, const cv::Mat img2, const pair<int, int> &ci0, const int &i_other, const std::string *info)
+    {
+        const int batchSize = 8;
+        const string folderName = "dct_mask";
+        int rows_add = img1.rows % batchSize;
+        int cols_add = img1.cols % batchSize;
+        cv::Mat img1b, img2b;
+        if (rows_add || cols_add){
+            rows_add = batchSize - rows_add;
+            cols_add = batchSize - cols_add;
+            img1b = cv::Mat(img1.rows + rows_add, img1.cols + cols_add, img1.type());
+            img2b = cv::Mat(img1.rows + rows_add, img1.cols + cols_add, img1.type());
+            cv::copyMakeBorder(img1, img1b, 0, rows_add, 0, cols_add, cv::BORDER_CONSTANT, 0);
+            cv::copyMakeBorder(img2, img2b, 0, rows_add, 0, cols_add, cv::BORDER_CONSTANT, 0);
+        }else{
+            img1b = img1;
+            img2b = img2;
+        }
+        cv::Mat img1f, img2f;
+        // cv::namedWindow("img1");
+        // cv::imshow("img1", img1b);
+        // cv::namedWindow("img2");
+        // cv::imshow("img2", img2b);
+        // cv::waitKey(0);
+        img1b.convertTo(img1f, CV_32FC1);
+        img2b.convertTo(img2f, CV_32FC1);
+        cv::Mat img12 = img1f - img2f;
+        double minVal = 0, maxVal = 0;
+        cv::minMaxLoc(img12, &minVal, &maxVal);
+        double diff = maxVal - minVal;
+        if(abs(diff) > 127.){
+            cv::normalize(img12, img12, -128.0, 127.0, cv::NORM_MINMAX);
+        }else{
+            img12 -= 128.f + static_cast<float>(minVal);
+        }
+#if DBG_SHOW_MASK_IMG_DIFFS
+        cv::Mat diff_show;
+        cv::convertScaleAbs(img12, diff_show);
+        string info2;
+        if(info){
+            info2 += *info;
+            info2 += "_";
+        }
+        info2 += "i" + std::to_string(ci0.second);
+        info2 += "to" + std::to_string(i_other);
+#if DBG_SHOW_MASK_IMG_DIFFS == 1
+        cv::namedWindow("diff");
+        cv::imshow("diff", diff_show);
+#elif DBG_SHOW_MASK_IMG_DIFFS == 2
+        storeDebugImgToDisk(diff_show, folderName, DEBUG_IMG_STOREPATH, "mask_idiff_" + info2, std::to_string(ci0.first) + "-" + std::to_string(ci0.second));
+#endif
+#endif
+        // From https://cgjennings.ca/articles/jpeg-compression/ with lowest JPEG quality
+        cv::Mat quant = (cv::Mat_<float>(8, 8) << 112, 84, 98, 98, 126, 168, 343, 504, 
+                                                  77, 84, 91, 119, 154, 245, 448, 644, 
+                                                  70, 98, 112, 154, 259, 385, 546, 665, 
+                                                  112, 133, 168, 203, 392, 448, 609, 686, 
+                                                  168, 182, 280, 357, 476, 567, 721, 784, 
+                                                  280, 406, 399, 609, 763, 728, 847, 700, 
+                                                  357, 420, 483, 560, 721, 791, 840, 721, 
+                                                  427, 385, 392, 434, 539, 644, 707, 693);
+        cv::Mat img12_filt(img12.size(), img12.type());
+        for (int y = 0; y < img12.rows; y += batchSize)
+        {
+            for (int x = 0; x < img12.cols; x += batchSize)
+            {
+                cv::Mat part = img12(cv::Rect(x, y, batchSize, batchSize));
+                cv::Mat part_show;
+                // if(abs(cv::sum(part)[0]) > 640){
+                //     printCvMat(part, "orig");
+                //     cv::convertScaleAbs(part, part_show);
+                //     cv::namedWindow("part_orig");
+                //     cv::imshow("part_orig", part_show);
+                //     cv::waitKey(0);
+                //     cv::destroyWindow("part_orig");
+                // }
+
+                cv::Mat p_dct;
+                cv::dct(part, p_dct);
+                cv::divide(p_dct, quant, p_dct);
+                cv::Mat p_round;
+                p_dct.convertTo(p_round, CV_16SC1);
+                p_round.convertTo(p_dct, CV_32FC1);
+                cv::multiply(p_dct, quant, p_dct);
+                cv::Mat p_filt;
+                cv::dct(p_dct, p_filt, cv::DCT_INVERSE);
+                // if (abs(cv::sum(p_filt)[0]) > 10){
+                //     printCvMat(p_filt, "filt");
+
+                //     cv::convertScaleAbs(p_filt, part_show);
+                //     cv::namedWindow("part_filt");
+                //     cv::imshow("part_filt", part_show);
+                //     cv::waitKey(0);
+                //     cv::destroyWindow("part_filt");
+                // }
+                p_filt.copyTo(img12_filt(cv::Rect(x, y, batchSize, batchSize)));
+            }
+        }
+        if (rows_add || cols_add){
+            img12_filt = img12_filt(cv::Rect(cv::Point(0, 0), img1.size()));
+        }
+        cv::Mat img_diff_res;
+        cv::convertScaleAbs(img12_filt, img_diff_res);
+#if DBG_SHOW_MASK_IMG_DIFFS == 1
+        cv::namedWindow("diff_dct");
+        cv::imshow("diff_dct", img_diff_res);
+#elif DBG_SHOW_MASK_IMG_DIFFS == 2
+        storeDebugImgToDisk(img_diff_res, folderName, DEBUG_IMG_STOREPATH, "mask_dct_" + info2, std::to_string(ci0.first) + "-" + std::to_string(ci0.second));
+#endif
+        int maxImgSi = max(img_diff_res.rows, img_diff_res.cols);
+        int kernelRadius = max(maxImgSi / 60, 6);
+        int kernelSize = 2 * kernelRadius + 1;
+        double sigma = 1.4 * static_cast<double>(kernelRadius);
+        cv::GaussianBlur(img_diff_res, img_diff_res, cv::Size(kernelSize, kernelSize), sigma);
+#if DBG_SHOW_MASK_IMG_DIFFS == 1
+        cv::namedWindow("diff_blurred");
+        cv::imshow("diff_blurred", img_diff_res);
+#elif DBG_SHOW_MASK_IMG_DIFFS == 2
+        storeDebugImgToDisk(img_diff_res, folderName, DEBUG_IMG_STOREPATH, "mask_gauss_" + info2, std::to_string(ci0.first) + "-" + std::to_string(ci0.second));
+#endif
+
+        cv::Mat mask;
+        double th = 15.0;
+        cv::threshold(img_diff_res, mask, th, 255.0, cv::ThresholdTypes::THRESH_BINARY);
+        int mask_area = cv::countNonZero(mask);
+        int full_area = mask.rows * mask.cols;
+        float mask_ratio = static_cast<float>(mask_area) / static_cast<float>(full_area);
+        if(mask_ratio < 0.2f){
+            th *= 0.7;
+            cv::Mat mask_fb;
+            cv::threshold(img_diff_res, mask_fb, th, 255.0, cv::ThresholdTypes::THRESH_BINARY);
+            int mask_area_fb = cv::countNonZero(mask_fb);
+            float mask_ratio_fb = static_cast<float>(mask_area_fb) / static_cast<float>(full_area);
+            if (mask_ratio_fb < 0.66f){
+                mask = mask_fb;
+            }
+        }
+        else if (mask_ratio > 0.8f)
+        {
+            th *= 1.33;
+            cv::Mat mask_fb;
+            cv::threshold(img_diff_res, mask_fb, th, 255.0, cv::ThresholdTypes::THRESH_BINARY);
+            int mask_area_fb = cv::countNonZero(mask_fb);
+            float mask_ratio_fb = static_cast<float>(mask_area_fb) / static_cast<float>(full_area);
+            if (mask_ratio_fb > 0.33f)
+            {
+                mask = mask_fb;
+            }
+        }
+#if DBG_SHOW_MASK_IMG_DIFFS == 1
+        cv::namedWindow("mask");
+        cv::imshow("mask", mask);
+#elif DBG_SHOW_MASK_IMG_DIFFS == 2
+        storeDebugImgToDisk(mask, folderName, DEBUG_IMG_STOREPATH, "mask_threshold_" + info2, std::to_string(ci0.first) + "-" + std::to_string(ci0.second));
+#endif
+
+        int minElemSi = maxImgSi / 16;
+        minElemSi *= minElemSi;
+        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(kernelSize, kernelSize), cv::Point(kernelRadius, kernelRadius));
+        cv::morphologyEx(mask, mask, cv::MORPH_CLOSE, kernel, cv::Point(-1, -1), 2);
+#if DBG_SHOW_MASK_IMG_DIFFS == 1
+        cv::namedWindow("mask_morph");
+        cv::imshow("mask_morph", mask);
+#elif DBG_SHOW_MASK_IMG_DIFFS == 2
+        storeDebugImgToDisk(mask, folderName, DEBUG_IMG_STOREPATH, "mask_morph_close_" + info2, std::to_string(ci0.first) + "-" + std::to_string(ci0.second));
+#endif
+        cv::Mat labels, stats, centroids;
+        cv::connectedComponentsWithStats(mask, labels, stats, centroids);
+        for (int i = 1; i < stats.rows; i++)
+        {
+            int area = stats.at<int>(cv::Point(cv::CC_STAT_AREA, i));
+            if (area < minElemSi){
+                int x_lu = stats.at<int>(cv::Point(cv::CC_STAT_LEFT, i));
+                int y_lu = stats.at<int>(cv::Point(cv::CC_STAT_TOP, i));
+                int w = stats.at<int>(cv::Point(cv::CC_STAT_WIDTH, i));
+                int h = stats.at<int>(cv::Point(cv::CC_STAT_HEIGHT, i));
+                for (int y = y_lu; y < y_lu + h; y++)
+                {
+                    for (int x = x_lu; x < x_lu + w; x++)
+                    {
+                        if (labels.at<int>(y, x) == i){
+                            mask.at<unsigned char>(y, x) = 0;
+                        }
+                    }
+                }
+            }
+        }
+#if DBG_SHOW_MASK_IMG_DIFFS == 1
+        cv::namedWindow("mask_final");
+        cv::imshow("mask_final", mask);
+        cv::waitKey(0);
+        cv::destroyWindow("diff");
+        cv::destroyWindow("diff_dct");
+        cv::destroyWindow("diff_blurred");
+        cv::destroyWindow("mask");
+        cv::destroyWindow("mask_morph");
+        cv::destroyWindow("mask_final");
+        cv::destroyWindow("img1");
+        cv::destroyWindow("img2");
+#elif DBG_SHOW_MASK_IMG_DIFFS == 2
+        storeDebugImgToDisk(mask, folderName, DEBUG_IMG_STOREPATH, "mask_final_" + info2, std::to_string(ci0.first) + "-" + std::to_string(ci0.second));
+#endif
+        return mask;
+    }
+
+    void storeDebugImgToDisk(const cv::Mat &img, const std::string &folder, const std::string &main_path_store, const std::string &base_name, const std::string &img_name, const bool overwrite_existing)
+    {
+        std::string path_store = FileHelper::joinPaths(main_path_store, folder);
+        FileHelper::ensureDirectoryExists(path_store);
+        string filename = base_name + "_" + img_name + ".png";
+        filename = FileHelper::joinPaths(path_store, filename);
+        if (!overwrite_existing && FileHelper::fileExists(filename))
+        {
+            int cnt = 0;
+            do
+            {
+                cnt++;
+                filename = base_name + "_iter" + std::to_string(cnt) + "_" + img_name + ".png";
+                filename = FileHelper::joinPaths(path_store, filename);
+            } while (FileHelper::fileExists(filename));
+        }
+        vector<int> params;
+        params.emplace_back(cv::ImwriteFlags::IMWRITE_PNG_COMPRESSION);
+        params.emplace_back(8);
+        cv::imwrite(filename, img, params);
+    }
+
+    void displayCircle(const std::vector<cv::Point2d> &pts, const cv::Point2d &center, const double &radius)
+    {
+        vector<double> x, y;
+        for (const auto &pt : pts)
+        {
+            x.emplace_back(pt.x);
+            y.emplace_back(pt.y);
+        }
+        x.emplace_back(center.x + radius);
+        y.emplace_back(center.y + radius);
+        x.emplace_back(center.x - radius);
+        y.emplace_back(center.y - radius);
+        const double minx = *std::min_element(x.begin(), x.end());
+        const double maxx = *std::max_element(x.begin(), x.end());
+        const double miny = *std::min_element(y.begin(), y.end());
+        const double maxy = *std::max_element(y.begin(), y.end());
+        const double scalex = 500.0 / abs(maxx - minx);
+        const double scaley = 500.0 / abs(maxy - miny);
+        const double scale = min(scalex, scaley);
+        const double xshift = -1. * scale * minx + 25.;
+        const double yshift = -1. * scale * miny + 25.;
+        vector<cv::Point2i> ptsi;
+        for (const auto &pt : pts)
+        {
+            cv::Point2i p;
+            p.x = static_cast<int>(round(xshift + scale * pt.x));
+            p.y = static_cast<int>(round(yshift + scale * pt.y));
+            ptsi.emplace_back(move(p));
+        }
+        cv::Point2i c;
+        c.x = static_cast<int>(round(xshift + scale * center.x));
+        c.y = static_cast<int>(round(yshift + scale * center.y));
+        const int ri = static_cast<int>(round(scale * radius));
+        cv::Mat img = cv::Mat::zeros(550, 550, CV_8UC3);
+        img.setTo(cv::Scalar(255, 255, 255));
+        cv::circle(img, c, ri, cv::Scalar(0, 0, 255));
+        cv::circle(img, c, 5, cv::Scalar(0, 0, 255), cv::FILLED);
+        int cnt = 0;
+        for (const auto &pt : ptsi)
+        {
+            int blue = (cnt * 64) % 255;
+            int green = max(((cnt - 4) * 64) % 255, 0);
+            int red = max(((cnt - 8) * 64) % 255, 0);
+            blue = (green > 1 || red > 1) ? 0 : blue;
+            green = (red > 1) ? 0 : green;
+            cv::circle(img, pt, 3, cv::Scalar(blue, green, red), cv::FILLED);
+            cnt++;
+            cnt = cnt % 12;
+        }
+        cv::namedWindow("circle_with_points");
+        cv::imshow("circle_with_points", img);
+        cv::waitKey(0);
+        cv::destroyWindow("circle_with_points");
     }
 }

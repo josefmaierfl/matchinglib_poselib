@@ -137,6 +137,15 @@ struct MATCHINGLIB_API AffineMatchesFilterData{
 };
 
 void MATCHINGLIB_API scaleEqualizeImg(const cv::Mat &img_in, cv::Mat &img_out, const double &img_scaling, const bool equalizeImg = true);
+// Image Shadow / Highlight Correction
+cv::Mat MATCHINGLIB_API shadowHighlightCorrection(cv::InputArray img, 
+                                                  const float &shadow_amount_percent, 
+                                                  const float &shadow_tone_percent, 
+                                                  const int &shadow_radius, 
+                                                  const float &highlight_amount_percent, 
+                                                  const float &highlight_tone_percent, 
+                                                  const int &highlight_radius, 
+                                                  const bool histEqual = true);
 
 std::string MATCHINGLIB_API getIDfromImages(const std::vector<cv::Mat> &imgs);
 std::string getIDfromImages(const std::unordered_map<int, cv::Mat> &images);
@@ -183,8 +192,7 @@ public:
     std::unordered_map<int, std::pair<cv::Mat, cv::Mat>>& getImgsAndMasksRef();
 
     cv::Size getImgSize() const;
-    int getNrRealCams();
-    int getNrVirtualCams();
+    int getNrCams();
 
     void getRawKeypoints(std::unordered_map<std::string, std::unordered_map<int, std::vector<cv::KeyPoint>>> &raw_keypoints);
     void moveRawKeypoints(std::unordered_map<std::string, std::unordered_map<int, std::vector<cv::KeyPoint>>> &raw_keypoints);
@@ -198,21 +206,12 @@ public:
     void moveFinalFeatures(std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &features);
     std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &getFinalFeaturesRef();
 
-    void getFinalMatches(std::unordered_map<int, MatchData> &matches);
-    void moveFinalMatches(std::unordered_map<int, MatchData> &matches);
-    std::unordered_map<int, MatchData> &getFinalMatchesRef();
+    void getFinalMatches(std::unordered_map<std::pair<int, int>, MatchData, pair_hash, pair_EqualTo> &matches);
+    void moveFinalMatches(std::unordered_map<std::pair<int, int>, MatchData, pair_hash, pair_EqualTo> &matches);
+    std::unordered_map<std::pair<int, int>, MatchData, pair_hash, pair_EqualTo> &getFinalMatchesRef();
 
-    void getRealVirtualCamIdxs(std::vector<std::pair<int, int>> &rv_indices); //Virtual: based on manikin rotation, Real: Physically real cameras, Contains all possible indices
-    std::vector<std::pair<int, int>> &getRealVirtualCamIdxs();
-    
-    void getAvailableRealVirtualCamIdxs(std::unordered_map<int, std::unordered_set<int>> &available_indices); //Contains only available (based on loaded images and masks) real and virtual cameras; first value (map): real camera, second value (set): virtual camera
-    std::unordered_map<int, std::unordered_set<int>> &getAvailableRealVirtualCamIdxs();
-
-    void getRealCamPairs(std::vector<std::pair<int, int>> &pair_indices);                                     //Pair: Real cameras forming stereo pairs
-    std::vector<std::pair<int, int>> &getRealCamPairs();
-
-    void getUsedMatchIndicesRealVirtual(std::vector<std::tuple<int, int, int, int>> &matchIndices); // Used images for matching, in the following order: 1st image (real cam idx, virtual cam idx), 2nd image (real cam idx, virtual cam idx)
-    std::vector<std::tuple<int, int, int, int>> &getUsedMatchIndicesRealVirtual();
+    void getCamPairs(std::vector<std::pair<int, int>> &pair_indices); //Pair: Cameras forming stereo pairs
+    std::vector<std::pair<int, int>> &getCamPairs();
 
     void getFullMatchingData(MatchDataCams &data);
     void moveFullMatchingData(MatchDataCams &data);
@@ -294,8 +293,6 @@ private:
 
     bool getMatches(const bool affineInvariant);
     void applyMaskToFeatures(bool invertMask, std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &kp_descr_out);
-    double getFeatureInMaskRatio(bool invertMask = false);
-    void getBalancedNrKeypointsMaskedAreas(const int &kpCntLimitGlob);
     void getMatchesThreadFunc(const int startIdx, 
                               const int endIdx, 
                               const std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> *kp_descr_in, 
@@ -317,12 +314,8 @@ private:
     void filterKeypointsClassIDAffineThreadFunc(const int startIdx, 
                                                 const int endIdx, 
                                                 const std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &kp_descr_in, 
-                                                std::unordered_map<std::pair<int, int>, std::vector<cv::DMatch>, pair_hash, pair_EqualTo> &matches_in, 
+                                                const std::unordered_map<std::pair<int, int>, std::vector<cv::DMatch>, pair_hash, pair_EqualTo> &matches_in, 
                                                 AffineMatchesFilterData &data);
-    void generateMotionMasks();
-    void generateMotionMasksThreadFunc(const int startIdx, const int endIdx);
-    cv::Mat combine2FlowsCreateMask(const int &camIdx, const int &imgIdxStart, const double &scale);
-    cv::Mat combineDiffMasks(const int &camIdx, const int &imgIdxStart, const double &scale);
     bool findAdditionalKeypointsLessTexture();
     void prepareImgsLessTextureThreadFunc(const int startIdx, 
                                           const int endIdx, 
@@ -347,7 +340,6 @@ private:
     std::unordered_map<int, std::pair<std::string, std::string>> img_mask_names;
     std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> imageMap;
     std::vector<int> indices;
-    // std::unordered_map<int, std::unordered_set<int>> indices_available;
     std::vector<std::pair<std::string, int>> indices_kp;
     // KEYPOINT_TYPES: camera index: vector of keypoints
     std::unordered_map<std::string, std::unordered_map<int, std::vector<cv::KeyPoint>>> init_keypoints;
@@ -357,7 +349,7 @@ private:
     std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> keypoints_descriptors;
     std::vector<std::pair<int, int>> cam_pair_idx;
     // first cam camera index, second cam camera index: all matches - filtered
-    std::unordered_map<std::pair<int, int>, MatchData> matches_filt;
+    std::unordered_map<std::pair<int, int>, MatchData, pair_hash, pair_EqualTo> matches_filt;
     std::string imgs_ID;
 };
 

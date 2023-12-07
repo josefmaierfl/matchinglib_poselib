@@ -101,8 +101,8 @@ namespace matchinglib
             CV_WRAP virtual void setImgInfoStr(const std::string &img_info) = 0;
         };
 
-        typedef MATCHINGLIB_API AffineFeature AffineFeatureDetector;
-        typedef MATCHINGLIB_API AffineFeature AffineDescriptorExtractor;
+        // typedef MATCHINGLIB_API AffineFeature AffineFeatureDetector;
+        // typedef MATCHINGLIB_API AffineFeature AffineDescriptorExtractor;
 
         class MATCHINGLIB_API ORB : public Feature2DAsync
         {

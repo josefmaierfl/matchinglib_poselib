@@ -91,4 +91,8 @@ namespace matchinglib
   bool MATCHINGLIB_API IsBinaryDescriptor(const std::string &type);
   std::vector<std::string> MATCHINGLIB_API GetBinaryDescriptorTypes();
 
+  // returns one of the supportet detectors
+  cv::Ptr<cv::FeatureDetector> createDetector(std::string const& keypointtype, int const limitNrfeatures = 10000);
+  cv::Ptr<cv::DescriptorExtractor> createExtractor(std::string const& descriptortype, std::string const& keypointtype = "", const int &nrFeaturesMax = 2000);
+
 } // namepace matchinglib

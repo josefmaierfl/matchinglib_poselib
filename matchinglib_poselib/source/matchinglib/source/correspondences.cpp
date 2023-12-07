@@ -29,6 +29,7 @@
 #include "gms.h"
 #include "alphanum.hpp"
 #include "matchinglib/random_numbers.h"
+#include "FileHelper.h"
 #include <trees.h>
 #include <thread>
 #include <chrono>
@@ -57,8 +58,12 @@
 
 #define USE_CLAHE_FOR_HIST_EQU 1
 
+//values for defines: 1 ... Show in window, 2 ... More details
 #define DBG_SHOW_MATCHES 0
 #define DBG_SHOW_KEYPOINTS 0
+#define DBG_SHOW_KP_FILT_MASK 0
+#define DBG_SHOW_KEYPOINTS_FILTERED 0
+#define DBG_SHOW_ADDITIONAL_KP_GEN 0
 
 using namespace cv;
 using namespace std;
@@ -86,6 +91,7 @@ namespace matchinglib
                           const int &img2_idx, 
                           const size_t &nrMatchesLimit = 0);
 #endif
+#if DBG_SHOW_KEYPOINTS || DBG_SHOW_KP_FILT_MASK || DBG_SHOW_KEYPOINTS_FILTERED || DBG_SHOW_ADDITIONAL_KP_GEN
   void visualizeKeypoints(const cv::Mat &img, 
                           const std::vector<cv::KeyPoint> &keypoints, 
                           const std::string &img_name, 
@@ -99,9 +105,10 @@ namespace matchinglib
   void visualizeKeypoints(const std::unordered_map<std::string, std::unordered_map<int, std::vector<cv::KeyPoint>>> &init_keypoints, 
                           const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &imageMap, 
                           const std::string &descriptor_type = "");
+#endif
+#if DBG_SHOW_KP_FILT_MASK
   void visualizeImg(const cv::Mat &img, const std::string &img_baseName, const int img_idx);
-  cv::Ptr<cv::FeatureDetector> createDetector(const string &keypointtype, const int limitNrfeatures = 10000);
-  cv::Ptr<cv::DescriptorExtractor> createExtractor(std::string const &descriptortype, std::string const &keypointtype, const int &nrFeaturesMax = 2000);
+#endif
 #ifdef WITH_AKAZE_CUDA
   cv::Ptr<cv::cuda::Feature2DAsync> createCudaDetector(const string &keypointtype, const int limitNrfeatures = 10000);
   cv::Ptr<cv::cuda::Feature2DAsync> createCudaExtractor(std::string const &descriptortype, const int &nrFeaturesMax = 2000);
@@ -809,6 +816,142 @@ namespace matchinglib
     return true;
   }
 
+    /* Image Shadow / Highlight Correction. The same function as it in Photoshop / GIMP
+     * adapted version of https://gist.github.com/HViktorTsoi/8e8b0468a9fb07842669aa368382a7df
+     * img: input greyscale image
+     * shadow_amount_percent [0.0 ~ 1.0]: Controls (separately for the highlight and shadow values in the image) how much of a correction to make.
+     * shadow_tone_percent [0.0 ~ 1.0]: Controls the range of tones (image brightness values, i.e. 0 to shadow_tone_percent * 255) in the shadows that are modified.
+     * shadow_radius [>0]: Controls the size of the local neighborhood around each pixel
+     * highlight_amount_percent [0.0 ~ 1.0]: Controls (separately for the highlight and shadow values in the image) how much of a correction to make.
+     * highlight_tone_percent [0.0 ~ 1.0]: Controls the range of tones (image brightness values, i.e. 255 - highlight_tone_percent * 255 to 255) in the highlights that are modified.
+     * highlight_radius [>0]: Controls the size of the local neighborhood around each pixel
+     * histEqual: If true, histogram equalization is performed afterwards
+     */
+    cv::Mat shadowHighlightCorrection(cv::InputArray img, const float &shadow_amount_percent, const float &shadow_tone_percent, const int &shadow_radius, const float &highlight_amount_percent, const float &highlight_tone_percent, const int &highlight_radius, const bool histEqual)
+    {
+        const cv::Mat img_in = img.getMat();
+        CV_Assert(img_in.type() == CV_8UC1);
+        CV_Assert(shadow_amount_percent >= 0 && shadow_amount_percent <= 1.f && shadow_tone_percent >= 0 && shadow_tone_percent <= 1.f);
+        CV_Assert(highlight_amount_percent >= 0 && highlight_amount_percent <= 1.f && highlight_tone_percent >= 0 && highlight_tone_percent <= 1.f);
+        CV_Assert(shadow_radius > 0 && shadow_radius < std::min(img_in.rows, img_in.cols) / 4);
+        CV_Assert(highlight_radius > 0 && highlight_radius < std::min(img_in.rows, img_in.cols) / 4);
+        const float shadow_tone = shadow_tone_percent * 255.f;//0...1 -> 0...255
+        const float highlight_tone = 255.f - highlight_tone_percent * 255.f; // 0...1 -> 255...0
+
+        const float shadow_gain = 1.f + shadow_amount_percent * 6.f;// 0...1 -> 1...7
+        const float highlight_gain = 1.f + highlight_amount_percent * 6.f;//0...1 -> 1...7
+
+        // Convert img to float
+        cv::Mat img_flt;
+        img_in.convertTo(img_flt, CV_32FC1);
+        const cv::Size imgSi = img_in.size();
+
+        // extract shadow
+        // darkest regions get highest values, img values > shadow_tone -> 0, range: 0...shadow_tone -> 255...0
+        cv::Mat shadow_map = 255.f - (img_flt * 255.f) / shadow_tone;
+        // cv::Mat shadow_map = 255.f - img_flt / shadow_tone;
+        for (int y = 0; y < imgSi.height; y++)
+        {
+            for (int x = 0; x < imgSi.width; x++)
+            {
+                if (img_flt.at<float>(y, x) >= shadow_tone)
+                {
+                    shadow_map.at<float>(y, x) = 0.f;
+                }
+            }
+        }
+
+        // extract highlight
+        // brightest regions get highest values, img values < highlight_tone -> 0, range highlight_tone...255 -> 0...255
+        cv::Mat highlight_map = 255.f - ((255.f - img_flt) * 255.f) / (255.f - highlight_tone);
+        // cv::Mat highlight_map = 255.f - (255.f - img_flt) / (255.f - highlight_tone);
+        for (int y = 0; y < imgSi.height; y++)
+        {
+            for (int x = 0; x < imgSi.width; x++)
+            {
+                if (img_flt.at<float>(y, x) <= highlight_tone)
+                {
+                    highlight_map.at<float>(y, x) = 0.f;
+                }
+            }
+        }
+
+        // Gaussian blur on tone map, for smoother transition
+        if (shadow_amount_percent * static_cast<float>(shadow_radius) > 0.f)
+        {
+            cv::blur(shadow_map, shadow_map, cv::Size(shadow_radius, shadow_radius));
+        }
+        if (highlight_amount_percent * static_cast<float>(highlight_radius) > 0.f)
+        {
+            cv::blur(highlight_map, highlight_map, cv::Size(highlight_radius, highlight_radius));
+        }
+
+        // Tone LUT
+        std::vector<float> t(256);
+        std::iota(t.begin(), t.end(), 0);
+        std::vector<float> lut_shadow, lut_highlight;
+        const float m1 = 1.f / 255.f;
+        for (size_t i = 0; i < 256; i++)
+        {
+            const float im1 = static_cast<float>(i) * m1;
+            const float pwr = std::pow(1.f - im1, shadow_gain); //(1 - i / 255)^shadow_gain: 1...0
+            float ls = (1.f - pwr) * 255.f;//0...255
+            ls = std::max(0.f, std::min(255.f, std::round(ls)));
+            lut_shadow.emplace_back(std::move(ls));
+
+            float lh = std::pow(im1, highlight_gain) * 255.f; //(i / 255)^highlight_gain: 0...255
+            lh = std::max(0.f, std::min(255.f, std::round(lh)));
+            lut_highlight.emplace_back(std::move(lh));
+        }
+
+        // adjust tone
+        shadow_map = shadow_map * m1;//0...1
+        highlight_map = highlight_map * m1;//0...1
+
+        cv::Mat shadow_map_tone1 = cv::Mat::zeros(imgSi, shadow_map.type());
+        for (int y = 0; y < imgSi.height; y++)
+        {
+            for (int x = 0; x < imgSi.width; x++)
+            {
+                const unsigned char &vi = img_in.at<unsigned char>(y, x);
+                const float &ls = lut_shadow.at(vi);
+                shadow_map_tone1.at<float>(y, x) = ls * shadow_map.at<float>(y, x); //[0...255] * [0...1] -> [0...255]
+            }
+        }
+        cv::Mat shadow_map_tone2 = 1.f - shadow_map;     // 1...0, 1 for all pixel values > shadow_tone
+        shadow_map_tone2 = shadow_map_tone2.mul(img_flt); //[1...0] * [0...255], pixel values > shadow_tone remain untouched
+        shadow_map_tone1 += shadow_map_tone2;
+
+        cv::Mat highlight_map_tone1 = cv::Mat::zeros(imgSi, shadow_map.type());
+        for (int y = 0; y < imgSi.height; y++)
+        {
+            for (int x = 0; x < imgSi.width; x++)
+            {
+                const unsigned char vi = static_cast<unsigned char>(std::max(0.f, std::min(std::round(shadow_map_tone1.at<float>(y, x)), 255.f)));
+                const float &lh = lut_highlight.at(vi);
+                highlight_map_tone1.at<float>(y, x) = lh * highlight_map.at<float>(y, x);
+            }
+        }
+        cv::Mat highlight_map_tone2 = 1.f - highlight_map;
+        highlight_map_tone2 = highlight_map_tone2.mul(shadow_map_tone1);
+        shadow_map_tone1 = highlight_map_tone2 + highlight_map_tone1;
+        cv::convertScaleAbs(shadow_map_tone1, shadow_map_tone1);
+        // cv::imshow("other", shadow_map_tone1);
+
+        cv::Mat histequ;
+        if (histEqual)
+        {
+            cv::equalizeHist(shadow_map_tone1, histequ);
+            // cv::imshow("other2", histequ);
+        }
+        else
+        {
+            histequ = shadow_map_tone1;
+        }
+
+        return histequ;
+    }
+
   bool getMatch3Corrs(const cv::Point2f &pt1, const cv::Point2f &pt2, const cv::Mat &F1, const cv::Mat &F2, const cv::Mat descr1, const cv::Mat descr2, const FeatureKDTree &ft, cv::Mat &descr3, cv::Point2f &pt3, const double &descr_dist_max, const float r_sqrd)
   {
     // Two matching feature positions in 2 cams (c1, c2)
@@ -1341,7 +1484,6 @@ namespace matchinglib
       kp_str += descriptor_type_;
       visualizeKeypoints(keypoints_descriptors, imageMap, kp_str);
 #endif
-      generateMotionMasks();
       findAdditionalKeypointsLessTexture();
       return getMatches(affineInvariant);
   }
@@ -3670,5 +3812,965 @@ namespace matchinglib
           }
       }
   }
+
+    bool Matching::findAdditionalKeypointsLessTexture()
+    {
+        auto startTime = std::chrono::steady_clock::now();
+        std::vector<int> camImgIdxsSearchAddKp;
+        std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> imageMap_boosted;
+        unordered_map<int, cv::Rect> imgROIs;
+
+        unordered_map<int, cv::Mat> descr_add;
+        unordered_map<int, std::vector<cv::KeyPoint>> keypoints_add;
+
+        for (int c = 0; c < largest_cam_idx; c++)
+        {
+            if (imageMap.find(c) == imageMap.end())
+            {
+                continue;
+            }
+            imageMap_boosted.emplace(c, std::make_pair(cv::Mat(), cv::Mat()));
+            imgROIs.emplace(c, cv::Rect());
+            camImgIdxsSearchAddKp.emplace_back(c);
+        }
+
+        if (!camImgIdxsSearchAddKp.empty())
+        {
+            std::vector<std::thread> threads;
+            const unsigned imgsCount = camImgIdxsSearchAddKp.size();
+    #if DBG_SHOW_ADDITIONAL_KP_GEN
+            unsigned threadCount = 1;
+    #else
+            unsigned threadCount = std::min(imgsCount, static_cast<unsigned>(cpuCnt));
+    #endif
+            unsigned batchSize = std::ceil(imgsCount / static_cast<float>(threadCount));
+            getThreadBatchSize(imgsCount, threadCount, batchSize);
+
+            for (unsigned int i = 0; i < threadCount; ++i)
+            {
+                const int startIdx = i * batchSize;
+                const int endIdx = std::min((i + 1u) * batchSize, imgsCount);
+                threads.push_back(std::thread(std::bind(&Matching::prepareImgsLessTextureThreadFunc, this, startIdx, endIdx, std::ref(camImgIdxsSearchAddKp), std::ref(imageMap_boosted), std::ref(imgROIs))));
+            }
+
+            for (auto &t : threads)
+            {
+                if (t.joinable())
+                {
+                    t.join();
+                }
+            }
+
+            //Remove empty entries
+            std::vector<int> camIdxsSearchAddKp_filtered;
+            size_t detect_area = 0;
+            for (const auto &c : camImgIdxsSearchAddKp)
+            {
+                if (imageMap_boosted.at(c).first.empty()){
+                    imgROIs.erase(c);
+                    imageMap_boosted.erase(c);
+                }else{
+                    camIdxsSearchAddKp_filtered.emplace_back(c);
+                    detect_area += static_cast<size_t>(cv::countNonZero(imageMap_boosted.at(c).second));
+                }
+            }
+            if (camIdxsSearchAddKp_filtered.empty())
+            {
+                return false;
+            }
+            detect_area /= camIdxsSearchAddKp_filtered.size();
+            cv::Size imgSi = imageMap.begin()->second.first.size();
+            double area_ratio = static_cast<double>(detect_area) / static_cast<double>(imgSi.area());
+            int nrKeyPointsMaxFull = getMaxNrFeatures(affineInvariantUsed);
+            int nr_kp_max = max(static_cast<int>(std::round(static_cast<double>(nrKeyPointsMaxFull) * area_ratio)), 2000);
+
+            //Extract keypoints
+            std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> keypoints_descriptors_new;
+            std::unordered_map<std::string, std::unordered_map<int, std::vector<cv::KeyPoint>>> init_keypoints_new;
+            std::unordered_map<int, std::vector<cv::KeyPoint>> keypoints_combined_new;
+
+            bool res = computeFeaturesOtherImgs(imageMap_boosted, camIdxsSearchAddKp_filtered, keypoints_descriptors_new, &init_keypoints_new, &keypoints_combined_new, nr_kp_max, true);
+            if(!res){
+                return false;
+            }
+
+            //Remove keypoints from masked areas and adapt keypoint positions based on ROIs
+            for(const auto &ci : camIdxsSearchAddKp_filtered){
+                const cv::Rect &roi = imgROIs.at(ci);
+                const cv::Point2f roi_add(static_cast<float>(roi.x), static_cast<float>(roi.y));
+                const cv::Mat mask = imageMap_boosted.at(ci).second;
+
+                std::vector<cv::KeyPoint> kps_filtered;
+                cv::Mat descr_filtered;
+                std::pair<std::vector<cv::KeyPoint>, cv::Mat> &features_ci = keypoints_descriptors_new.at(ci);
+                std::vector<cv::KeyPoint> &kps = features_ci.first;
+                cv::Mat &descr = features_ci.second;
+                for (int i = 0; i < descr.rows; i++)
+                {
+                    cv::KeyPoint kp = kps.at(i);
+                    int x = static_cast<int>(round(kp.pt.x));
+                    int y = static_cast<int>(round(kp.pt.y));
+                    if(mask.at<unsigned char>(y, x))
+                    {
+                        kp.pt += roi_add;
+                        kps_filtered.emplace_back(move(kp));
+                        descr_filtered.push_back(descr.row(i));
+                    }
+                }
+                if (!kps_filtered.empty())
+                {
+                    kps = move(kps_filtered);
+                    descr_filtered.copyTo(descr);
+                }
+                else{
+                    keypoints_descriptors_new.erase(ci);
+                    auto kp_init_it = init_keypoints_new.begin();
+                    while (kp_init_it != init_keypoints_new.end())
+                    {
+                        kp_init_it->second.erase(ci);
+                        if (kp_init_it->second.empty())
+                        {
+                            kp_init_it = init_keypoints_new.erase(kp_init_it);
+                        }
+                        else
+                        {
+                            kp_init_it++;
+                        }
+                    }
+                    keypoints_combined_new.erase(ci);
+                    continue;
+                }
+
+                auto kp_init_it = init_keypoints_new.begin();
+                while (kp_init_it != init_keypoints_new.end())
+                {
+                    std::vector<cv::KeyPoint> &kps_init = kp_init_it->second.at(ci);
+                    std::vector<cv::KeyPoint> kps_init_filtered;
+                    for (size_t i = 0; i < kps_init.size(); i++)
+                    {
+                        cv::KeyPoint kp = kps_init.at(i);
+                        int x = static_cast<int>(round(kp.pt.x));
+                        int y = static_cast<int>(round(kp.pt.y));
+                        if (mask.at<unsigned char>(y, x))
+                        {
+                            kp.pt += roi_add;
+                            kps_init_filtered.emplace_back(move(kp));
+                        }
+                    }
+                    if (!kps_init_filtered.empty())
+                    {
+                        kps_init = move(kps_init_filtered);
+                        kp_init_it++;
+                    }
+                    else
+                    {
+                        kp_init_it->second.erase(ci);
+                        if (kp_init_it->second.empty())
+                        {
+                            kp_init_it = init_keypoints_new.erase(kp_init_it);
+                        }
+                        else{
+                            kp_init_it++;
+                        }
+                    }
+                }
+
+                std::vector<cv::KeyPoint> &kps_comb = keypoints_combined_new.at(ci);
+                std::vector<cv::KeyPoint> kps_comb_filtered;
+                for (size_t i = 0; i < kps_comb.size(); i++)
+                {
+                    cv::KeyPoint kp = kps_comb.at(i);
+                    int x = static_cast<int>(round(kp.pt.x));
+                    int y = static_cast<int>(round(kp.pt.y));
+                    if (mask.at<unsigned char>(y, x))
+                    {
+                        kp.pt += roi_add;
+                        kps_comb_filtered.emplace_back(move(kp));
+                    }
+                }
+                if (!kps_comb_filtered.empty())
+                {
+                    kps_comb = move(kps_comb_filtered);
+                }
+                else
+                {
+                    keypoints_combined_new.erase(ci);
+                }
+            }
+
+            //Add keypoints to global (class) data structures
+            for (const auto &kp_descr : keypoints_descriptors_new)
+            {
+                std::pair<std::vector<cv::KeyPoint>, cv::Mat> &features_ci = keypoints_descriptors.at(kp_descr.first);
+                features_ci.first.insert(features_ci.first.end(), kp_descr.second.first.begin(), kp_descr.second.first.end());
+                features_ci.second.push_back(kp_descr.second.second);
+            }
+            for (const auto &kp_type : init_keypoints_new)
+            {
+                std::unordered_map<int, std::vector<cv::KeyPoint>> &kps_type = init_keypoints.at(kp_type.first);
+                for (const auto &kps : kp_type.second){
+                    std::vector<cv::KeyPoint> &kps_ci = kps_type.at(kps.first);
+                    kps_ci.insert(kps_ci.end(), kps.second.begin(), kps.second.end());
+                }
+            }
+            for (const auto &kp_comb : keypoints_combined_new)
+            {
+                std::vector<cv::KeyPoint> &kps_ci = keypoints_combined.at(kp_comb.first);
+                kps_ci.insert(kps_ci.end(), kp_comb.second.begin(), kp_comb.second.end());
+            }
+        }
+        auto kpadd_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - startTime).count();
+        cout << "Search for additional keypoints in uniform image regions took " << kpadd_time_ms / 1e3 << " seconds." << endl;
+
+        return true;
+    }
+
+    void Matching::prepareImgsLessTextureThreadFunc(const int startIdx, 
+                                                    const int endIdx, 
+                                                    const std::vector<int> &camImgIdxsSearchAddKp, 
+                                                    std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &imageMap_boosted, 
+                                                    std::unordered_map<int, cv::Rect> &imgROIs)
+    {
+        for (int i = startIdx; i < endIdx; i++)
+        {
+            const int &ci1 = camImgIdxsSearchAddKp.at(i);
+            const cv::Size imgSi = imageMap.at(ci1).first.size();
+            const int maxImgSi = max(imgSi.width, imgSi.height);
+            const int kernelRadius = max(maxImgSi / 70, 5);
+            const int kernelSize = 2 * kernelRadius + 1;
+            const cv::Mat maskm = imageMap.at(ci1).second;
+            cv::Mat maskkp = cv::Mat::zeros(maskm.size(), CV_8UC1);
+            int nr_kp_in_mask = 0;
+            //Generate mask with keypoint positions in masked areas of the motion mask
+            for (const auto &kp : keypoints_descriptors.at(ci1).first)
+            {
+                const cv::Point2f &pt = kp.pt;
+                int x = static_cast<int>(round(pt.x));
+                int y = static_cast<int>(round(pt.y));
+                if (maskm.at<unsigned char>(y, x))
+                {
+                    maskkp.at<unsigned char>(y, x) = 255;
+                    nr_kp_in_mask++;
+                }
+            }
+
+            // cv::namedWindow("mask_kp", cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO | cv::WINDOW_GUI_EXPANDED);
+            // cv::imshow("mask_kp", maskkp);
+            // cv::waitKey();
+            // cv::destroyWindow("mask_kp");
+
+            cv::Rect bound_out(0, 0, imgSi.width, imgSi.height);
+            cv::Mat mask_outer;
+            cv::Mat maskm_bound, img_bound;
+            //Get an image ROI on which to work on
+            if (nr_kp_in_mask > 50)
+            {
+                cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(kernelSize, kernelSize), cv::Point(kernelRadius, kernelRadius));
+                cv::morphologyEx(maskkp, maskkp, cv::MORPH_CLOSE, kernel, cv::Point(-1, -1), 1);
+                int mask_area0 = cv::countNonZero(maskm);
+                int mask_area_kp = cv::countNonZero(maskkp);
+                float ratio0 = 1.f - static_cast<float>(mask_area_kp) / static_cast<float>(mask_area0);
+                if (ratio0 < 0.33)
+                {
+                    continue;
+                }
+                cv::bitwise_xor(maskkp, maskm, mask_outer);
+                cv::bitwise_and(mask_outer, maskm, mask_outer);
+
+                //Remove small masked areas
+                cv::Mat labels, stats, centroids;
+                cv::connectedComponentsWithStats(mask_outer, labels, stats, centroids);
+                if (stats.rows > 5)
+                {
+                    std::set<int, std::greater<int>> comp_areas;
+                    for (int i = 1; i < stats.rows; i++)
+                    {
+                        comp_areas.emplace(stats.at<int>(cv::Point(cv::CC_STAT_AREA, i)));
+                    }
+                    int area_cnt = 0, area_last = 0;
+                    for(const auto &a: comp_areas){
+                        area_cnt++;
+                        if (area_cnt < 2)
+                        {
+                            area_last = a;
+                            continue;
+                        }
+
+                        float redu_fac = static_cast<float>(a) / static_cast<float>(area_last);
+                        if (redu_fac < 0.4f){
+                            break;
+                        }
+                        area_last = a;
+                        if (area_cnt > 20)
+                        {
+                            break;
+                        }
+                    }
+                    if (area_cnt < 20 && static_cast<size_t>(area_cnt) < comp_areas.size())
+                    {
+                        const int area_min = max(area_last / 10, 300);
+                        cv::Mat mask_filtered = mask_outer.clone();
+                        for (int i = 1; i < stats.rows; i++)
+                        {
+                            int area = stats.at<int>(cv::Point(cv::CC_STAT_AREA, i));
+                            if (area < area_last)
+                            {
+                                int x_lu = stats.at<int>(cv::Point(cv::CC_STAT_LEFT, i));
+                                int y_lu = stats.at<int>(cv::Point(cv::CC_STAT_TOP, i));
+                                int w = stats.at<int>(cv::Point(cv::CC_STAT_WIDTH, i));
+                                int h = stats.at<int>(cv::Point(cv::CC_STAT_HEIGHT, i));
+                                for (int y = y_lu; y < y_lu + h; y++)
+                                {
+                                    for (int x = x_lu; x < x_lu + w; x++)
+                                    {
+                                        if (labels.at<int>(y, x) == i)
+                                        {
+                                            mask_filtered.at<unsigned char>(y, x) = 0;
+                                            if (area < area_min)
+                                            {
+                                                mask_outer.at<unsigned char>(y, x) = 0;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+    #if DBG_SHOW_ADDITIONAL_KP_GEN == 1
+                        cv::namedWindow("mask_xor_orig", cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO | cv::WINDOW_GUI_EXPANDED);
+                        cv::namedWindow("mask_xor_filter", cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO | cv::WINDOW_GUI_EXPANDED);
+                        cv::imshow("mask_xor_orig", mask_outer);
+                        cv::imshow("mask_xor_filter", mask_filtered);
+                        cv::waitKey();
+                        cv::destroyWindow("mask_xor_orig");
+                        cv::destroyWindow("mask_xor_filter");
+    #endif
+                        bound_out = cv::boundingRect(mask_filtered);
+                    }
+                    else{
+                        bound_out = cv::boundingRect(mask_outer);
+                    }
+                }else{
+                    bound_out = cv::boundingRect(mask_outer);
+                }
+                mask_outer = mask_outer(bound_out);
+                maskm_bound = imageMap.at(ci1).second(bound_out).clone();
+                img_bound = imageMap.at(ci1).first(bound_out).clone();
+            }else{
+                maskm_bound = imageMap.at(ci1).second.clone();
+                img_bound = imageMap.at(ci1).first.clone();
+                mask_outer = maskm_bound;
+            }
+    #if DBG_SHOW_ADDITIONAL_KP_GEN == 1
+            cv::namedWindow("mask_orig_bound", cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO | cv::WINDOW_GUI_EXPANDED);
+            // cv::namedWindow("mask_kp_bound", cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO | cv::WINDOW_GUI_EXPANDED);
+            cv::namedWindow("mask_xor_bound", cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO | cv::WINDOW_GUI_EXPANDED);
+            cv::imshow("mask_orig_bound", maskm_bound);
+            cv::imshow("mask_xor_bound", mask_outer);
+            cv::waitKey();
+            cv::destroyWindow("mask_orig_bound");
+            cv::destroyWindow("mask_xor_bound");
+    #endif
+
+    #if DBG_SHOW_ADDITIONAL_KP_GEN
+            cv::namedWindow("highlight", cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO | cv::WINDOW_GUI_EXPANDED);
+    #if DBG_SHOW_ADDITIONAL_KP_GEN == 2
+            cv::namedWindow("parameters");
+    #endif
+            cv::namedWindow("input", cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO | cv::WINDOW_GUI_EXPANDED);
+            // cv::namedWindow("other", cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO | cv::WINDOW_GUI_EXPANDED);
+            // cv::namedWindow("other2", cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO | cv::WINDOW_GUI_EXPANDED);
+            cv::imshow("input", imageMap.at(ci1).first);
+    #endif
+
+            float shadow_amount_percent = 0.8f, shadow_tone_percent = 0.8f, highlight_amount_percent = 0.66f, highlight_tone_percent = 0.8f;
+            int shadow_radius = 5, highlight_radius = 5;
+            cv::Mat highlight_img;
+    #if DBG_SHOW_ADDITIONAL_KP_GEN == 2
+            int shadow_amount_percent_int = 80, shadow_tone_percent_int = 80, highlight_amount_percent_int = 66, highlight_tone_percent_int = 80;
+
+            cv::createTrackbar("shadow amount percent", "parameters", &shadow_amount_percent_int, 100);
+            cv::createTrackbar("shadow tone percent", "parameters", &shadow_tone_percent_int, 100);
+            cv::createTrackbar("highlight amount percent", "parameters", &highlight_amount_percent_int, 100);
+            cv::createTrackbar("highlight tone percent", "parameters", &highlight_tone_percent_int, 100);
+            cv::createTrackbar("shadow radius", "parameters", &shadow_radius, 50);
+            cv::createTrackbar("highlight radius", "parameters", &highlight_radius, 50);
+
+            while(true)
+            {
+                shadow_amount_percent = static_cast<float>(shadow_amount_percent_int) / 100.f;
+                shadow_tone_percent = static_cast<float>(shadow_tone_percent_int) / 100.f;
+                highlight_amount_percent = static_cast<float>(highlight_amount_percent_int) / 100.f;
+                highlight_tone_percent = static_cast<float>(highlight_tone_percent_int) / 100.f;
+    #endif
+
+                highlight_img = shadowHighlightCorrection(img_bound, shadow_amount_percent, shadow_tone_percent, shadow_radius + 1, highlight_amount_percent, highlight_tone_percent, highlight_radius + 1, true);
+
+    #if DBG_SHOW_ADDITIONAL_KP_GEN
+                cv::imshow("highlight", highlight_img);
+    #endif
+    #if DBG_SHOW_ADDITIONAL_KP_GEN == 2
+                char key = (char)cv::waitKey(30);
+                if (key == 'q' || key == 27)
+                {
+                    break;
+                }
+            }
+    #elif DBG_SHOW_ADDITIONAL_KP_GEN == 1
+            cv::waitKey();
+    #endif
+    #if DBG_SHOW_ADDITIONAL_KP_GEN
+            cv::destroyAllWindows();
+    #endif
+    #if DBG_SHOW_ADDITIONAL_KP_GEN == 2
+            cout << "shadow amount: " << shadow_amount_percent_int << endl;
+            cout << "shadow tone: " << shadow_tone_percent_int << endl;
+            cout << "shadow radius: " << shadow_radius + 1 << endl;
+            cout << "highlight amount: " << highlight_amount_percent_int << endl;
+            cout << "highlight tone: " << highlight_tone_percent_int << endl;
+            cout << "highlight radius: " << highlight_radius + 1 << endl;
+    #endif
+
+            //Blur unmasked image regions
+            cv::Mat blurred_img, blurred_mask, partly_blurred;
+            int kernelRadius2 = min(kernelRadius, 12);
+            int kernelSize2 = 2 * kernelRadius2 + 1;
+            cv::blur(highlight_img, blurred_img, cv::Size(kernelSize2, kernelSize2));
+            cv::blur(mask_outer, blurred_mask, cv::Size(kernelSize2, kernelSize2));
+
+            cv::Mat blurred_mask1, blurred_mask1_inv;
+            blurred_mask.convertTo(blurred_mask1, CV_32FC1, 1.0 / 255.0);
+            blurred_mask1_inv = 1.f - blurred_mask1;
+
+            cv::Mat blurred_img_flt, highlight_img_flt;
+            blurred_img.convertTo(blurred_img_flt, CV_32FC1);
+            highlight_img.convertTo(highlight_img_flt, CV_32FC1);
+
+            partly_blurred = blurred_img_flt.mul(blurred_mask1_inv);
+            partly_blurred += highlight_img_flt.mul(blurred_mask1);
+            cv::convertScaleAbs(partly_blurred, partly_blurred);
+#if DBG_SHOW_ADDITIONAL_KP_GEN == 1
+            cv::namedWindow("partly_blurred", cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO | cv::WINDOW_GUI_EXPANDED);
+            cv::imshow("partly_blurred", partly_blurred);
+            cv::waitKey();
+            cv::destroyWindow("partly_blurred");
+#endif
+            //Store results
+            imgROIs.at(ci1) = bound_out;
+            std::pair<cv::Mat, cv::Mat> &res = imageMap_boosted.at(ci1);
+            partly_blurred.copyTo(res.first);
+            mask_outer.copyTo(res.second);
+        }
+    }
+
+    void Matching::getImgsAndMasks(std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &images){
+        images = imageMap;
+    }
+
+    void Matching::moveImgsAndMasks(std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &images){
+        images = move(imageMap);
+    }
+
+    std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &Matching::getImgsAndMasksRef()
+    {
+        return imageMap;
+    }
+
+    cv::Size Matching::getImgSize() const
+    {
+        return imageMap.begin()->second.first.size();
+    }
+
+    int Matching::getNrCams()
+    {
+        return largest_cam_idx;
+    }
+
+    void Matching::getRawKeypoints(std::unordered_map<std::string, std::unordered_map<int, std::vector<cv::KeyPoint>>> &raw_keypoints)
+    {
+        raw_keypoints = init_keypoints;
+    }
+
+    void Matching::moveRawKeypoints(std::unordered_map<std::string, std::unordered_map<int, std::vector<cv::KeyPoint>>> &raw_keypoints)
+    {
+        raw_keypoints = move(init_keypoints);
+    }
+
+    std::unordered_map<std::string, std::unordered_map<int, std::vector<cv::KeyPoint>>> &Matching::getRawKeypointsRef()
+    {
+        return init_keypoints;
+    }
+
+    void Matching::getCombinedKeypoints(std::unordered_map<int, std::vector<cv::KeyPoint>> &kpts_combined)
+    {
+        kpts_combined = keypoints_combined;
+    }
+
+    void Matching::moveCombinedKeypoints(std::unordered_map<int, std::vector<cv::KeyPoint>> &kpts_combined)
+    {
+        kpts_combined = move(keypoints_combined);
+    }
+
+    std::unordered_map<int, std::vector<cv::KeyPoint>> &Matching::getCombinedKeypointsRef()
+    {
+        return keypoints_combined;
+    }
+
+    void Matching::getFinalFeatures(std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &features)
+    {
+        features = keypoints_descriptors;
+    }
+
+    void Matching::moveFinalFeatures(std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &features)
+    {
+        features = move(keypoints_descriptors);
+    }
+
+    std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &Matching::getFinalFeaturesRef()
+    {
+        return keypoints_descriptors;
+    }
+
+    void Matching::getFinalMatches(std::unordered_map<std::pair<int, int>, MatchData, pair_hash, pair_EqualTo> &matches)
+    {
+        matches = matches_filt;
+    }
+
+    void Matching::moveFinalMatches(std::unordered_map<std::pair<int, int>, MatchData, pair_hash, pair_EqualTo> &matches)
+    {
+        matches = move(matches_filt);
+    }
+
+    std::unordered_map<std::pair<int, int>, MatchData, pair_hash, pair_EqualTo> &Matching::getFinalMatchesRef()
+    {
+        return matches_filt;
+    }
+
+    void Matching::getCamPairs(std::vector<std::pair<int, int>> &pair_indices)
+    {
+        pair_indices = cam_pair_idx;
+    }
+
+    std::vector<std::pair<int, int>> &Matching::getCamPairs()
+    {
+        return cam_pair_idx;
+    }
+
+    void Matching::getFullMatchingData(MatchDataCams &data)
+    {
+        for (const auto &m : imageMap)
+        {
+            data.masks.emplace(m.first, m.second.second.clone());
+            data.images.emplace(m.first, m.second.first.clone());
+        }
+        data.features = keypoints_descriptors;
+        data.matches = matches_filt;
+        data.cam_pair_indices = cam_pair_idx;
+        data.nr_cameras = largest_cam_idx;
+        data.imgScale = img_scaling;
+    }
+
+    void Matching::moveFullMatchingData(MatchDataCams &data)
+    {
+        for (const auto &m : imageMap)
+        {
+            data.masks.emplace(m.first, move(m.second.second));
+            data.images.emplace(m.first, move(m.second.first));
+        }
+        data.features = move(keypoints_descriptors);
+        data.matches = move(matches_filt);
+        data.cam_pair_indices = move(cam_pair_idx);
+        data.nr_cameras = move(largest_cam_idx);
+        data.imgScale = move(img_scaling);
+    }
+
+    MatchDataCams Matching::getFullMatchingData()
+    {
+        MatchDataCams tmp;
+        for (auto &m : imageMap)
+        {
+            tmp.masks.emplace(m.first, m.second.second);
+            tmp.images.emplace(m.first, m.second.first);
+        }
+        tmp.features = keypoints_descriptors;
+        tmp.matches = matches_filt;
+        tmp.cam_pair_indices = cam_pair_idx;
+        tmp.nr_cameras = largest_cam_idx;
+        tmp.imgScale = img_scaling;
+        return tmp;
+    }
+
+    std::shared_ptr<MatchDataCams> Matching::getFullMatchingDataPtr()
+    {
+        return std::make_shared<MatchDataCams>(imageMap, keypoints_descriptors, matches_filt, cam_pair_idx, largest_cam_idx, img_scaling);
+    }
+
+    MatchDataCams Matching::moveFullMatchingData()
+    {
+        MatchDataCams tmp;
+        for (auto &m : imageMap)
+        {
+            tmp.masks.emplace(m.first, move(m.second.second));
+            tmp.images.emplace(m.first, move(m.second.first));
+        }
+        tmp.features = move(keypoints_descriptors);
+        tmp.matches = move(matches_filt);
+        tmp.cam_pair_indices = move(cam_pair_idx);
+        tmp.nr_cameras = move(largest_cam_idx);
+        tmp.imgScale = move(img_scaling);
+        return tmp;
+    }
+
+    void Matching::writeBinary(const std::string &filename) const
+    {
+        ofstream resultsToFile(filename, ios::out | ios::binary);
+        if (!resultsToFile.is_open())
+        {
+            throw runtime_error("Error creating output file for writing results.");
+        }
+
+        resultsToFile.write((char *)&largest_cam_idx, sizeof(largest_cam_idx));
+        resultsToFile.write((char *)&img_scaling, sizeof(img_scaling));
+        const cv::Size imgSi = getImgSize();
+        resultsToFile.write((char *)&imgSi, sizeof(imgSi));
+
+        size_t nr_values = cam_pair_idx.size();
+        resultsToFile.write((char *)&nr_values, sizeof(nr_values));
+        for (const auto &v : cam_pair_idx)
+        {
+            resultsToFile.write((char *)&v, sizeof(v));
+        }
+
+        nr_values = matches_filt.size();
+        resultsToFile.write((char *)&nr_values, sizeof(nr_values));
+        for (const auto &v : matches_filt)
+        {
+            resultsToFile.write((char *)&v.first, sizeof(v.first));
+            
+            const MatchData &data = v.second;
+            nr_values = data.matches.size();
+            resultsToFile.write((char *)&nr_values, sizeof(nr_values));
+            for (const auto &m : data.matches)
+            {
+                FileHelper::matchToBinary(resultsToFile, m);
+            }
+
+            FileHelper::keypointsToBinary(resultsToFile, data.kps1);
+            FileHelper::keypointsToBinary(resultsToFile, data.kps2);
+
+            FileHelper::cvMatToBinary(resultsToFile, data.descr1);
+            FileHelper::cvMatToBinary(resultsToFile, data.descr2);
+
+            bool mask_nempty = !data.inlier_mask.empty();
+            resultsToFile.write((char *)&mask_nempty, sizeof(mask_nempty));
+            if (mask_nempty)
+            {
+                FileHelper::cvMatToBinary(resultsToFile, data.inlier_mask);
+            }
+
+            resultsToFile.write((char *)&data.used_cnt, sizeof(data.used_cnt));
+        }
+
+        nr_values = keypoints_descriptors.size();
+        resultsToFile.write((char *)&nr_values, sizeof(nr_values));
+        for (const auto &f : keypoints_descriptors)
+        {
+            resultsToFile.write((char *)&f.first, sizeof(f.first));
+            FileHelper::keypointsToBinary(resultsToFile, f.second.first);
+            FileHelper::cvMatToBinary(resultsToFile, f.second.second);
+        }
+
+        resultsToFile.close();
+    }
+
+    void Matching::readBinary(const std::string &filename)
+    {
+        ifstream resultsFromFile(filename, ios::in | ios::binary);
+        if (!resultsFromFile.is_open())
+        {
+            throw runtime_error("Error opening binary file for reading matching results.");
+        }
+
+        resultsFromFile.read((char *)&largest_cam_idx, sizeof(int));
+        double img_scaling_read;
+        resultsFromFile.read((char *)&img_scaling_read, sizeof(double));
+        if (!nearZero(img_scaling_read - img_scaling)){
+            throw runtime_error("Image scaling factors specified and read from file do not match");
+        }
+        const cv::Size imgSi = getImgSize();
+        cv::Size imgSi_read;
+        resultsFromFile.read((char *)&imgSi_read, sizeof(cv::Size));
+        if (imgSi_read.width != imgSi.width || imgSi_read.height != imgSi.height)
+        {
+            throw runtime_error("Image size of provided images and read from file do not match");
+        }
+
+        size_t nr_values;
+        resultsFromFile.read((char *)&nr_values, sizeof(size_t));
+        cam_pair_idx.clear();
+        for (size_t i = 0; i < nr_values; i++)
+        {
+            pair<int, int> tmp;
+            resultsFromFile.read((char *)&tmp, sizeof(pair<int, int>));
+            cam_pair_idx.emplace_back(move(tmp));
+        }
+
+        resultsFromFile.read((char *)&nr_values, sizeof(size_t));
+        matches_filt.clear();
+        for (size_t i = 0; i < nr_values; i++)
+        {
+            MatchData data;
+            pair<int, int> idx;
+            resultsFromFile.read((char *)&idx, sizeof(pair<int, int>));
+
+            size_t nr_values1;
+            resultsFromFile.read((char *)&nr_values1, sizeof(size_t));
+
+            for (size_t j = 0; j < nr_values1; j++)
+            {
+                data.matches.emplace_back(FileHelper::matchFromBinary(resultsFromFile));
+            }
+
+            FileHelper::keypointsFromBinary(resultsFromFile, data.kps1);
+            FileHelper::keypointsFromBinary(resultsFromFile, data.kps2);
+
+            data.descr1 = FileHelper::cvMatFromBinary(resultsFromFile);
+            data.descr2 = FileHelper::cvMatFromBinary(resultsFromFile);
+
+            bool mask_nempty;
+            resultsFromFile.read((char *)&mask_nempty, sizeof(bool));
+            if (mask_nempty)
+            {
+                data.inlier_mask = FileHelper::cvMatFromBinary(resultsFromFile);
+            }
+
+            resultsFromFile.read((char *)&data.used_cnt, sizeof(int));
+
+            matches_filt.emplace(idx, move(data));
+        }
+
+        resultsFromFile.read((char *)&nr_values, sizeof(size_t));
+        keypoints_descriptors.clear();
+        for (size_t i = 0; i < nr_values; i++)
+        {
+            int idx;
+            resultsFromFile.read((char *)&idx, sizeof(int));
+
+            std::vector<cv::KeyPoint> kps;
+            FileHelper::keypointsFromBinary(resultsFromFile, kps);
+
+            cv::Mat descr = FileHelper::cvMatFromBinary(resultsFromFile);
+
+            keypoints_descriptors.emplace(idx, make_pair(move(kps), descr));
+        }
+        resultsFromFile.close();
+    }
+
+#if DBG_SHOW_MATCHES
+    void drawMatchesImgPair(const cv::Mat &img1, 
+                            const cv::Mat &img2, 
+                            const std::vector<cv::KeyPoint> &kp1, 
+                            const std::vector<cv::KeyPoint> &kp2, 
+                            const std::vector<cv::DMatch> &matches, 
+                            const int &img1_idx, 
+                            const int &img2_idx, 
+                            const size_t &nrMatchesLimit)
+    {
+        const int maxImgWidth = 700;
+        double s = static_cast<double>(maxImgWidth) / static_cast<double>(img1.cols);
+        const float s_f = static_cast<float>(s);
+        cv::Mat img_s1, img_s2;
+        cv::resize(img1, img_s1, cv::Size(), s, s, cv::INTER_CUBIC);
+        cv::resize(img2, img_s2, cv::Size(), s, s, cv::INTER_CUBIC);
+        std::vector<cv::DMatch> matches_s;
+        std::vector<cv::KeyPoint> kp1_s, kp2_s;
+        int idx = 0;
+        for (size_t i = 0; i < matches.size(); i++)
+        {
+            cv::DMatch m = matches.at(i);
+            cv::KeyPoint pt1 = kp1.at(m.queryIdx);
+            cv::KeyPoint pt2 = kp2.at(m.trainIdx);
+            pt1.size *= s_f;
+            pt1.pt *= s_f;
+            kp1_s.emplace_back(move(pt1));
+            pt2.size *= s_f;
+            pt2.pt *= s_f;
+            kp2_s.emplace_back(move(pt2));
+            m.queryIdx = idx;
+            m.trainIdx = idx;
+            matches_s.emplace_back(move(m));
+            idx++;
+        }
+
+        std::vector<cv::DMatch> matches_s_redu;
+        if (nrMatchesLimit > 0 && matches_s.size() > nrMatchesLimit)
+        {
+            std::vector<size_t> vec_idx(matches_s.size());
+            std::iota(vec_idx.begin(), vec_idx.end(), 0);
+            std::random_device rd;
+            std::mt19937 g(rd());
+
+            std::shuffle(vec_idx.begin(), vec_idx.end(), g);
+            for (size_t i = 0; i < nrMatchesLimit; i++)
+            {
+                matches_s_redu.emplace_back(matches_s.at(vec_idx.at(i)));
+            }
+        }
+        else
+        {
+            matches_s_redu = matches_s;
+        }
+
+        cv::Mat outImg;
+        cv::drawMatches(img_s1, kp1_s, img_s2, kp2_s, matches_s_redu, outImg);
+        const int textHeight = 12;
+        const double fontScale = cv::getFontScaleFromHeight(cv::FONT_HERSHEY_SIMPLEX, textHeight);
+        string text1 = "cam" + std::to_string(img1_idx);
+        cv::Point text_bl1(5, textHeight + 3);
+        cv::putText(outImg, text1, text_bl1, cv::FONT_HERSHEY_SIMPLEX, fontScale, cv::Scalar(0, 0, 255));
+        
+        string text2 = "cam" + std::to_string(img2_idx.first);
+        cv::Point text_bl2(img_s1.cols + 5, textHeight + 3);
+        cv::putText(outImg, text2, text_bl2, cv::FONT_HERSHEY_SIMPLEX, fontScale, cv::Scalar(0, 0, 255));
+
+        cv::namedWindow("feature_matches", cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO);
+        cv::imshow("feature_matches", outImg);
+        cv::waitKey(0);
+        cv::destroyWindow("feature_matches");
+    }
+#endif
+
+#ifdef WITH_AKAZE_CUDA
+    cv::Ptr<cv::cuda::Feature2DAsync> createCudaDetector(const string &keypointtype, const int limitNrfeatures)
+    {
+        cv::Ptr<cv::cuda::Feature2DAsync> detector;
+
+        if (!keypointtype.compare("ORB"))
+        {
+            detector = cv::cuda::ORB::create(limitNrfeatures);
+        }
+        else
+        {
+            throw std::runtime_error("GPU keypoint type not supported.");
+        }
+
+        return detector;
+    }
+
+    cv::Ptr<cv::cuda::Feature2DAsync> createCudaExtractor(std::string const &descriptortype, const int &nrFeaturesMax)
+    {
+        cv::Ptr<cv::cuda::Feature2DAsync> extractor;
+
+        if (!descriptortype.compare("ORB"))
+        {
+            extractor = cv::cuda::ORB::create(nrFeaturesMax);
+        }
+        else
+        {
+            throw std::runtime_error("Descriptor type not supported.");
+        }
+
+        return extractor;
+    }
+
+    bool IsFeatureCudaTypeSupported(const std::string &type)
+    {
+        std::vector<std::string> vecSupportedTypes = GetSupportedFeatureCudaTypes();
+
+        if (std::find(vecSupportedTypes.begin(), vecSupportedTypes.end(), type) != vecSupportedTypes.end())
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    std::vector<std::string> GetSupportedFeatureCudaTypes()
+    {
+        int const nrSupportedTypes = 2;
+
+        static std::string types[] = { "ORB", "AKAZE" };
+        return std::vector<std::string>(types, types + nrSupportedTypes);
+    }
+#endif
+#if DBG_SHOW_KEYPOINTS || DBG_SHOW_KP_FILT_MASK || DBG_SHOW_KEYPOINTS_FILTERED || DBG_SHOW_ADDITIONAL_KP_GEN
+    void visualizeKeypoints(const std::unordered_map<int, std::vector<cv::KeyPoint>> &keypoints_combined, 
+                            const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &imageMap,
+                            const std::string &feature_type)
+    {
+        for(const auto &img : imageMap){
+            const std::string img_name = to_string(img.first.first) + "-" + to_string(img.first.second);
+            visualizeKeypoints(img.second.first, keypoints_combined.at(img.first), img_name, feature_type);
+        }
+    }
+
+    void visualizeKeypoints(const std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &keypoints_descriptors, 
+                            const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &imageMap, 
+                            const std::string &feature_type)
+    {
+        for (const auto &img : imageMap)
+        {
+            const std::string img_name = to_string(img.first.first) + "-" + to_string(img.first.second);
+            visualizeKeypoints(img.second.first, keypoints_descriptors.at(img.first).first, img_name, feature_type);
+        }
+    }
+
+    void visualizeKeypoints(const std::unordered_map<std::string, std::unordered_map<int, std::vector<cv::KeyPoint>>> &init_keypoints, 
+                            const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &imageMap, 
+                            const std::string &descriptor_type)
+    {
+        for (const auto &kp1 : init_keypoints)
+        {
+            std::string feature_type = "init_" + kp1.first + "_" + descriptor_type;
+            visualizeKeypoints(kp1.second, imageMap, config_data_ptr, feature_type);
+        }
+    }
+
+    void visualizeKeypoints(const cv::Mat &img, 
+                            const std::vector<cv::KeyPoint> &keypoints, 
+                            const std::string &img_name, 
+                            const std::string &feature_type)
+    {
+        const int maxImgDim = max(img.cols, img.rows);
+        cv::Mat img_s;
+        double s = 1.0;
+        if (maxImgDim > DBG_SHOW_KEYPOINTS_IMG_SIZE_MAX)
+        {
+            s = static_cast<double>(DBG_SHOW_KEYPOINTS_IMG_SIZE_MAX) / static_cast<double>(maxImgDim);
+            cv::resize(img, img_s, cv::Size(), s, s, cv::INTER_CUBIC);
+        }
+        else{
+            img_s = img;
+        }
+        const float sf = static_cast<float>(s);
+
+        cv::Mat color;
+        cv::cvtColor(img_s, color, cv::COLOR_GRAY2BGR);
+        const cv::Vec3b pix_val(0, 0, 255);
+        for (const auto &kp : keypoints)
+        {
+            const cv::Point pt(static_cast<int>(round(sf * kp.pt.x)), static_cast<int>(sf * round(kp.pt.y)));
+            if (maxImgDim > DBG_SHOW_KEYPOINTS_IMG_SIZE_MAX){
+                cv::circle(color, pt, 2, pix_val, cv::FILLED);
+            }else{
+                color.at<cv::Vec3b>(pt) = pix_val;
+            }
+        }
+        const std::string window_name = "keypoints_" + img_name;
+        cv::namedWindow(window_name, cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO);
+        cv::imshow(window_name, color);
+        cv::waitKey(0);
+        cv::destroyWindow(window_name);
+    }
+#endif
+
+#if DBG_SHOW_KP_FILT_MASK
+    void visualizeImg(const cv::Mat &img, const std::string &img_baseName, const int img_idx)
+    {
+        cv::namedWindow(img_baseName, cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO);
+        cv::imshow(img_baseName, img);
+        cv::waitKey(0);
+        cv::destroyWindow(img_baseName);
+    }
+#endif
 
 } // namepace matchinglib
