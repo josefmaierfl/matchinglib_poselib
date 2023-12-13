@@ -28,6 +28,7 @@
 #include "argvparser.h"
 #include "io_data.h"
 #include "gtest/gtest.h"
+#include <unordered_map>
 
 using namespace std;
 using namespace cv;
@@ -131,6 +132,9 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
     cmd.defineOption("f_detect", "<The name of the feature detector "
                                  "(FAST, MSER, ORB, BRISK, KAZE, AKAZE, STAR, MSD, SIFT)(For SURF, CMake option "
                                  "-DUSE_NON_FREE_CODE=ON must be provided during build process). [Default=BRISK]>", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("f_detect2", "<Name of second feature detector "
+                                 "(FAST, MSER, ORB, BRISK, KAZE, AKAZE, STAR, MSD, SIFT) -> Keypoints of 1st and 2nd detector are combined. "
+                                 "Only used if option easy_match is used.>", ArgvParser::OptionRequiresValue);
     cmd.defineOption("d_extr", "<The name of the descriptor extractor "
                                "(BRISK, ORB, KAZE, AKAZE, FREAK, DAISY, LATCH, BGM, BGM_HARD, "
                                "BGM_BILINEAR, LBGM, BINBOOST_64, BINBOOST_128, BINBOOST_256, "
@@ -193,6 +197,19 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
                      ArgvParser::OptionRequiresValue);
     cmd.defineOption("output_path", "<Path where keypoints are saved to. "
                                     "Only if a path is given, data is stored to disk.>", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("easy_match",
+                     "<If provided, keypoint extraction is performed using up to 2 algorithms. "
+                     "CUDA version of AKAZE can be used (option cuda). Filtering is performed. Multiple processors are used.>",
+                     ArgvParser::NoOptionAttribute);
+    cmd.defineOption("cuda",
+                     "<If provided, the CUDA version of AKAZE is used if easy_match is used.>",
+                     ArgvParser::NoOptionAttribute);
+    cmd.defineOption("affine",
+                     "<If provided, affine invariant feature detection is performed.>",
+                     ArgvParser::NoOptionAttribute);
+    cmd.defineOption("scale",
+                     "<Scaling factor used for images (only for option easy_match).>",
+                     ArgvParser::OptionRequiresValue);
 
     /// finally parse and handle return codes (display help etc...)
     testing::InitGoogleTest(&argc, argv);    
@@ -207,12 +224,13 @@ void SetupCommandlineParser(ArgvParser& cmd, int argc, char* argv[])
 }
 
 void startEvaluation(ArgvParser& cmd){
-    string img_path, l_img_pref, r_img_pref, f_detect, d_extr, matcher, nmsIdx, nmsQry, output_path;
-    string show_str;
+    string img_path, l_img_pref, r_img_pref, f_detect, f_detect2, d_extr, matcher, nmsIdx, nmsQry, output_path;
+    string show_str, scale_str;
     int showNr, f_nr;
     bool noRatiot, refineVFC, refineSOF, refineGMS, DynKeyP, drawSingleKps = false;
     int subPixRef = 0;
-    bool oneCam = false;
+    bool oneCam = false, easy_match = false, cuda = false, affine = false, second_extractor = false;
+    double scale = 1.0;
     int err, verbose;
     vector<string> filenamesl, filenamesr;
     cv::Mat src[2];
@@ -238,6 +256,12 @@ void startEvaluation(ArgvParser& cmd){
     else
     {
         f_detect = "BRISK";
+    }
+
+    if(cmd.foundOption("f_detect2"))
+    {
+        f_detect2 = cmd.optionValue("f_detect2");
+        second_extractor = true;
     }
 
     if(cmd.foundOption("d_extr"))
@@ -371,78 +395,136 @@ void startEvaluation(ArgvParser& cmd){
         showNr = 50;
     }
 
-    int failNr = 0;
+    easy_match = cmd.foundOption("easy_match");
+    cuda = easy_match && cmd.foundOption("cuda");
+    affine = easy_match && cmd.foundOption("affine");
 
-    for(int i = 0; i < (oneCam ? ((int)filenamesl.size() - 1):(int)filenamesl.size()); i++)
+    if(cmd.foundOption("scale"))
     {
-        if(oneCam)
-        {
-            src[0] = cv::imread(filenamesl[i],cv::IMREAD_GRAYSCALE);
-            src[1] = cv::imread(filenamesl[i + 1],cv::IMREAD_GRAYSCALE);
+        scale_str = cmd.optionValue("scale");
+    }
+
+    if(!scale_str.empty())
+    {
+        scale = stod(scale_str);
+    }
+
+    if(easy_match){
+        std::vector<std::string> keypoint_types;
+        keypoint_types.emplace_back(f_detect);
+        if(second_extractor){
+            keypoint_types.emplace_back(f_detect2);
         }
-        else
+        int nr_imgs = static_cast<int>(filenamesl.size());
+        std::vector<int> indices(nr_imgs);
+        std::iota(indices.begin(), indices.end(), 0);
+        std::vector<std::pair<int, int>> cam_pair_idx;
+        for (int i = 1; i < nr_imgs; i++)
         {
-            src[0] = cv::imread(filenamesl[i],cv::IMREAD_GRAYSCALE);
-            src[1] = cv::imread(filenamesr[i],cv::IMREAD_GRAYSCALE);
+            cam_pair_idx.emplace_back(make_pair(i-1, i));
         }
 
-        err = matchinglib::getCorrespondences(src[0],
-                                              src[1],
-                                              finalMatches,
-                                              kp1,
-                                              kp2,
-                                              f_detect,
-                                              d_extr,
-                                              matcher,
-                                              DynKeyP,
-                                              f_nr,
-                                              refineVFC,
-                                              refineGMS,
-                                              !noRatiot,
-                                              refineSOF,
-                                              subPixRef,
-                                              verbose,
-                                              nmsIdx,
-                                              nmsQry);
+        matchinglib::Matching matcher_obj(filenamesl,
+                                         keypoint_types,
+                                         d_extr,
+                                         matcher,
+                                         std::vector<std::string>(),
+                                         indices,
+                                         cam_pair_idx,
+                                         false,
+                                         scale,
+                                         true,
+                                         f_nr);
+        bool err = matcher_obj.compute(affine, true, false, cuda);
+        if(!err){
+            cout << "Exiting!" << endl;
+            exit(1);
+        }
 
-        if(err)
+        std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> imgs_masks = matcher_obj.getImgsAndMasksRef();
+        std::unordered_map<std::pair<int, int>, matchinglib::MatchData, matchinglib::pair_hash, matchinglib::pair_EqualTo> matches = matcher_obj.getFinalMatchesRef();
+
+        for(const auto &m: matches){
+            const int &i1 = m.first.first;
+            const int &i2 = m.first.second;
+            showMatches(imgs_masks.at(i1).first, imgs_masks.at(i2).first, m.second.kps1, m.second.kps2, m.second.matches, showNr, drawSingleKps);
+        }
+    }
+    else
+    {
+        int failNr = 0;
+
+        for(int i = 0; i < (oneCam ? ((int)filenamesl.size() - 1):(int)filenamesl.size()); i++)
         {
-            if((err == -5) || (err == -6))
+            if(oneCam)
             {
-                cout << "Exiting!" << endl;
-                exit(1);
-            }
-
-            failNr++;
-
-            if((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
-            {
-                cout << "Matching failed! Trying next pair." << endl;
-                continue;
+                src[0] = cv::imread(filenamesl[i],cv::IMREAD_GRAYSCALE);
+                src[1] = cv::imread(filenamesl[i + 1],cv::IMREAD_GRAYSCALE);
             }
             else
             {
-                cout << "Matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
-                exit(1);
+                src[0] = cv::imread(filenamesl[i],cv::IMREAD_GRAYSCALE);
+                src[1] = cv::imread(filenamesr[i],cv::IMREAD_GRAYSCALE);
             }
-        }
 
-        showMatches(src[0], src[1], kp1, kp2, finalMatches, showNr, drawSingleKps);
+            err = matchinglib::getCorrespondences(src[0],
+                                                src[1],
+                                                finalMatches,
+                                                kp1,
+                                                kp2,
+                                                f_detect,
+                                                d_extr,
+                                                matcher,
+                                                DynKeyP,
+                                                f_nr,
+                                                refineVFC,
+                                                refineGMS,
+                                                !noRatiot,
+                                                refineSOF,
+                                                subPixRef,
+                                                verbose,
+                                                nmsIdx,
+                                                nmsQry);
 
-        if(!output_path.empty()) {
-            string img_name12, path_file;
-            if(oneCam){
-                img_name12 = concatImgNames(filenamesl[i], filenamesl[i + 1], f_detect, d_extr);
-            }else{
-                img_name12 = concatImgNames(filenamesl[i], filenamesr[i], f_detect, d_extr);
+            if(err)
+            {
+                if((err == -5) || (err == -6))
+                {
+                    cout << "Exiting!" << endl;
+                    exit(1);
+                }
+
+                failNr++;
+
+                if((!oneCam && ((float)failNr / (float)filenamesl.size() < 0.5f)) || (oneCam && ((float)(2 * failNr) / (float)filenamesl.size() < 0.5f)))
+                {
+                    cout << "Matching failed! Trying next pair." << endl;
+                    continue;
+                }
+                else
+                {
+                    cout << "Matching failed for " << failNr << " image pairs. Something is wrong with your data! Exiting." << endl;
+                    exit(1);
+                }
             }
-            if(img_name12.empty()) continue;
-            if(output_path.rfind('/') + 1 == output_path.size()){
-                path_file = output_path + img_name12;
-            }else{
-                path_file = output_path + "/" + img_name12;
+
+            showMatches(src[0], src[1], kp1, kp2, finalMatches, showNr, drawSingleKps);
+
+            if(!output_path.empty()) {
+                string img_name12, path_file;
+                if(oneCam){
+                    img_name12 = concatImgNames(filenamesl[i], filenamesl[i + 1], f_detect, d_extr);
+                }else{
+                    img_name12 = concatImgNames(filenamesl[i], filenamesr[i], f_detect, d_extr);
+                }
+                if(img_name12.empty()) continue;
+                if(output_path.rfind('/') + 1 == output_path.size()){
+                    path_file = output_path + img_name12;
+                }else{
+                    path_file = output_path + "/" + img_name12;
+                }
+                storeMatches(path_file, f_detect, d_extr, kp1, kp2, finalMatches);
             }
-            storeMatches(path_file, f_detect, d_extr, kp1, kp2, finalMatches);
         }
     }
 }

@@ -160,6 +160,7 @@ public:
              const std::string &matcher_type = "HNSW",
              const std::vector<std::string> &mask_file_names = std::vector<std::string>(),
              const std::vector<int> &img_indices = std::vector<int>(),
+             const std::vector<std::pair<int, int>> &match_cams = std::vector<std::pair<int, int>>(),
              const bool sort_file_names = false,
              const double &img_scale = 0.5, 
              const bool equalizeImgs = true,
@@ -171,13 +172,14 @@ public:
              const std::string &matcher_type = "HNSW",
              const std::vector<cv::Mat> &masks = std::vector<cv::Mat>(),
              const std::vector<int> &img_indices = std::vector<int>(),
+             const std::vector<std::pair<int, int>> &match_cams = std::vector<std::pair<int, int>>(),
              const double &img_scale = 0.5, 
              const bool equalizeImgs = true, 
              const int &nrFeaturesToExtract_ = 5000,
              const int &cpuCnt_ = -2);
     ~Matching();
 
-    bool compute(const bool affineInvariant = false, const bool useCuda = true);
+    bool compute(const bool affineInvariant = false, const bool checkNrMatches = true, const bool addShaddowHighlightSearch = true, const bool useCuda = true);
     bool computeKeypointsOnly(const bool useCuda = true);
     bool computeKeypointsOnly(const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &imageMap_, 
                               const std::vector<int> &indices_, 
@@ -185,7 +187,7 @@ public:
                               std::unordered_map<int, std::vector<cv::KeyPoint>> &keypoints_combined_, 
                               const int &nrKeyPointsMax, 
                               const bool useCuda = true);
-    bool getMatches();
+    bool getMatches(const bool checkNrMatches = true);
 
     void getImgsAndMasks(std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &images);
     void moveImgsAndMasks(std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &images);
@@ -291,7 +293,7 @@ private:
                                   std::unordered_map<int, std::vector<cv::KeyPoint>> *keypoints_combined_, 
                                   const bool useCuda = true);
 
-    bool getMatches(const bool affineInvariant);
+    bool getMatches(const bool affineInvariant, const bool checkNrMatches = true);
     void applyMaskToFeatures(bool invertMask, std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &kp_descr_out);
     void getMatchesThreadFunc(const int startIdx, 
                               const int endIdx, 
@@ -308,7 +310,7 @@ private:
     void filterResponseAreaBasedAffine(const int &limitNrFeatures = 12000);
     void filterResponseAreaBasedAffineImpl(std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &features_map, 
                                            const std::unordered_map<int, int> &individual_limits);
-    bool checkNrMatches(const std::unordered_map<std::pair<int, int>, std::vector<cv::DMatch>, pair_hash, pair_EqualTo> &matches_in);
+    bool checkNrMatchesFunc(const std::unordered_map<std::pair<int, int>, std::vector<cv::DMatch>, pair_hash, pair_EqualTo> &matches_in);
     void filterKeypointsClassIDAffine(std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &kp_descr_in, 
                                       std::unordered_map<std::pair<int, int>, std::vector<cv::DMatch>, pair_hash, pair_EqualTo> &matches_in);
     void filterKeypointsClassIDAffineThreadFunc(const int startIdx, 

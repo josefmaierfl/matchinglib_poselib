@@ -87,6 +87,7 @@ set(sources
     ${source_path}/matching_structs.cpp
     ${source_path}/trees.cpp
     ${source_path}/random_numbers.cpp
+    ${source_path}/FileHelper.cpp
 
     ${source_path}/CascadeHash/BucketBuilder.cc
     ${source_path}/CascadeHash/CasHashMatcher.cc
@@ -166,29 +167,31 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(BUILD_WITH_AKAZE_CUDA)
   if(CMAKE_BUILD_TYPE MATCHES "Debug")
-    enable_language(CUDA)
+    # enable_language(CUDA)
     set(CUDA_VERBOSE_BUILD ON)
   endif()
-  #find_package(CUDA)
+  enable_language(CUDA)
+#   find_package(CUDA)
   find_package(CUDAToolkit)
   include_directories(${AKAZE_CUDA_DIR})
-  add_library(AKAZE_CUDA ${AKAZE_CUDA_FILES})
+  add_library(AKAZE_CUDA SHARED ${AKAZE_CUDA_FILES})
   if(UNIX)
     if(CMAKE_BUILD_TYPE MATCHES "Debug")
       # set(CMAKE_CUDA_FLAGS_DEBUG "-g;-G")
-      set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS};-G")
+      set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS};-G")#;--shared;--compiler-options;-fPIC
     else()
-      LIST(APPEND CUDA_NVCC_FLAGS "-arch=sm_75;-lineinfo;--compiler-options;-O2")
+      LIST(APPEND CUDA_NVCC_FLAGS "-arch=sm_75;-lineinfo;--compiler-options;-O2")#--shared;--compiler-options;-fPIC;-O2
       # LIST(APPEND CUDA_NVCC_FLAGS "-lineinfo;--compiler-options;-O2")
     endif()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-pedantic -fPIC")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-pedantic -fPIC")
   endif()
   target_link_libraries(AKAZE_CUDA ${OpenCV_LIBS})
-  set_target_properties(AKAZE_CUDA PROPERTIES DEBUG_POSTFIX "d" CUDA_ARCHITECTURES "75")
+  set_target_properties(AKAZE_CUDA PROPERTIES DEBUG_POSTFIX "d" CUDA_ARCHITECTURES "75" CUDA_RUNTIME_LIBRARY Shared)
 
   set(CUDA_SEPARABLE_COMPILATION ON)
-  cuda_add_library(AKAZE_CUDA_CUDA ${AKAZE_CUDA_SRCS})
+  cuda_add_library(AKAZE_CUDA_CUDA SHARED ${AKAZE_CUDA_SRCS})
+#   add_library(AKAZE_CUDA_CUDA SHARED ${AKAZE_CUDA_SRCS})
   target_link_libraries(AKAZE_CUDA_CUDA ${OpenCV_LIBS})
   set_target_properties(AKAZE_CUDA_CUDA PROPERTIES CUDA_ARCHITECTURES "75")
   # target_link_libraries(AKAZE_CUDA_CUDA ${OpenCV_LIBS} ${CUDA_cusolver_LIBRARY})
@@ -246,9 +249,9 @@ target_include_directories(${target}
 
     ${CMAKE_CURRENT_SOURCE_DIR}/include/${target}
     ${CMAKE_CURRENT_BINARY_DIR}/include
-    ${Nanoflann_INCLUDE_DIR}
 	${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gms-1.0/include
     ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nmslib-2.1.1/similarity_search/include
+    ${Nanoflann_INCLUDE_DIR}
 
     PUBLIC
     ${DEFAULT_INCLUDE_DIRECTORIES}
@@ -258,9 +261,11 @@ target_include_directories(${target}
     INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nanoflann/include>
     #$<INSTALL_INTERFACE:include>
 	$<INSTALL_INTERFACE:${INSTALL_INCLUDE}/${target}/include> # for client in install mode
 	$<INSTALL_INTERFACE:${INSTALL_INCLUDE}/${target}>
+    #$<INSTALL_INTERFACE:${INSTALL_INCLUDE}/${target}/thirdparty/nanoflann/include>
 	$<INSTALL_INTERFACE:${INSTALL_LIB}/${target}>
 )
 
@@ -276,8 +281,9 @@ set(LIBRARIES
 if(UNIX)
   set(LIBRARIES ${LIBRARIES} pthread)
 endif()
+
 if(BUILD_WITH_AKAZE_CUDA)
-  set(LIBRARIES ${LIBRARIES} AKAZE_CUDA AKAZE_CUDA_CUDA)
+  set(LIBRARIES ${LIBRARIES} AKAZE_CUDA AKAZE_CUDA_CUDA CUDA::cudart)
   add_definitions(-DWITH_AKAZE_CUDA)
 endif()
 

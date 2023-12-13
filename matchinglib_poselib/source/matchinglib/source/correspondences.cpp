@@ -64,6 +64,7 @@
 #define DBG_SHOW_KP_FILT_MASK 0
 #define DBG_SHOW_KEYPOINTS_FILTERED 0
 #define DBG_SHOW_ADDITIONAL_KP_GEN 0
+#define DBG_SHOW_KEYPOINTS_IMG_SIZE_MAX 640
 
 using namespace cv;
 using namespace std;
@@ -244,7 +245,7 @@ namespace matchinglib
     return getCorrespondences(img1, img2, finalMatches, kp1, kp2, g, featuretype, extractortype, matchertype, dynamicKeypDet, limitNrfeatures, VFCrefine, GMSrefine, ratioTest, SOFrefine, subPixRefine, verbose, idxPars_NMSLIB, queryPars_NMSLIB);
   }
 
-  /* Generation of features followed by matching, filtering, and subpixel-refinement.
+  /* Generation of features followed by matching, filtering, and subpixel-refinement. 
    *
    * Mat img1           Input  -> First or left input image
    * Mat img2           Input  -> Second or right input image
@@ -1006,6 +1007,7 @@ namespace matchinglib
                      const std::string &matcher_type,
                      const std::vector<std::string> &mask_file_names,
                      const std::vector<int> &img_indices,
+                     const std::vector<std::pair<int, int>> &match_cams,
                      const bool sort_file_names,
                      const double &img_scale, 
                      const bool equalizeImgs, 
@@ -1106,6 +1108,9 @@ namespace matchinglib
     {
       imageMap.emplace(i, make_pair(cv::Mat(), cv::Mat()));
     }
+    if(!match_cams.empty()){
+        cam_pair_idx = match_cams;
+    }
     
     std::cout << "Loading image data ..." << endl;
     loadImages();
@@ -1118,6 +1123,7 @@ namespace matchinglib
                      const std::string &matcher_type,
                      const std::vector<cv::Mat> &masks,
                      const std::vector<int> &img_indices,
+                     const std::vector<std::pair<int, int>> &match_cams,
                      const double &img_scale, 
                      const bool equalizeImgs, 
                      const int &nrFeaturesToExtract_,
@@ -1207,6 +1213,9 @@ namespace matchinglib
           imageMap.emplace(i.second, make_pair(imgs.at(i.first), cv::Mat()));
         }
       }
+    }
+    if(!match_cams.empty()){
+        cam_pair_idx = match_cams;
     }
 
     std::cout << "Preprocessing image data ..." << endl;
@@ -1433,7 +1442,7 @@ namespace matchinglib
     return getIDfromImages(imgs_vec);
   }    
 
-  bool Matching::compute(const bool affineInvariant, const bool useCuda)
+  bool Matching::compute(const bool affineInvariant, const bool checkNrMatches, const bool addShaddowHighlightSearch, const bool useCuda)
   {
       if (largest_cam_idx < 2)
       {
@@ -1484,8 +1493,10 @@ namespace matchinglib
       kp_str += descriptor_type_;
       visualizeKeypoints(keypoints_descriptors, imageMap, kp_str);
 #endif
-      findAdditionalKeypointsLessTexture();
-      return getMatches(affineInvariant);
+      if(addShaddowHighlightSearch){
+        findAdditionalKeypointsLessTexture();
+      }
+      return getMatches(affineInvariant, checkNrMatches);
   }
 
   int Matching::getMaxNrFeatures(const bool affineInvariant)
@@ -1622,9 +1633,9 @@ namespace matchinglib
       return true;
   }
 
-  bool Matching::getMatches()
+  bool Matching::getMatches(const bool checkNrMatches)
   {
-      return getMatches(false);
+      return getMatches(false, checkNrMatches);
   }
 
   bool Matching::getKeypoints(const bool useCuda) 
@@ -1675,8 +1686,13 @@ namespace matchinglib
       std::vector<std::pair<std::string, int>> indices_kp_cpu, indices_kp_gpu, indices_akaze_gpu;
       for (auto &kpt : keypoint_types_)
       {
+#ifdef WITH_AKAZE_CUDA
+        bool cuda_ft = IsFeatureCudaTypeSupported(kpt);
+#else
+        bool cuda_ft = false;
+#endif
           // Disable ORB Cuda (use CPU version instead), as keypoints are only extracted approx. on half the image height
-          if (useCuda && IsFeatureCudaTypeSupported(kpt) && kpt.compare("AKAZE") && kpt.compare("ORB"))
+          if (useCuda && cuda_ft && kpt.compare("AKAZE") && kpt.compare("ORB"))
           {
               for (auto &idx : indices_)
               {
@@ -2133,6 +2149,60 @@ namespace matchinglib
           return;
       }
   }
+
+    void getKeypointsAkazeCudaThreadFunc(const int startIdx, 
+                                         const int endIdx, 
+                                         const std::vector<std::pair<std::string, int>> indices_kp_threads, 
+                                         const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> *imageMap_threads, 
+                                         cv::Ptr<matchinglib::cuda::Feature2DAsync> detector, 
+                                         std::shared_ptr<std::unordered_map<std::string, std::unordered_map<int, std::vector<cv::KeyPoint>>>> keypoints, 
+                                         std::exception_ptr &thread_exception, 
+                                         std::mt19937 mt)
+    {
+        try
+        {
+            cv::cuda::Stream stream;
+            size_t nrInvalids = 0;
+            // detector.dynamicCast<RR::cuda::AKAZE>()->setDetectResponseTh(detector.dynamicCast<RR::cuda::AKAZE>()->getDetectResponseTh() / 100.f);
+            for (auto i = startIdx; i < endIdx; ++i)
+            {
+                const std::pair<string, int> idx = indices_kp_threads[i];
+                const string kp_type = idx.first;
+                const int img_idx = idx.second;
+                if (kp_type.compare("AKAZE") == 0)
+                {
+                    std::string info = std::to_string(img_idx);
+                    detector.dynamicCast<matchinglib::cuda::AKAZE>()->setImageInfo(info, false);
+                }
+                if (keypoints->find(kp_type) == keypoints->end())
+                {
+                    keypoints->emplace(kp_type, std::unordered_map<int, std::vector<cv::KeyPoint>>());
+                }
+                keypoints->at(kp_type).emplace(img_idx, std::vector<cv::KeyPoint>());
+                std::vector<cv::KeyPoint> &keypoints_tmp = keypoints->at(kp_type).at(img_idx);
+                // cv::Mat descr;
+                detector->detectAndComputeAsync(imageMap_threads->at(img_idx).first, cv::noArray(), keypoints_tmp, cv::noArray(), mt, false, stream);
+                if (keypoints_tmp.empty())
+                {
+                    string msg = "Unable to detect " + kp_type + " keypoints on image " + std::to_string(img_idx) + " using the GPU.";
+                    cerr << msg << endl;
+                    nrInvalids++;
+                    if(nrInvalids > 5){
+                        throw runtime_error("Detection of CUDA AKAZE keypoints failed for more than 5 images.");
+                    }
+                }
+            }
+            if (nrInvalids)
+            {
+                throw runtime_error("Detection of CUDA AKAZE keypoints failed for one or more images.");
+            }
+        }
+        catch (...)
+        {
+            thread_exception = std::current_exception();
+            return;
+        }
+    }
 #endif
 
   bool Matching::combineKeypoints()
@@ -2233,12 +2303,18 @@ namespace matchinglib
       std::vector<std::thread> threads;
       const unsigned extractionsCount = indices_.size();
       unsigned threadCount = std::min(extractionsCount, static_cast<unsigned>(cpuCnt));
+#ifdef WITH_AKAZE_CUDA
       vector<cv::Ptr<matchinglib::cuda::Feature2DAsync>> detector_ptrs_gpu_akaze;
+#endif
       if(useCudaOpenCV){
+#ifdef WITH_AKAZE_CUDA
           const size_t byteMultiplier_cv = matchinglib::cuda::getDefaultByteMultiplierGpu();
           const size_t byteAdd_cv = matchinglib::cuda::getDefaultByteAddGpu();
           const unsigned maxParallel = static_cast<unsigned>(std::max(matchinglib::cuda::getMaxNrGpuThreadsFromMemoryUsage(imageMap_.begin()->second.first, byteMultiplier_cv, byteAdd_cv), 1));
           threadCount = min(threadCount, maxParallel);
+#else
+          throw runtime_error("Was compiled without CUDA.");
+#endif
       }
 #ifdef WITH_AKAZE_CUDA
       else if (useAkazeCuda)
@@ -2871,8 +2947,8 @@ namespace matchinglib
       const bool useCudaOpenCV = (useCuda && !descriptor_type_.compare("ORB"));
       const bool useAkazeCuda = (useCuda && !useCudaOpenCV && !descriptor_type_.compare("AKAZE"));
 #else
-      const bool useCudaOpenCV = false
-      const bool useAkazeCuda = false
+      const bool useCudaOpenCV = false;
+      const bool useAkazeCuda = false;
 #endif
 
       keypoints_descriptors_.clear();
@@ -3008,21 +3084,23 @@ namespace matchinglib
   }
 
 #define MATCHING_INTERNAL_THREADS 0
-  bool Matching::getMatches(const bool affineInvariant)
+  bool Matching::getMatches(const bool affineInvariant, const bool checkNrMatches)
   {
       // Get matching permutations
-      for (int c1 = 0; c1 < largest_cam_idx - 1; c1++)
-      {
-          for (int c2 = c1 + 1; c2 < largest_cam_idx; c2++)
-          {
-              if (c1 == 0 && c2 == (largest_cam_idx - 1))
-              {
-                  continue;
-              }
-              cam_pair_idx.emplace_back(make_pair(c1, c2));
-          }
+      if(cam_pair_idx.empty()){
+        for (int c1 = 0; c1 < largest_cam_idx - 1; c1++)
+        {
+            for (int c2 = c1 + 1; c2 < largest_cam_idx; c2++)
+            {
+                if (c1 == 0 && c2 == (largest_cam_idx - 1))
+                {
+                    continue;
+                }
+                cam_pair_idx.emplace_back(make_pair(c1, c2));
+            }
+        }
+        cam_pair_idx.emplace_back(make_pair(largest_cam_idx - 1, 0));
       }
-      cam_pair_idx.emplace_back(make_pair(largest_cam_idx - 1, 0));
 
       std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> kp_descr_mask;
       if(haveMasks)
@@ -3047,7 +3125,7 @@ namespace matchinglib
           {
               keypoints_descriptors_sv.emplace(mdata.first, make_pair(mdata.second.first, mdata.second.second.clone()));
           }
-          filterResponseAreaBasedAffine(24000);
+          filterResponseAreaBasedAffine(2 * nrFeaturesToExtract);
       }
       auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - startTime).count();
       cout << "First feature filtering step took " << timeDiff / 1e3 << " seconds." << endl;
@@ -3132,7 +3210,7 @@ namespace matchinglib
           match_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - startTime).count();
           cout << "Calculating matches took " << match_time_ms / 1e3 << " seconds." << endl;
 
-          bool enough_matches = checkNrMatches(matches);
+          bool enough_matches = checkNrMatches ? checkNrMatchesFunc(matches):true;
 
           if (!enough_matches && !data_without_filtering)
           {
@@ -3298,7 +3376,7 @@ namespace matchinglib
           }
           MatchData mdata;
           m_filtered.composeAll(mdata.matches, mdata.kps1, mdata.kps2, mdata.descr1, mdata.descr2);
-          if (mdata.matches.size() < 500)
+          if (mdata.matches.size() < 50)
           {
               cout << "Only " << mdata.matches.size() << " matches remaining for cam pair (" << cpi.first << "-" << cpi.second << ")." << endl;
               return false;
@@ -3354,7 +3432,7 @@ namespace matchinglib
                   kp_all_virt_imgs.insert(kp_all_virt_imgs.end(), mdata.second.first.begin(), mdata.second.first.end());
               }
           }
-          visualizeKeypoints(imageMap.at(std::make_pair(i, 0)).first, kp_all_virt_imgs, std::to_string(i), kp_type_str);
+          visualizeKeypoints(imageMap.at(i).first, kp_all_virt_imgs, std::to_string(i), kp_type_str);
 #endif
       }
 
@@ -3604,17 +3682,21 @@ namespace matchinglib
       filterResponseAreaBasedAffineThreadFunc(startIdx, endIdx, individual_limits, keypoints_descriptors, imgSize, filtered_features);
   }
 
-  bool Matching::checkNrMatches(const std::unordered_map<std::pair<int, int>, std::vector<cv::DMatch>, pair_hash, pair_EqualTo> &matches_in)
+  bool Matching::checkNrMatchesFunc(const std::unordered_map<std::pair<int, int>, std::vector<cv::DMatch>, pair_hash, pair_EqualTo> &matches_in)
   {
+      size_t nr_pairs = cam_pair_idx.size();
+      size_t bad_cnt = 0;
       for (auto &cpi : cam_pair_idx)
       {
           const std::vector<cv::DMatch> &mi = matches_in.at(cpi);
-          if (mi.size() < 300)
+          if (mi.size() < 50)
           {
-              return false;
+              bad_cnt++;
           }
       }
-      return true;
+      float bad_ratio = static_cast<float>(bad_cnt) / static_cast<float>(nr_pairs);
+
+      return bad_ratio < 0.33f;
   }
 
   void Matching::filterKeypointsClassIDAffine(std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> &kp_descr_in, 
@@ -4039,7 +4121,7 @@ namespace matchinglib
             const int kernelRadius = max(maxImgSi / 70, 5);
             const int kernelSize = 2 * kernelRadius + 1;
             const cv::Mat maskm = imageMap.at(ci1).second;
-            cv::Mat maskkp = cv::Mat::zeros(maskm.size(), CV_8UC1);
+            cv::Mat maskkp = cv::Mat::zeros(imgSi, CV_8UC1);
             int nr_kp_in_mask = 0;
             //Generate mask with keypoint positions in masked areas of the motion mask
             for (const auto &kp : keypoints_descriptors.at(ci1).first)
@@ -4047,7 +4129,7 @@ namespace matchinglib
                 const cv::Point2f &pt = kp.pt;
                 int x = static_cast<int>(round(pt.x));
                 int y = static_cast<int>(round(pt.y));
-                if (maskm.at<unsigned char>(y, x))
+                if (maskm.empty() || maskm.at<unsigned char>(y, x))
                 {
                     maskkp.at<unsigned char>(y, x) = 255;
                     nr_kp_in_mask++;
@@ -4067,15 +4149,24 @@ namespace matchinglib
             {
                 cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(kernelSize, kernelSize), cv::Point(kernelRadius, kernelRadius));
                 cv::morphologyEx(maskkp, maskkp, cv::MORPH_CLOSE, kernel, cv::Point(-1, -1), 1);
-                int mask_area0 = cv::countNonZero(maskm);
+                int mask_area0 = 0;
+                if(maskm.empty()){
+                    mask_area0 = imgSi.area();
+                }else{
+                    mask_area0 = cv::countNonZero(maskm);
+                }
                 int mask_area_kp = cv::countNonZero(maskkp);
                 float ratio0 = 1.f - static_cast<float>(mask_area_kp) / static_cast<float>(mask_area0);
                 if (ratio0 < 0.33)
                 {
                     continue;
                 }
-                cv::bitwise_xor(maskkp, maskm, mask_outer);
-                cv::bitwise_and(mask_outer, maskm, mask_outer);
+                if(!maskm.empty()){
+                    cv::bitwise_xor(maskkp, maskm, mask_outer);
+                    cv::bitwise_and(mask_outer, maskm, mask_outer);
+                }else{
+                    cv::bitwise_not(maskkp, mask_outer);
+                }
 
                 //Remove small masked areas
                 cv::Mat labels, stats, centroids;
@@ -4153,10 +4244,18 @@ namespace matchinglib
                     bound_out = cv::boundingRect(mask_outer);
                 }
                 mask_outer = mask_outer(bound_out);
-                maskm_bound = imageMap.at(ci1).second(bound_out).clone();
+                if(imageMap.at(ci1).second.empty()){
+                    maskm_bound = cv::Mat::ones(bound_out.size(), CV_8UC1);
+                }else{
+                    maskm_bound = imageMap.at(ci1).second(bound_out).clone();
+                }
                 img_bound = imageMap.at(ci1).first(bound_out).clone();
             }else{
-                maskm_bound = imageMap.at(ci1).second.clone();
+                if(imageMap.at(ci1).second.empty()){
+                    maskm_bound = cv::Mat::ones(imageMap.at(ci1).first.size(), CV_8UC1);
+                }else{
+                    maskm_bound = imageMap.at(ci1).second.clone();
+                }
                 img_bound = imageMap.at(ci1).first.clone();
                 mask_outer = maskm_bound;
             }
@@ -4628,7 +4727,7 @@ namespace matchinglib
         cv::Point text_bl1(5, textHeight + 3);
         cv::putText(outImg, text1, text_bl1, cv::FONT_HERSHEY_SIMPLEX, fontScale, cv::Scalar(0, 0, 255));
         
-        string text2 = "cam" + std::to_string(img2_idx.first);
+        string text2 = "cam" + std::to_string(img2_idx);
         cv::Point text_bl2(img_s1.cols + 5, textHeight + 3);
         cv::putText(outImg, text2, text_bl2, cv::FONT_HERSHEY_SIMPLEX, fontScale, cv::Scalar(0, 0, 255));
 
@@ -4698,7 +4797,7 @@ namespace matchinglib
                             const std::string &feature_type)
     {
         for(const auto &img : imageMap){
-            const std::string img_name = to_string(img.first.first) + "-" + to_string(img.first.second);
+            const std::string img_name = to_string(img.first);
             visualizeKeypoints(img.second.first, keypoints_combined.at(img.first), img_name, feature_type);
         }
     }
@@ -4709,7 +4808,7 @@ namespace matchinglib
     {
         for (const auto &img : imageMap)
         {
-            const std::string img_name = to_string(img.first.first) + "-" + to_string(img.first.second);
+            const std::string img_name = to_string(img.first);
             visualizeKeypoints(img.second.first, keypoints_descriptors.at(img.first).first, img_name, feature_type);
         }
     }
@@ -4721,7 +4820,7 @@ namespace matchinglib
         for (const auto &kp1 : init_keypoints)
         {
             std::string feature_type = "init_" + kp1.first + "_" + descriptor_type;
-            visualizeKeypoints(kp1.second, imageMap, config_data_ptr, feature_type);
+            visualizeKeypoints(kp1.second, imageMap, feature_type);
         }
     }
 
@@ -4755,7 +4854,7 @@ namespace matchinglib
                 color.at<cv::Vec3b>(pt) = pix_val;
             }
         }
-        const std::string window_name = "keypoints_" + img_name;
+        const std::string window_name = "keypoints_" + img_name + "_" + feature_type;
         cv::namedWindow(window_name, cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO);
         cv::imshow(window_name, color);
         cv::waitKey(0);
@@ -4766,7 +4865,8 @@ namespace matchinglib
 #if DBG_SHOW_KP_FILT_MASK
     void visualizeImg(const cv::Mat &img, const std::string &img_baseName, const int img_idx)
     {
-        cv::namedWindow(img_baseName, cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO);
+        const std::string window_name = img_baseName + "_" + to_string(img_idx);
+        cv::namedWindow(window_name, cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO);
         cv::imshow(img_baseName, img);
         cv::waitKey(0);
         cv::destroyWindow(img_baseName);
