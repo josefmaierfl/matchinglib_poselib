@@ -434,8 +434,9 @@ void startEvaluation(ArgvParser& cmd){
                                          false,
                                          scale,
                                          true,
-                                         f_nr);
-        bool err = matcher_obj.compute(affine, true, false, cuda);
+                                         f_nr,
+                                         -2);
+        bool err = matcher_obj.compute(affine, false, false, cuda);
         if(!err){
             cout << "Exiting!" << endl;
             exit(1);

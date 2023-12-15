@@ -229,6 +229,7 @@ private:
     void loadImageThreadFunc(const int startIdx, const int endIdx);
     void preprocessImages();
     void preprocessImageThreadFunc(const int startIdx, const int endIdx);
+    void checkImgSizes();
 
     bool getKeypoints(const bool useCuda = true);
     bool getKeypoints(const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> &imageMap_, 

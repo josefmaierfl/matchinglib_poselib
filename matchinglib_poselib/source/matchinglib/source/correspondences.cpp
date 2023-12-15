@@ -200,7 +200,8 @@ namespace matchinglib
                                    const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> *imageMap_threads, 
                                    cv::Ptr<cv::Feature2D> kp_detect_ptr, 
                                    std::shared_ptr<std::unordered_map<int, std::vector<cv::KeyPoint>>> keypoints, 
-                                   std::shared_ptr<std::unordered_map<int, cv::Mat>> descriptors);
+                                   std::shared_ptr<std::unordered_map<int, cv::Mat>> descriptors,
+                                   const bool useCuda);
   void filterResponseAffineThreadFunc(const int startIdx, 
                                       const int endIdx, 
                                       const std::unordered_map<int, std::pair<std::vector<cv::KeyPoint>, cv::Mat>> *keypoints_descriptors, 
@@ -1084,7 +1085,7 @@ namespace matchinglib
       {
         throw runtime_error("Number of indices must be the same as images.");
       }
-      std::vector<pair<int, int>> idx_tmp(largest_cam_idx);
+      std::vector<pair<int, int>> idx_tmp;
       for (int i = 0; i < largest_cam_idx; i++)
       {
         idx_tmp.emplace_back(make_pair(i, indices[i]));
@@ -1114,6 +1115,7 @@ namespace matchinglib
     
     std::cout << "Loading image data ..." << endl;
     loadImages();
+    checkImgSizes();
     imgs_ID = getIDfromImages(imageMap);
   }
 
@@ -1194,7 +1196,7 @@ namespace matchinglib
       {
         throw runtime_error("Number of indices must be the same as images.");
       }
-      std::vector<pair<int, int>> idx_tmp(largest_cam_idx);
+      std::vector<pair<int, int>> idx_tmp;
       for (int i = 0; i < largest_cam_idx; i++)
       {
         idx_tmp.emplace_back(make_pair(i, indices[i]));
@@ -1220,6 +1222,7 @@ namespace matchinglib
 
     std::cout << "Preprocessing image data ..." << endl;
     preprocessImages();
+    checkImgSizes();
     imgs_ID = getIDfromImages(imageMap);
   }
 
@@ -1332,6 +1335,101 @@ namespace matchinglib
           // {
           //     imageMap[idx].second.copyTo(imageMap[idx].second);
           // }
+        }
+    }
+  }
+
+  void Matching::checkImgSizes()
+  {
+    std::unordered_map<std::pair<int, int>, int, pair_hash, pair_EqualTo> img_sizes;
+    for(const auto &img: imageMap){
+        cv::Size ims = img.second.first.size();
+        std::pair<int, int> imsp(ims.width, ims.height);
+        if(img_sizes.find(imsp) == img_sizes.end())
+        {
+            img_sizes.emplace(imsp, 1);
+        }
+        else
+        {
+            img_sizes.at(imsp)++;
+        }
+    }
+    if(img_sizes.size() > 1){
+        cout << "WARNING! Input images with different size present. Automatically scaling and cropping images" << endl;
+        int w_min = INT_MAX, h_min = INT_MAX, w_max = 0, h_max = 0;
+        for(const auto &ims: img_sizes)
+        {
+            const int &w = ims.first.first;
+            const int &h = ims.first.second;
+            if(w < w_min){
+                w_min = w;
+            }
+            if(w > w_max){
+                w_max = w;
+            }
+            if(h < h_min){
+                h_min = h;
+            }
+            if(h > h_max){
+                h_max = h;
+            }
+        }
+        const double s_w = static_cast<double>(w_min) / static_cast<double>(w_max);
+        const double s_h = static_cast<double>(h_min) / static_cast<double>(h_max);
+        const bool use_w = (s_w > s_h);
+        int w_min2 = INT_MAX, h_min2 = INT_MAX;
+        for(auto &img: imageMap)
+        {
+            cv::Size ims = img.second.first.size();
+            double s = 1.0;
+            if(use_w){
+                if(ims.width > w_min){
+                    s = static_cast<double>(w_min) / static_cast<double>(ims.width);
+                }else{
+                    continue;
+                }
+                ims.width = w_min;
+                ims.height = static_cast<int>(floor(static_cast<double>(ims.height) * s + 0.5));
+            }
+            else
+            {
+                if(ims.height > h_min){
+                    s = static_cast<double>(h_min) / static_cast<double>(ims.height);
+                }else{
+                    continue;
+                }
+                ims.height = h_min;
+                ims.width = static_cast<int>(floor(static_cast<double>(ims.width) * s + 0.5));
+            }
+            cv::resize(img.second.first, img.second.first, ims, 0, 0, cv::INTER_AREA);
+            if(!img.second.second.empty())
+            {
+                cv::resize(img.second.first, img.second.first, ims, 0, 0, cv::INTER_NEAREST);
+            }
+            if(ims.width < w_min){
+                w_min2 = ims.width;
+            }
+            if(ims.height < h_min){
+                h_min2 = ims.height;
+            }
+        }
+        if(w_min2 == INT_MAX){
+            w_min2 = w_min;
+        }
+        if(h_min2 == INT_MAX){
+            h_min2 = h_min;
+        }
+        cv::Rect roi(0, 0, w_min2, h_min2);
+        for(auto &img: imageMap)
+        {
+            cv::Size ims = img.second.first.size();
+            if(ims.width > w_min2 || ims.height > h_min2){
+                img.second.first = img.second.first(roi);
+                if(!img.second.second.empty())
+                {
+                    img.second.second = img.second.second(roi);
+                }
+            }
         }
     }
   }
@@ -1451,6 +1549,10 @@ namespace matchinglib
       }
       if (affineInvariant)
       {
+          if (keypoint_types_.size() != 1 || keypoint_types_.at(0).compare(descriptor_type_) != 0)
+          {
+              throw runtime_error("For affine feature detection, only identical keypoint detector (and only 1 type) and descriptor extractor types are supported.");
+          }
           affineInvariantUsed = affineInvariant;
           if (!getFeaturesAffine(useCuda))
           {
@@ -3005,7 +3107,7 @@ namespace matchinglib
       {
           const int startIdx = i * batchSize;
           const int endIdx = std::min((i + 1u) * batchSize, extractionsCount);
-          threads.push_back(std::thread(std::bind(&getFeaturesAffineThreadFunc, startIdx, endIdx, indices_kp_, &imageMap_, kp_aff_detect_ptrs.at(i), kps_thread.at(i), descr_thread.at(i))));
+          threads.push_back(std::thread(std::bind(&getFeaturesAffineThreadFunc, startIdx, endIdx, indices_kp_, &imageMap_, kp_aff_detect_ptrs.at(i), kps_thread.at(i), descr_thread.at(i), (useCudaOpenCV || useAkazeCuda))));
       }
 
       for (auto &t : threads)
@@ -3035,19 +3137,22 @@ namespace matchinglib
                                    const std::unordered_map<int, std::pair<cv::Mat, cv::Mat>> *imageMap_threads, 
                                    cv::Ptr<cv::Feature2D> kp_detect_ptr, 
                                    std::shared_ptr<std::unordered_map<int, std::vector<cv::KeyPoint>>> keypoints, 
-                                   std::shared_ptr<std::unordered_map<int, cv::Mat>> descriptors)
+                                   std::shared_ptr<std::unordered_map<int, cv::Mat>> descriptors,
+                                   const bool useCuda)
   {
       for (auto i = startIdx; i < endIdx; ++i)
       {
           const std::pair<string, int> idx = indices_kp_threads.at(i);
           const int img_idx = idx.second;
 #ifdef WITH_AKAZE_CUDA
-          std::string info = std::to_string(img_idx);
-          if (std::get<0>(idx).compare("AKAZE") == 0)
-          {
-              kp_detect_ptr.dynamicCast<matchinglib::cuda::AffineFeature>()->getBackendPtr().dynamicCast<matchinglib::cuda::AKAZE>()->setImageInfo(info, false);
+          if(useCuda){
+            std::string info = std::to_string(img_idx);
+            if (std::get<0>(idx).compare("AKAZE") == 0)
+            {
+                kp_detect_ptr.dynamicCast<matchinglib::cuda::AffineFeature>()->getBackendPtr().dynamicCast<matchinglib::cuda::AKAZE>()->setImageInfo(info, false);
+            }
+            kp_detect_ptr.dynamicCast<matchinglib::cuda::AffineFeature>()->setImgInfoStr(info);
           }
-          kp_detect_ptr.dynamicCast<matchinglib::cuda::AffineFeature>()->setImgInfoStr(info);
 #endif
           descriptors->emplace(img_idx, cv::Mat());
           keypoints->emplace(img_idx, std::vector<cv::KeyPoint>());
